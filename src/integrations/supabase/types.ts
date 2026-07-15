@@ -30,6 +30,23 @@ export type RoleSlug =
 
 export type ProfileStatus = "active" | "suspended";
 export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
+export type SeasonStatus = "planning" | "open" | "closed" | "archived";
+export type OfferingStatus = "draft" | "open" | "closed";
+export type ClassStatus = "planning" | "open" | "closed";
+export type MeetingStatus = "scheduled" | "done" | "canceled";
+export type EnrollmentStatus =
+  | "active"
+  | "regularization"
+  | "approved"
+  | "failed"
+  | "canceled"
+  | "withdrawn";
+export type ImportStatus =
+  | "processing"
+  | "completed"
+  | "completed_with_errors"
+  | "failed";
+export type ImportRowStatus = "pending" | "success" | "error";
 
 export interface Database {
   public: {
@@ -38,6 +55,7 @@ export interface Database {
         Row: {
           id: string;
           full_name: string;
+          email: string | null;
           phone: string | null;
           birth_date: string | null;
           photo_url: string | null;
@@ -49,6 +67,7 @@ export interface Database {
         Insert: {
           id: string;
           full_name: string;
+          email?: string | null;
           phone?: string | null;
           birth_date?: string | null;
           photo_url?: string | null;
@@ -177,14 +196,432 @@ export interface Database {
           },
         ];
       };
+      volumes: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          order_index: number;
+          description: string | null;
+          presencial_hours: number;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          order_index: number;
+          description?: string | null;
+          presencial_hours?: number;
+          active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["volumes"]["Insert"]>;
+        Relationships: [];
+      };
+      volume_prerequisites: {
+        Row: {
+          volume_id: string;
+          prerequisite_volume_id: string;
+          created_at: string;
+        };
+        Insert: {
+          volume_id: string;
+          prerequisite_volume_id: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["volume_prerequisites"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "volume_prerequisites_volume_id_fkey";
+            columns: ["volume_id"];
+            isOneToOne: false;
+            referencedRelation: "volumes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volume_prerequisites_prerequisite_volume_id_fkey";
+            columns: ["prerequisite_volume_id"];
+            isOneToOne: false;
+            referencedRelation: "volumes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      prerequisite_exceptions: {
+        Row: {
+          id: string;
+          student_id: string;
+          volume_id: string;
+          missing_prerequisite_volume_id: string;
+          justification: string;
+          authorized_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          volume_id: string;
+          missing_prerequisite_volume_id: string;
+          justification: string;
+          authorized_by: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["prerequisite_exceptions"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      seasons: {
+        Row: {
+          id: string;
+          name: string;
+          starts_on: string | null;
+          ends_on: string | null;
+          status: SeasonStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          starts_on?: string | null;
+          ends_on?: string | null;
+          status?: SeasonStatus;
+        };
+        Update: Partial<Database["public"]["Tables"]["seasons"]["Insert"]>;
+        Relationships: [];
+      };
+      class_templates: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          weekdays: string[];
+          start_time: string;
+          end_time: string;
+          break_minutes: number;
+          meetings_count: number;
+          academic_minutes_per_meeting: number;
+          total_academic_minutes: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          weekdays: string[];
+          start_time: string;
+          end_time: string;
+          break_minutes?: number;
+          meetings_count: number;
+          academic_minutes_per_meeting: number;
+          total_academic_minutes: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["class_templates"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      season_volume_offerings: {
+        Row: {
+          id: string;
+          season_id: string;
+          volume_id: string;
+          status: OfferingStatus;
+          assessment_open_at: string | null;
+          assessment_close_at: string | null;
+          recovery_open_at: string | null;
+          recovery_close_at: string | null;
+          academic_settings: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          season_id: string;
+          volume_id: string;
+          status?: OfferingStatus;
+          assessment_open_at?: string | null;
+          assessment_close_at?: string | null;
+          recovery_open_at?: string | null;
+          recovery_close_at?: string | null;
+          academic_settings?: Json;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["season_volume_offerings"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "season_volume_offerings_season_id_fkey";
+            columns: ["season_id"];
+            isOneToOne: false;
+            referencedRelation: "seasons";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "season_volume_offerings_volume_id_fkey";
+            columns: ["volume_id"];
+            isOneToOne: false;
+            referencedRelation: "volumes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      classes: {
+        Row: {
+          id: string;
+          season_volume_offering_id: string;
+          class_template_id: string;
+          name: string;
+          location: string | null;
+          capacity: number | null;
+          status: ClassStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          season_volume_offering_id: string;
+          class_template_id: string;
+          name: string;
+          location?: string | null;
+          capacity?: number | null;
+          status?: ClassStatus;
+        };
+        Update: Partial<Database["public"]["Tables"]["classes"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "classes_season_volume_offering_id_fkey";
+            columns: ["season_volume_offering_id"];
+            isOneToOne: false;
+            referencedRelation: "season_volume_offerings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "classes_class_template_id_fkey";
+            columns: ["class_template_id"];
+            isOneToOne: false;
+            referencedRelation: "class_templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      class_meetings: {
+        Row: {
+          id: string;
+          class_id: string;
+          sequence: number;
+          meeting_date: string | null;
+          start_time: string | null;
+          end_time: string | null;
+          break_minutes: number;
+          academic_minutes: number;
+          location: string | null;
+          status: MeetingStatus;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          class_id: string;
+          sequence: number;
+          meeting_date?: string | null;
+          start_time?: string | null;
+          end_time?: string | null;
+          break_minutes?: number;
+          academic_minutes: number;
+          location?: string | null;
+          status?: MeetingStatus;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["class_meetings"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "class_meetings_class_id_fkey";
+            columns: ["class_id"];
+            isOneToOne: false;
+            referencedRelation: "classes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      teacher_assignments: {
+        Row: {
+          id: string;
+          teacher_id: string;
+          class_id: string;
+          meeting_id: string | null;
+          function: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          teacher_id: string;
+          class_id: string;
+          meeting_id?: string | null;
+          function?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["teacher_assignments"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "teacher_assignments_class_id_fkey";
+            columns: ["class_id"];
+            isOneToOne: false;
+            referencedRelation: "classes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "teacher_assignments_meeting_id_fkey";
+            columns: ["meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "class_meetings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      enrollments: {
+        Row: {
+          id: string;
+          student_id: string;
+          season_volume_offering_id: string;
+          class_id: string;
+          status: EnrollmentStatus;
+          authorized_at: string;
+          authorized_by: string;
+          final_grade: number | null;
+          final_attendance_percent: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          season_volume_offering_id: string;
+          class_id: string;
+          status?: EnrollmentStatus;
+          authorized_by: string;
+          final_grade?: number | null;
+          final_attendance_percent?: number | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["enrollments"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_season_volume_offering_id_fkey";
+            columns: ["season_volume_offering_id"];
+            isOneToOne: false;
+            referencedRelation: "season_volume_offerings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "enrollments_class_id_fkey";
+            columns: ["class_id"];
+            isOneToOne: false;
+            referencedRelation: "classes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      imports: {
+        Row: {
+          id: string;
+          type: "students";
+          file_name: string;
+          status: ImportStatus;
+          total_rows: number;
+          success_rows: number;
+          error_rows: number;
+          season_volume_offering_id: string | null;
+          class_id: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          type?: "students";
+          file_name: string;
+          status?: ImportStatus;
+          total_rows?: number;
+          success_rows?: number;
+          error_rows?: number;
+          season_volume_offering_id?: string | null;
+          class_id?: string | null;
+          created_by: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["imports"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "imports_class_id_fkey";
+            columns: ["class_id"];
+            isOneToOne: false;
+            referencedRelation: "classes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      import_rows: {
+        Row: {
+          id: string;
+          import_id: string;
+          row_number: number;
+          raw_data: Json;
+          status: ImportRowStatus;
+          errors: string[];
+          created_user_id: string | null;
+          created_enrollment_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          import_id: string;
+          row_number: number;
+          raw_data: Json;
+          status?: ImportRowStatus;
+          errors?: string[];
+          created_user_id?: string | null;
+          created_enrollment_id?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["import_rows"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "import_rows_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: false;
+            referencedRelation: "imports";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_class_with_meetings: {
+        Args: {
+          p_season_volume_offering_id: string;
+          p_class_template_id: string;
+          p_name: string;
+          p_location?: string | null;
+          p_capacity?: number | null;
+        };
+        Returns: Database["public"]["Tables"]["classes"]["Row"];
+      };
+    };
     Enums: {
       role_slug: RoleSlug;
       profile_status: ProfileStatus;
       invitation_status: InvitationStatus;
     };
+    // Demais status (season/offering/class/meeting/enrollment/import) são
+    // `text` com `check` no banco (não enums Postgres nomeados) — ver
+    // migrations 00000000000015 a 00000000000018.
     CompositeTypes: Record<string, never>;
   };
 }

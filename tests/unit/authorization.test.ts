@@ -158,6 +158,59 @@ describe("camada de políticas tipada — src/authorization", () => {
   });
 });
 
+describe("políticas da Fase 2 — administração acadêmica", () => {
+  it("coordenação e admin gerenciam temporadas, ofertas, turmas e encontros; professor e aluno não", () => {
+    const coordinator = makeContext({
+      roles: ["coordinator"],
+      activeRole: "coordinator",
+    });
+    const admin = makeContext({ roles: ["admin"], activeRole: "admin" });
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+    const student = makeContext({ roles: ["student"], activeRole: "student" });
+
+    for (const check of [
+      { resource: "seasons", action: "manage" } as const,
+      { resource: "offerings", action: "manage" } as const,
+      { resource: "classes", action: "manage" } as const,
+      { resource: "class_meetings", action: "manage" } as const,
+      { resource: "teacher_assignments", action: "manage" } as const,
+    ]) {
+      expect(can(coordinator, check)).toBe(true);
+      expect(can(admin, check)).toBe(true);
+      expect(can(teacher, check)).toBe(false);
+      expect(can(student, check)).toBe(false);
+    }
+  });
+
+  it("exceção de pré-requisito só pode ser criada/lida por coordenação/admin", () => {
+    const coordinator = makeContext({
+      roles: ["coordinator"],
+      activeRole: "coordinator",
+    });
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+
+    expect(
+      can(coordinator, { resource: "prerequisite_exceptions", action: "create" }),
+    ).toBe(true);
+    expect(
+      can(teacher, { resource: "prerequisite_exceptions", action: "create" }),
+    ).toBe(false);
+  });
+
+  it("importação de planilha só pode ser feita por coordenação/admin", () => {
+    const admin = makeContext({ roles: ["admin"], activeRole: "admin" });
+    const contentEditor = makeContext({
+      roles: ["content_editor"],
+      activeRole: "content_editor",
+    });
+
+    expect(can(admin, { resource: "imports", action: "create" })).toBe(true);
+    expect(can(contentEditor, { resource: "imports", action: "create" })).toBe(
+      false,
+    );
+  });
+});
+
 describe("resolveActiveRole — seleção/troca de perfil ativo", () => {
   it("usa o cookie quando ele corresponde a um perfil real do usuário", () => {
     expect(resolveActiveRole(["student", "teacher"], "teacher")).toBe(

@@ -2,12 +2,13 @@
 
 Ambiente digital de apoio ao ensino e à gestão acadêmica da **Escola
 Makários** (Igreja Emaús). Ver [`PLANO_TECNICO.md`](./PLANO_TECNICO.md)
-para arquitetura, stack, modelo de dados e roadmap completos, e
-[`FASE_1_RELATORIO.md`](./FASE_1_RELATORIO.md) para o que foi entregue
-nesta fase.
+para arquitetura, stack, modelo de dados e roadmap completos, e os
+relatórios de cada fase entregue:
+[`FASE_1_RELATORIO.md`](./FASE_1_RELATORIO.md) (Fundação),
+[`FASE_2_RELATORIO.md`](./FASE_2_RELATORIO.md) (Administração acadêmica).
 
-**Status:** Fase 1 (Fundação) entregue — aguardando validação antes da
-Fase 2.
+**Status:** Fase 2 (Administração acadêmica) entregue — aguardando
+validação antes da Fase 3.
 
 ## Stack
 

@@ -35,6 +35,16 @@ export type PermissionCheck =
   | { resource: "invitations"; action: "read" }
   | { resource: "audit_logs"; action: "read" }
   | { resource: "enrollments"; action: "manage" }
+  | { resource: "volumes"; action: "manage" }
+  | { resource: "seasons"; action: "manage" }
+  | { resource: "offerings"; action: "manage" }
+  | { resource: "classes"; action: "manage" }
+  | { resource: "class_meetings"; action: "manage" }
+  | { resource: "teacher_assignments"; action: "manage" }
+  | { resource: "prerequisite_exceptions"; action: "create" }
+  | { resource: "prerequisite_exceptions"; action: "read" }
+  | { resource: "imports"; action: "create" }
+  | { resource: "imports"; action: "read" }
   | { resource: "area"; action: "student" }
   | { resource: "area"; action: "teacher" }
   | { resource: "area"; action: "coordination" }
