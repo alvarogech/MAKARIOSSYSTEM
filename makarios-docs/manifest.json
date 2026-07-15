@@ -1,0 +1,21 @@
+{
+  "project": "Plataforma Makários",
+  "institution": "Igreja Emaús",
+  "season": "2026.2",
+  "documents": [
+    "00-README.md",
+    "01-visao-produto-e-escopo.md",
+    "02-regras-finais-de-negocio.md",
+    "03-perfis-e-permissoes.md",
+    "04-mapa-de-telas-e-jornadas.md",
+    "05-modelo-de-dados-conceitual.md",
+    "06-integracoes-e-requisitos-tecnicos.md",
+    "07-mvp-roadmap-e-criterios-de-aceitacao.md",
+    "08-dados-iniciais-temporada-2026-2.md"
+  ],
+  "priority": [
+    "02-regras-finais-de-negocio.md",
+    "08-dados-iniciais-temporada-2026-2.md",
+    "demais documentos"
+  ]
+}
