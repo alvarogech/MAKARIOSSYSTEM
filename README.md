@@ -6,10 +6,11 @@ para arquitetura, stack, modelo de dados e roadmap completos, e os
 relatórios de cada fase entregue:
 [`FASE_1_RELATORIO.md`](./FASE_1_RELATORIO.md) (Fundação),
 [`FASE_2_RELATORIO.md`](./FASE_2_RELATORIO.md) (Administração acadêmica),
-[`FASE_3_RELATORIO.md`](./FASE_3_RELATORIO.md) (Conteúdo e área do aluno).
+[`FASE_3_RELATORIO.md`](./FASE_3_RELATORIO.md) (Conteúdo e área do aluno),
+[`FASE_4_RELATORIO.md`](./FASE_4_RELATORIO.md) (Área do professor).
 
-**Status:** Fase 3 (Conteúdo e área do aluno) entregue — aguardando
-validação antes da Fase 4.
+**Status:** Fase 4 (Área do professor) entregue — aguardando validação
+antes da Fase 5.
 
 ## Stack
 

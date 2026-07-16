@@ -42,6 +42,13 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "question_bank:manage": ["coordinator", "admin", "content_editor"],
   "activities:manage": ["coordinator", "admin", "content_editor"],
   "release_rules:manage": ["coordinator", "admin", "content_editor"],
+  // Escopo por turma (professor só na própria) é responsabilidade da RLS
+  // (is_teacher_assigned_to_class) — esta checagem só resolve "o perfil
+  // ativo tem essa capacidade em geral", não "nesta turma específica".
+  "attendance:record": ["teacher", "coordinator", "admin"],
+  "attendance:correct": ["coordinator", "admin"],
+  "class_reports:submit": ["teacher", "coordinator", "admin"],
+  "class_reports:read": ["coordinator", "admin"],
   "area:student": ["student"],
   "area:teacher": ["teacher"],
   "area:coordination": ["coordinator", "admin"],

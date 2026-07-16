@@ -75,6 +75,14 @@ export type QuestionType =
 export type QuestionDifficulty = "facil" | "medio" | "dificil";
 export type ContentAuthoringStatus = "draft" | "published" | "archived";
 export type ActivityAttemptStatus = "in_progress" | "submitted";
+export type AttendanceStatus =
+  | "presente"
+  | "ausente"
+  | "atrasado"
+  | "presenca_parcial"
+  | "falta_justificada"
+  | "reposicao"
+  | "pendente";
 
 export interface Database {
   public: {
@@ -1029,6 +1037,124 @@ export interface Database {
           },
         ];
       };
+      attendance_records: {
+        Row: {
+          id: string;
+          enrollment_id: string;
+          meeting_id: string;
+          status: AttendanceStatus;
+          recognized_minutes: number;
+          observation: string | null;
+          recorded_by: string;
+          recorded_at: string;
+          finalized_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          enrollment_id: string;
+          meeting_id: string;
+          status?: AttendanceStatus;
+          recognized_minutes?: number;
+          observation?: string | null;
+          recorded_by: string;
+          finalized_at?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["attendance_records"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_enrollment_id_fkey";
+            columns: ["enrollment_id"];
+            isOneToOne: false;
+            referencedRelation: "enrollments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "attendance_records_meeting_id_fkey";
+            columns: ["meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "class_meetings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      attendance_change_history: {
+        Row: {
+          id: string;
+          attendance_record_id: string;
+          previous_status: AttendanceStatus | null;
+          new_status: AttendanceStatus | null;
+          previous_minutes: number | null;
+          new_minutes: number | null;
+          changed_by: string | null;
+          justification: string | null;
+          changed_at: string;
+        };
+        Insert: {
+          id?: string;
+          attendance_record_id: string;
+          previous_status?: AttendanceStatus | null;
+          new_status?: AttendanceStatus | null;
+          previous_minutes?: number | null;
+          new_minutes?: number | null;
+          changed_by?: string | null;
+          justification?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["attendance_change_history"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "attendance_change_history_attendance_record_id_fkey";
+            columns: ["attendance_record_id"];
+            isOneToOne: false;
+            referencedRelation: "attendance_records";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      class_meeting_reports: {
+        Row: {
+          id: string;
+          meeting_id: string;
+          teacher_id: string;
+          content_completed: string | null;
+          plan_changed: boolean;
+          plan_change_notes: string | null;
+          recurring_questions: string | null;
+          occurrences: string | null;
+          students_needing_attention: string | null;
+          observation: string | null;
+          submitted_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_id: string;
+          teacher_id: string;
+          content_completed?: string | null;
+          plan_changed?: boolean;
+          plan_change_notes?: string | null;
+          recurring_questions?: string | null;
+          occurrences?: string | null;
+          students_needing_attention?: string | null;
+          observation?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["class_meeting_reports"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "class_meeting_reports_meeting_id_fkey";
+            columns: ["meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "class_meetings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1053,6 +1179,21 @@ export interface Database {
       submit_activity_attempt: {
         Args: { p_attempt_id: string; p_answers: Json };
         Returns: Json;
+      };
+      finalize_attendance: {
+        Args: { p_meeting_id: string };
+        Returns: undefined;
+      };
+      save_attendance_row: {
+        Args: {
+          p_meeting_id: string;
+          p_enrollment_id: string;
+          p_status: AttendanceStatus;
+          p_recognized_minutes: number;
+          p_observation?: string | null;
+          p_justification?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["attendance_records"]["Row"];
       };
     };
     Enums: {

@@ -255,6 +255,47 @@ describe("políticas da Fase 3 — conteúdo e exercícios", () => {
   });
 });
 
+describe("políticas da Fase 4 — frequência e relatório pós-aula", () => {
+  it("professor registra frequência, mas não corrige (doc 03 §7)", () => {
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+
+    expect(can(teacher, { resource: "attendance", action: "record" })).toBe(true);
+    expect(can(teacher, { resource: "attendance", action: "correct" })).toBe(false);
+  });
+
+  it("coordenação e admin registram e corrigem frequência", () => {
+    const coordinator = makeContext({
+      roles: ["coordinator"],
+      activeRole: "coordinator",
+    });
+    const admin = makeContext({ roles: ["admin"], activeRole: "admin" });
+
+    for (const person of [coordinator, admin]) {
+      expect(can(person, { resource: "attendance", action: "record" })).toBe(true);
+      expect(can(person, { resource: "attendance", action: "correct" })).toBe(true);
+    }
+  });
+
+  it("aluno nunca registra nem corrige frequência", () => {
+    const student = makeContext({ roles: ["student"], activeRole: "student" });
+
+    expect(can(student, { resource: "attendance", action: "record" })).toBe(false);
+    expect(can(student, { resource: "attendance", action: "correct" })).toBe(false);
+  });
+
+  it("professor envia relatório pós-aula; só coordenação/admin têm a leitura consolidada", () => {
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+    const coordinator = makeContext({
+      roles: ["coordinator"],
+      activeRole: "coordinator",
+    });
+
+    expect(can(teacher, { resource: "class_reports", action: "submit" })).toBe(true);
+    expect(can(teacher, { resource: "class_reports", action: "read" })).toBe(false);
+    expect(can(coordinator, { resource: "class_reports", action: "read" })).toBe(true);
+  });
+});
+
 describe("resolveActiveRole — seleção/troca de perfil ativo", () => {
   it("usa o cookie quando ele corresponde a um perfil real do usuário", () => {
     expect(resolveActiveRole(["student", "teacher"], "teacher")).toBe(

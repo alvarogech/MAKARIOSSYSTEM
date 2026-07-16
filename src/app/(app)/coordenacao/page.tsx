@@ -27,6 +27,11 @@ const SECTIONS = [
     title: "Importar alunos",
     description: "Importação em lote por planilha (.csv/.xlsx), com relatório por linha.",
   },
+  {
+    href: "/coordenacao/relatorios",
+    title: "Relatórios pós-aula",
+    description: "O que os professores reportaram após cada encontro.",
+  },
 ];
 
 export default async function CoordenacaoAreaPage() {

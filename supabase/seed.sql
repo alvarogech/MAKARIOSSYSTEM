@@ -400,3 +400,59 @@ begin
       (v_activity_id, v_question_tf_id, 2);
   end if;
 end $$;
+
+-- =============================================================================
+-- Fase 4 — Área do professor: frequência de exemplo no primeiro encontro
+-- da turma terça/quinta de Essência — um caso de presença integral e um
+-- de presença parcial, para exercitar o cálculo de minutos reconhecidos.
+-- =============================================================================
+
+do $$
+declare
+  v_teacher_id uuid := '33333333-3333-3333-3333-333333333333';
+  v_student_id uuid := '44444444-4444-4444-4444-444444444444';
+  v_multi_role_id uuid := '66666666-6666-6666-6666-666666666666';
+
+  v_essencia_id uuid;
+  v_essencia_offering_id uuid;
+  v_class_tq_id uuid;
+  v_meeting1_id uuid;
+  v_enrollment_student_id uuid;
+  v_enrollment_multi_id uuid;
+begin
+  select id into v_essencia_id from public.volumes where slug = 'essencia';
+
+  select o.id into v_essencia_offering_id
+  from public.season_volume_offerings o
+  join public.seasons s on s.id = o.season_id
+  where o.volume_id = v_essencia_id and s.name = '2026.2';
+
+  select c.id into v_class_tq_id
+  from public.classes c
+  join public.class_templates t on t.id = c.class_template_id
+  where c.season_volume_offering_id = v_essencia_offering_id and t.slug = 'terca_quinta';
+
+  select id into v_meeting1_id
+  from public.class_meetings
+  where class_id = v_class_tq_id and sequence = 1;
+
+  select id into v_enrollment_student_id
+  from public.enrollments
+  where student_id = v_student_id and season_volume_offering_id = v_essencia_offering_id;
+
+  select id into v_enrollment_multi_id
+  from public.enrollments
+  where student_id = v_multi_role_id and season_volume_offering_id = v_essencia_offering_id;
+
+  if v_meeting1_id is not null and v_enrollment_student_id is not null then
+    insert into public.attendance_records (enrollment_id, meeting_id, status, recognized_minutes, recorded_by)
+    values (v_enrollment_student_id, v_meeting1_id, 'presente', 120, v_teacher_id)
+    on conflict (enrollment_id, meeting_id) do nothing;
+  end if;
+
+  if v_meeting1_id is not null and v_enrollment_multi_id is not null then
+    insert into public.attendance_records (enrollment_id, meeting_id, status, recognized_minutes, observation, recorded_by)
+    values (v_enrollment_multi_id, v_meeting1_id, 'presenca_parcial', 60, 'Chegou no segundo bloco.', v_teacher_id)
+    on conflict (enrollment_id, meeting_id) do nothing;
+  end if;
+end $$;
