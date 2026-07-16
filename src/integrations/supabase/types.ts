@@ -48,6 +48,34 @@ export type ImportStatus =
   | "failed";
 export type ImportRowStatus = "pending" | "success" | "error";
 
+export type ContentType = "video" | "file" | "text" | "link";
+export type ContentClassification =
+  | "obrigatorio"
+  | "complementar"
+  | "preparatorio"
+  | "aprofundamento"
+  | "revisao"
+  | "exclusivo_professor"
+  | "exclusivo_coordenacao"
+  | "exclusivo_administracao";
+export type ContentStatus = "draft" | "published" | "archived";
+export type ReleaseRuleType =
+  | "immediate"
+  | "date"
+  | "manual"
+  | "after_content"
+  | "after_activity"
+  | "after_meeting";
+export type QuestionType =
+  | "multiple_choice"
+  | "true_false"
+  | "matching"
+  | "ordering"
+  | "fill_in_blank";
+export type QuestionDifficulty = "facil" | "medio" | "dificil";
+export type ContentAuthoringStatus = "draft" | "published" | "archived";
+export type ActivityAttemptStatus = "in_progress" | "submitted";
+
 export interface Database {
   public: {
     Tables: {
@@ -600,6 +628,407 @@ export interface Database {
           },
         ];
       };
+      modules: {
+        Row: {
+          id: string;
+          volume_id: string;
+          name: string;
+          order_index: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          volume_id: string;
+          name: string;
+          order_index: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["modules"]["Insert"]>;
+        Relationships: [];
+      };
+      lessons: {
+        Row: {
+          id: string;
+          module_id: string;
+          name: string;
+          objectives: string | null;
+          order_index: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          module_id: string;
+          name: string;
+          objectives?: string | null;
+          order_index: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["lessons"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "lessons_module_id_fkey";
+            columns: ["module_id"];
+            isOneToOne: false;
+            referencedRelation: "modules";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      contents: {
+        Row: {
+          id: string;
+          lesson_id: string;
+          volume_id: string;
+          title: string;
+          description: string | null;
+          type: ContentType;
+          classification: ContentClassification;
+          estimated_minutes: number | null;
+          order_index: number;
+          status: ContentStatus;
+          allow_download: boolean;
+          body: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lesson_id: string;
+          volume_id: string;
+          title: string;
+          description?: string | null;
+          type: ContentType;
+          classification?: ContentClassification;
+          estimated_minutes?: number | null;
+          order_index: number;
+          status?: ContentStatus;
+          allow_download?: boolean;
+          body?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["contents"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "contents_lesson_id_fkey";
+            columns: ["lesson_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      video_contents: {
+        Row: {
+          content_id: string;
+          youtube_video_id: string;
+          min_percent: number;
+          duration_seconds: number | null;
+          thumbnail_url: string | null;
+        };
+        Insert: {
+          content_id: string;
+          youtube_video_id: string;
+          min_percent?: number;
+          duration_seconds?: number | null;
+          thumbnail_url?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["video_contents"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "video_contents_content_id_fkey";
+            columns: ["content_id"];
+            isOneToOne: true;
+            referencedRelation: "contents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      content_files: {
+        Row: {
+          id: string;
+          content_id: string;
+          file_name: string;
+          file_url: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          content_id: string;
+          file_name: string;
+          file_url: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["content_files"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "content_files_content_id_fkey";
+            columns: ["content_id"];
+            isOneToOne: false;
+            referencedRelation: "contents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      question_bank: {
+        Row: {
+          id: string;
+          volume_id: string | null;
+          module_id: string | null;
+          lesson_id: string | null;
+          type: QuestionType;
+          prompt: string;
+          explanation: string | null;
+          bible_reference: string | null;
+          topic: string | null;
+          difficulty: QuestionDifficulty;
+          status: ContentAuthoringStatus;
+          author_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          volume_id?: string | null;
+          module_id?: string | null;
+          lesson_id?: string | null;
+          type: QuestionType;
+          prompt: string;
+          explanation?: string | null;
+          bible_reference?: string | null;
+          topic?: string | null;
+          difficulty?: QuestionDifficulty;
+          status?: ContentAuthoringStatus;
+          author_id?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["question_bank"]["Insert"]
+        >;
+        Relationships: [];
+      };
+      question_options: {
+        Row: {
+          id: string;
+          question_id: string;
+          label: string;
+          is_correct: boolean;
+          order_index: number;
+        };
+        Insert: {
+          id?: string;
+          question_id: string;
+          label: string;
+          is_correct?: boolean;
+          order_index: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["question_options"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "question_options_question_id_fkey";
+            columns: ["question_id"];
+            isOneToOne: false;
+            referencedRelation: "question_bank";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      activities: {
+        Row: {
+          id: string;
+          lesson_id: string;
+          title: string;
+          instructions: string | null;
+          max_attempts: number | null;
+          blocks_progress: boolean;
+          show_feedback_after_submit: boolean;
+          status: ContentAuthoringStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lesson_id: string;
+          title: string;
+          instructions?: string | null;
+          max_attempts?: number | null;
+          blocks_progress?: boolean;
+          show_feedback_after_submit?: boolean;
+          status?: ContentAuthoringStatus;
+        };
+        Update: Partial<Database["public"]["Tables"]["activities"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "activities_lesson_id_fkey";
+            columns: ["lesson_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      activity_questions: {
+        Row: {
+          activity_id: string;
+          question_id: string;
+          order_index: number;
+        };
+        Insert: {
+          activity_id: string;
+          question_id: string;
+          order_index: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["activity_questions"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "activity_questions_activity_id_fkey";
+            columns: ["activity_id"];
+            isOneToOne: false;
+            referencedRelation: "activities";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "activity_questions_question_id_fkey";
+            columns: ["question_id"];
+            isOneToOne: false;
+            referencedRelation: "question_bank";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      activity_attempts: {
+        Row: {
+          id: string;
+          enrollment_id: string;
+          activity_id: string;
+          started_at: string;
+          submitted_at: string | null;
+          correct_count: number | null;
+          total_count: number | null;
+          status: ActivityAttemptStatus;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          enrollment_id: string;
+          activity_id: string;
+          status?: ActivityAttemptStatus;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["activity_attempts"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "activity_attempts_activity_id_fkey";
+            columns: ["activity_id"];
+            isOneToOne: false;
+            referencedRelation: "activities";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      activity_answers: {
+        Row: {
+          id: string;
+          attempt_id: string;
+          question_id: string;
+          selected_option_ids: string[];
+          is_correct: boolean | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          attempt_id: string;
+          question_id: string;
+          selected_option_ids?: string[];
+          is_correct?: boolean | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["activity_answers"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "activity_answers_attempt_id_fkey";
+            columns: ["attempt_id"];
+            isOneToOne: false;
+            referencedRelation: "activity_attempts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      release_rules: {
+        Row: {
+          id: string;
+          content_id: string;
+          type: ReleaseRuleType;
+          release_at: string | null;
+          required_content_id: string | null;
+          required_activity_id: string | null;
+          required_meeting_id: string | null;
+          released_manually: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          content_id: string;
+          type: ReleaseRuleType;
+          release_at?: string | null;
+          required_content_id?: string | null;
+          required_activity_id?: string | null;
+          required_meeting_id?: string | null;
+          released_manually?: boolean;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["release_rules"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "release_rules_content_id_fkey";
+            columns: ["content_id"];
+            isOneToOne: false;
+            referencedRelation: "contents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      content_progress: {
+        Row: {
+          id: string;
+          enrollment_id: string;
+          content_id: string;
+          started_at: string | null;
+          last_position_seconds: number | null;
+          percent: number;
+          completed_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          enrollment_id: string;
+          content_id: string;
+          started_at?: string | null;
+          last_position_seconds?: number | null;
+          percent?: number;
+          completed_at?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["content_progress"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "content_progress_content_id_fkey";
+            columns: ["content_id"];
+            isOneToOne: false;
+            referencedRelation: "contents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -612,6 +1041,18 @@ export interface Database {
           p_capacity?: number | null;
         };
         Returns: Database["public"]["Tables"]["classes"]["Row"];
+      };
+      start_activity_attempt: {
+        Args: { p_activity_id: string };
+        Returns: Database["public"]["Tables"]["activity_attempts"]["Row"];
+      };
+      get_activity_questions_for_attempt: {
+        Args: { p_attempt_id: string };
+        Returns: Json;
+      };
+      submit_activity_attempt: {
+        Args: { p_attempt_id: string; p_answers: Json };
+        Returns: Json;
       };
     };
     Enums: {

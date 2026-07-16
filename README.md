@@ -5,10 +5,11 @@ Makários** (Igreja Emaús). Ver [`PLANO_TECNICO.md`](./PLANO_TECNICO.md)
 para arquitetura, stack, modelo de dados e roadmap completos, e os
 relatórios de cada fase entregue:
 [`FASE_1_RELATORIO.md`](./FASE_1_RELATORIO.md) (Fundação),
-[`FASE_2_RELATORIO.md`](./FASE_2_RELATORIO.md) (Administração acadêmica).
+[`FASE_2_RELATORIO.md`](./FASE_2_RELATORIO.md) (Administração acadêmica),
+[`FASE_3_RELATORIO.md`](./FASE_3_RELATORIO.md) (Conteúdo e área do aluno).
 
-**Status:** Fase 2 (Administração acadêmica) entregue — aguardando
-validação antes da Fase 3.
+**Status:** Fase 3 (Conteúdo e área do aluno) entregue — aguardando
+validação antes da Fase 4.
 
 ## Stack
 

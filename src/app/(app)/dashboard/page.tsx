@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { can, getAuthContext } from "@/authorization";
 import { ROLE_LABELS } from "@/lib/roleLabels";
 import { Card } from "@/components/ui/Card";
+import { buttonVariants } from "@/components/ui/Button";
 import { CreateInvitationForm } from "@/modules/auth/components/CreateInvitationForm";
 
 export const metadata: Metadata = { title: "Início" };
@@ -19,6 +21,7 @@ export default async function DashboardPage() {
     resource: "invitations",
     action: "create",
   });
+  const canManageContent = can(authContext, { resource: "content", action: "manage" });
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,11 +34,39 @@ export default async function DashboardPage() {
           <strong>{ROLE_LABELS[authContext.activeRole]}</strong>.
         </p>
         <p className="mt-3 text-sm text-neutral-500">
-          Esta é a Fase 1 (Fundação) da Plataforma Makários: autenticação,
-          perfis e permissões. Volumes, turmas, conteúdo, avaliações,
-          frequência e certificados chegam nas próximas fases.
+          Fase 3 da Plataforma Makários: conteúdo, vídeos, exercícios e
+          progresso do aluno. Frequência, avaliações formais, reposições e
+          certificados chegam nas próximas fases.
         </p>
       </Card>
+
+      {authContext.activeRole === "student" ? (
+        <Card>
+          <h2 className="text-lg font-semibold text-neutral-900">Meus estudos</h2>
+          <div className="mt-3 flex gap-3">
+            <Link href="/meus-volumes" className={buttonVariants({ variant: "primary" })}>
+              Meus volumes
+            </Link>
+            <Link href="/agenda" className={buttonVariants({ variant: "secondary" })}>
+              Agenda
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
+      {canManageContent ? (
+        <Card>
+          <h2 className="text-lg font-semibold text-neutral-900">Conteúdo</h2>
+          <div className="mt-3 flex gap-3">
+            <Link href="/conteudo" className={buttonVariants({ variant: "primary" })}>
+              Estúdio de conteúdo
+            </Link>
+            <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
+              Banco de questões
+            </Link>
+          </div>
+        </Card>
+      ) : null}
 
       {canInvite ? (
         <Card>

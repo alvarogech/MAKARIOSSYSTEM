@@ -211,6 +211,50 @@ describe("políticas da Fase 2 — administração acadêmica", () => {
   });
 });
 
+describe("políticas da Fase 3 — conteúdo e exercícios", () => {
+  it("editor de conteúdo gerencia conteúdo, banco de questões, exercícios e regras de liberação", () => {
+    const editor = makeContext({
+      roles: ["content_editor"],
+      activeRole: "content_editor",
+    });
+
+    for (const check of [
+      { resource: "content", action: "manage" } as const,
+      { resource: "question_bank", action: "manage" } as const,
+      { resource: "activities", action: "manage" } as const,
+      { resource: "release_rules", action: "manage" } as const,
+    ]) {
+      expect(can(editor, check)).toBe(true);
+    }
+  });
+
+  it("coordenação e admin também gerenciam conteúdo (não é exclusividade do editor)", () => {
+    const coordinator = makeContext({
+      roles: ["coordinator"],
+      activeRole: "coordinator",
+    });
+    const admin = makeContext({ roles: ["admin"], activeRole: "admin" });
+
+    expect(can(coordinator, { resource: "content", action: "manage" })).toBe(true);
+    expect(can(admin, { resource: "content", action: "manage" })).toBe(true);
+  });
+
+  it("professor não edita conteúdo oficial nem o banco de questões (doc 03 §3)", () => {
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+
+    expect(can(teacher, { resource: "content", action: "manage" })).toBe(false);
+    expect(can(teacher, { resource: "question_bank", action: "manage" })).toBe(false);
+  });
+
+  it("aluno não gerencia conteúdo, exercícios nem banco de questões", () => {
+    const student = makeContext({ roles: ["student"], activeRole: "student" });
+
+    expect(can(student, { resource: "content", action: "manage" })).toBe(false);
+    expect(can(student, { resource: "activities", action: "manage" })).toBe(false);
+    expect(can(student, { resource: "question_bank", action: "manage" })).toBe(false);
+  });
+});
+
 describe("resolveActiveRole — seleção/troca de perfil ativo", () => {
   it("usa o cookie quando ele corresponde a um perfil real do usuário", () => {
     expect(resolveActiveRole(["student", "teacher"], "teacher")).toBe(

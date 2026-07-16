@@ -279,3 +279,124 @@ begin
   values (v_multi_role_id, v_caminho_offering_id, v_class_caminho_tq_id, v_admin_id)
   on conflict (student_id, season_volume_offering_id) do nothing;
 end $$;
+
+-- =============================================================================
+-- Fase 3 — Conteúdo e área do aluno: um módulo, duas aulas, conteúdo
+-- (vídeo obrigatório + texto complementar) e um exercício de exemplo em
+-- Essência, para o aluno de teste conseguir navegar de ponta a ponta.
+--
+-- O ID de vídeo do YouTube usado aqui é um placeholder técnico só para
+-- exercitar o player e o registro de progresso em ambiente local — não
+-- corresponde a nenhum conteúdo real da Escola Makários (que ainda não
+-- foi produzido/entregue, conforme doc 08 §14).
+-- =============================================================================
+
+do $$
+declare
+  v_essencia_id uuid;
+  v_editor_id uuid := '55555555-5555-5555-5555-555555555555';
+
+  v_module_id uuid;
+  v_lesson1_id uuid;
+  v_lesson2_id uuid;
+  v_content_video_id uuid;
+  v_content_text_id uuid;
+  v_activity_id uuid;
+  v_question_mc_id uuid;
+  v_question_tf_id uuid;
+begin
+  select id into v_essencia_id from public.volumes where slug = 'essencia';
+
+  select id into v_module_id from public.modules where volume_id = v_essencia_id and order_index = 1;
+  if v_module_id is null then
+    insert into public.modules (volume_id, name, order_index)
+    values (v_essencia_id, 'Módulo 1 — Fundamentos', 1)
+    returning id into v_module_id;
+  end if;
+
+  select id into v_lesson1_id from public.lessons where module_id = v_module_id and order_index = 1;
+  if v_lesson1_id is null then
+    insert into public.lessons (module_id, name, objectives, order_index)
+    values (v_module_id, 'Aula 1 — Introdução', 'Compreender o propósito do volume Essência.', 1)
+    returning id into v_lesson1_id;
+  end if;
+
+  select id into v_lesson2_id from public.lessons where module_id = v_module_id and order_index = 2;
+  if v_lesson2_id is null then
+    insert into public.lessons (module_id, name, objectives, order_index)
+    values (v_module_id, 'Aula 2 — Aprofundamento', 'Fixar o conteúdo da Aula 1.', 2)
+    returning id into v_lesson2_id;
+  end if;
+
+  -- Conteúdo obrigatório de vídeo na Aula 1, já publicado.
+  select id into v_content_video_id from public.contents where lesson_id = v_lesson1_id and order_index = 1;
+  if v_content_video_id is null then
+    insert into public.contents (lesson_id, volume_id, title, description, type, classification, estimated_minutes, order_index, status)
+    values (v_lesson1_id, v_essencia_id, 'Vídeo — O que é a Escola Makários', 'Vídeo de abertura do volume Essência.', 'video', 'obrigatorio', 12, 1, 'published')
+    returning id into v_content_video_id;
+
+    insert into public.video_contents (content_id, youtube_video_id, min_percent)
+    values (v_content_video_id, 'dQw4w9WgXcQ', 80);
+
+    insert into public.release_rules (content_id, type)
+    values (v_content_video_id, 'immediate');
+  end if;
+
+  -- Conteúdo complementar de texto na Aula 2, liberado só após o vídeo da
+  -- Aula 1 ser concluído — demonstra a regra after_content na prática.
+  select id into v_content_text_id from public.contents where lesson_id = v_lesson2_id and order_index = 1;
+  if v_content_text_id is null then
+    insert into public.contents (lesson_id, volume_id, title, type, classification, order_index, status, body)
+    values (
+      v_lesson2_id, v_essencia_id, 'Leitura complementar — Para refletir', 'text', 'complementar', 1, 'published',
+      'Texto fictício de apoio à Aula 2. Substituir pelo conteúdo real quando disponível.'
+    )
+    returning id into v_content_text_id;
+
+    insert into public.release_rules (content_id, type, required_content_id)
+    values (v_content_text_id, 'after_content', v_content_video_id);
+  end if;
+
+  -- Exercício de fixação na Aula 1, com uma questão de múltipla escolha e
+  -- uma de verdadeiro/falso — nunca vale nota.
+  select id into v_activity_id from public.activities where lesson_id = v_lesson1_id limit 1;
+  if v_activity_id is null then
+    insert into public.activities (lesson_id, title, instructions, show_feedback_after_submit, status)
+    values (v_lesson1_id, 'Exercício — Aula 1', 'Responda para fixar o conteúdo. Não vale nota.', true, 'published')
+    returning id into v_activity_id;
+
+    insert into public.question_bank (volume_id, lesson_id, type, prompt, explanation, difficulty, author_id, status)
+    values (
+      v_essencia_id, v_lesson1_id, 'multiple_choice',
+      'A Escola Makários busca, sobretudo, formar:',
+      'Makários remete a "filhos bem-aventurados" — o propósito é formação de caráter e vida cristã prática.',
+      'facil', v_editor_id, 'published'
+    )
+    returning id into v_question_mc_id;
+
+    insert into public.question_options (question_id, label, is_correct, order_index)
+    values
+      (v_question_mc_id, 'Caráter e vida cristã prática', true, 1),
+      (v_question_mc_id, 'Apenas conhecimento teológico teórico', false, 2),
+      (v_question_mc_id, 'Habilidades administrativas', false, 3);
+
+    insert into public.question_bank (volume_id, lesson_id, type, prompt, explanation, difficulty, author_id, status)
+    values (
+      v_essencia_id, v_lesson1_id, 'true_false',
+      'A plataforma substitui as aulas presenciais da Escola Makários.',
+      'A plataforma é um apoio ao ensino presencial — nunca o substitui (doc 01 §2).',
+      'facil', v_editor_id, 'published'
+    )
+    returning id into v_question_tf_id;
+
+    insert into public.question_options (question_id, label, is_correct, order_index)
+    values
+      (v_question_tf_id, 'Verdadeiro', false, 1),
+      (v_question_tf_id, 'Falso', true, 2);
+
+    insert into public.activity_questions (activity_id, question_id, order_index)
+    values
+      (v_activity_id, v_question_mc_id, 1),
+      (v_activity_id, v_question_tf_id, 2);
+  end if;
+end $$;
