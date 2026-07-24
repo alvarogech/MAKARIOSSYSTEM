@@ -7,10 +7,11 @@ relatórios de cada fase entregue:
 [`FASE_1_RELATORIO.md`](./FASE_1_RELATORIO.md) (Fundação),
 [`FASE_2_RELATORIO.md`](./FASE_2_RELATORIO.md) (Administração acadêmica),
 [`FASE_3_RELATORIO.md`](./FASE_3_RELATORIO.md) (Conteúdo e área do aluno),
-[`FASE_4_RELATORIO.md`](./FASE_4_RELATORIO.md) (Área do professor).
+[`FASE_4_RELATORIO.md`](./FASE_4_RELATORIO.md) (Área do professor),
+[`FASE_5_RELATORIO.md`](./FASE_5_RELATORIO.md) (Avaliações e recuperação).
 
-**Status:** Fase 4 (Área do professor) entregue — aguardando validação
-antes da Fase 5.
+**Status:** Fase 5 (Avaliações e recuperação) entregue — aguardando
+validação antes da Fase 6.
 
 ## Stack
 

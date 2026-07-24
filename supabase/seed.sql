@@ -456,3 +456,154 @@ begin
     on conflict (enrollment_id, meeting_id) do nothing;
   end if;
 end $$;
+
+-- =============================================================================
+-- Fase 5 — Avaliações e recuperação: avaliação final e recuperação de
+-- exemplo em Essência, com 20 questões fictícias cada (conjunto
+-- disjunto), publicadas (conjunto de elegíveis já congelado) para dar
+-- para testar o fluxo inteiro localmente. Prompts e alternativas são
+-- deliberadamente genéricos/fictícios — nunca conteúdo teológico real da
+-- Escola Makários, que ainda não foi entregue (doc 08 §14).
+-- =============================================================================
+
+do $$
+declare
+  v_admin_id uuid := '11111111-1111-1111-1111-111111111111';
+  v_editor_id uuid := '55555555-5555-5555-5555-555555555555';
+
+  v_essencia_id uuid;
+  v_essencia_offering_id uuid;
+  v_lesson1_id uuid;
+  v_content_video_id uuid;
+  v_activity_id uuid;
+
+  v_final_id uuid;
+  v_recovery_id uuid;
+  v_question_id uuid;
+  v_i int;
+begin
+  select id into v_essencia_id from public.volumes where slug = 'essencia';
+
+  select o.id into v_essencia_offering_id
+  from public.season_volume_offerings o
+  join public.seasons s on s.id = o.season_id
+  where o.volume_id = v_essencia_id and s.name = '2026.2';
+
+  select id into v_lesson1_id from public.lessons l
+  join public.modules m on m.id = l.module_id
+  where m.volume_id = v_essencia_id and l.order_index = 1;
+
+  select id into v_content_video_id from public.contents where lesson_id = v_lesson1_id and order_index = 1;
+  select id into v_activity_id from public.activities where lesson_id = v_lesson1_id limit 1;
+
+  -- Avaliação final (20 questões, 60 min, nota mínima 6 — doc 02/08).
+  select id into v_final_id
+  from public.assessments
+  where season_volume_offering_id = v_essencia_offering_id and type = 'final';
+
+  if v_final_id is null then
+    insert into public.assessments (
+      season_volume_offering_id, type, title, questions_count, duration_minutes,
+      opens_at, closes_at, passing_grade, status
+    ) values (
+      v_essencia_offering_id, 'final', 'Avaliação Final — Essência', 20, 60,
+      now(), now() + interval '14 days', 6, 'open'
+    )
+    returning id into v_final_id;
+
+    for v_i in 1..20 loop
+      insert into public.question_bank (
+        volume_id, type, selection_mode, prompt, explanation, difficulty, author_id, status
+      ) values (
+        v_essencia_id, 'multiple_choice', 'single',
+        'Questão de exemplo ' || v_i || ' — Essência (conteúdo fictício, só para teste).',
+        'Explicação fictícia da questão ' || v_i || '.',
+        'medio', v_editor_id, 'published'
+      )
+      returning id into v_question_id;
+
+      insert into public.question_options (question_id, label, is_correct, order_index)
+      values
+        (v_question_id, 'Alternativa A (correta, fictícia)', true, 1),
+        (v_question_id, 'Alternativa B (fictícia)', false, 2),
+        (v_question_id, 'Alternativa C (fictícia)', false, 3),
+        (v_question_id, 'Alternativa D (fictícia)', false, 4);
+
+      insert into public.assessment_questions (assessment_id, question_id, points, order_index)
+      values (v_final_id, v_question_id, 0.5, v_i);
+    end loop;
+
+    -- Congela o conjunto de elegíveis e abre a avaliação — feito
+    -- diretamente aqui (não via publish_assessment(), que exige uma
+    -- sessão autenticada de coordenação/admin, inexistente no seed).
+    insert into public.assessment_eligible_students (assessment_id, enrollment_id)
+    select v_final_id, e.id
+    from public.enrollments e
+    where e.season_volume_offering_id = v_essencia_offering_id
+      and e.status in ('active', 'regularization', 'approved');
+  end if;
+
+  -- Recuperação: 20 questões DIFERENTES (o trigger
+  -- enforce_recovery_questions_disjoint garante isso mesmo se alguém
+  -- tentar reaproveitar uma questão da avaliação regular).
+  select id into v_recovery_id
+  from public.assessments
+  where season_volume_offering_id = v_essencia_offering_id and type = 'recovery';
+
+  if v_recovery_id is null and v_final_id is not null then
+    insert into public.assessments (
+      season_volume_offering_id, type, linked_assessment_id, title, questions_count,
+      duration_minutes, opens_at, closes_at, passing_grade, status
+    ) values (
+      v_essencia_offering_id, 'recovery', v_final_id, 'Recuperação — Essência', 20, 60,
+      now(), now() + interval '14 days', 6, 'open'
+    )
+    returning id into v_recovery_id;
+
+    for v_i in 1..20 loop
+      insert into public.question_bank (
+        volume_id, type, selection_mode, prompt, explanation, difficulty, author_id, status
+      ) values (
+        v_essencia_id, 'multiple_choice', 'single',
+        'Questão de recuperação de exemplo ' || v_i || ' — Essência (conteúdo fictício, só para teste).',
+        'Explicação fictícia da questão de recuperação ' || v_i || '.',
+        'medio', v_editor_id, 'published'
+      )
+      returning id into v_question_id;
+
+      insert into public.question_options (question_id, label, is_correct, order_index)
+      values
+        (v_question_id, 'Alternativa A (correta, fictícia)', true, 1),
+        (v_question_id, 'Alternativa B (fictícia)', false, 2),
+        (v_question_id, 'Alternativa C (fictícia)', false, 3),
+        (v_question_id, 'Alternativa D (fictícia)', false, 4);
+
+      insert into public.assessment_questions (assessment_id, question_id, points, order_index)
+      values (v_recovery_id, v_question_id, 0.5, v_i);
+    end loop;
+
+    insert into public.assessment_eligible_students (assessment_id, enrollment_id)
+    select v_recovery_id, e.id
+    from public.enrollments e
+    where e.season_volume_offering_id = v_essencia_offering_id
+      and e.status in ('active', 'regularization', 'approved');
+
+    -- Trilha de revisão obrigatória antes da recuperação: o vídeo
+    -- obrigatório da Aula 1 e o exercício da Aula 1 (ambos já criados no
+    -- seed da Fase 3).
+    if v_content_video_id is not null then
+      insert into public.recovery_path_items (assessment_id, content_id, order_index)
+      values (v_recovery_id, v_content_video_id, 1);
+    end if;
+
+    if v_activity_id is not null then
+      insert into public.recovery_path_items (assessment_id, activity_id, order_index)
+      values (v_recovery_id, v_activity_id, 2);
+    end if;
+  end if;
+
+  -- authorized_by / admin usado só para manter o padrão de auditoria
+  -- consistente — nenhuma ação administrativa real acontece aqui além
+  -- dos inserts diretos acima.
+  perform v_admin_id;
+end $$;

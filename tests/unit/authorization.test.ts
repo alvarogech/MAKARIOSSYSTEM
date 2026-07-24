@@ -296,6 +296,51 @@ describe("políticas da Fase 4 — frequência e relatório pós-aula", () => {
   });
 });
 
+describe("políticas da Fase 5 — avaliações e recuperação", () => {
+  it("editor monta avaliações, mas não publica, não libera gabarito nem concede tentativa excepcional", () => {
+    const editor = makeContext({
+      roles: ["content_editor"],
+      activeRole: "content_editor",
+    });
+
+    expect(can(editor, { resource: "assessments", action: "manage" })).toBe(true);
+    expect(can(editor, { resource: "assessments", action: "publish" })).toBe(false);
+    expect(can(editor, { resource: "assessments", action: "release_answer_key" })).toBe(false);
+    expect(
+      can(editor, { resource: "assessments", action: "grant_exceptional_attempt" }),
+    ).toBe(false);
+  });
+
+  it("coordenação e admin publicam, liberam gabarito e concedem tentativa excepcional", () => {
+    const coordinator = makeContext({
+      roles: ["coordinator"],
+      activeRole: "coordinator",
+    });
+    const admin = makeContext({ roles: ["admin"], activeRole: "admin" });
+
+    for (const person of [coordinator, admin]) {
+      expect(can(person, { resource: "assessments", action: "publish" })).toBe(true);
+      expect(can(person, { resource: "assessments", action: "release_answer_key" })).toBe(true);
+      expect(
+        can(person, { resource: "assessments", action: "grant_exceptional_attempt" }),
+      ).toBe(true);
+    }
+  });
+
+  it("só aluno faz avaliação; professor e staff de conteúdo não", () => {
+    const student = makeContext({ roles: ["student"], activeRole: "student" });
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+
+    expect(can(student, { resource: "assessments", action: "take" })).toBe(true);
+    expect(can(teacher, { resource: "assessments", action: "take" })).toBe(false);
+  });
+
+  it("professor nunca gerencia avaliações (não cria, não edita conteúdo oficial)", () => {
+    const teacher = makeContext({ roles: ["teacher"], activeRole: "teacher" });
+    expect(can(teacher, { resource: "assessments", action: "manage" })).toBe(false);
+  });
+});
+
 describe("resolveActiveRole — seleção/troca de perfil ativo", () => {
   it("usa o cookie quando ele corresponde a um perfil real do usuário", () => {
     expect(resolveActiveRole(["student", "teacher"], "teacher")).toBe(

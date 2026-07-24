@@ -83,6 +83,16 @@ export type AttendanceStatus =
   | "falta_justificada"
   | "reposicao"
   | "pendente";
+export type QuestionSelectionMode = "single" | "multiple";
+export type AssessmentType = "final" | "recovery";
+export type AssessmentStatus = "draft" | "open" | "closed";
+export type AnswerKeyReleaseReason = "all_submitted" | "deadline" | "manual";
+export type AssessmentAttemptStatus =
+  | "in_progress"
+  | "submitted"
+  | "expired"
+  | "canceled";
+export type AssessmentAttemptKind = "regular" | "exceptional";
 
 export interface Database {
   public: {
@@ -793,6 +803,7 @@ export interface Database {
           difficulty: QuestionDifficulty;
           status: ContentAuthoringStatus;
           author_id: string | null;
+          selection_mode: QuestionSelectionMode;
           created_at: string;
           updated_at: string;
         };
@@ -809,6 +820,7 @@ export interface Database {
           difficulty?: QuestionDifficulty;
           status?: ContentAuthoringStatus;
           author_id?: string | null;
+          selection_mode?: QuestionSelectionMode;
         };
         Update: Partial<
           Database["public"]["Tables"]["question_bank"]["Insert"]
@@ -1155,6 +1167,284 @@ export interface Database {
           },
         ];
       };
+      assessments: {
+        Row: {
+          id: string;
+          season_volume_offering_id: string;
+          type: AssessmentType;
+          linked_assessment_id: string | null;
+          title: string;
+          questions_count: number;
+          duration_minutes: number;
+          opens_at: string | null;
+          closes_at: string | null;
+          passing_grade: number;
+          total_points: number;
+          shuffle_questions: boolean;
+          shuffle_options: boolean;
+          status: AssessmentStatus;
+          answer_key_released_at: string | null;
+          answer_key_release_reason: AnswerKeyReleaseReason | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          season_volume_offering_id: string;
+          type: AssessmentType;
+          linked_assessment_id?: string | null;
+          title: string;
+          questions_count?: number;
+          duration_minutes?: number;
+          opens_at?: string | null;
+          closes_at?: string | null;
+          passing_grade?: number;
+          total_points?: number;
+          shuffle_questions?: boolean;
+          shuffle_options?: boolean;
+          status?: AssessmentStatus;
+        };
+        Update: Partial<Database["public"]["Tables"]["assessments"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "assessments_season_volume_offering_id_fkey";
+            columns: ["season_volume_offering_id"];
+            isOneToOne: false;
+            referencedRelation: "season_volume_offerings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessment_questions: {
+        Row: {
+          assessment_id: string;
+          question_id: string;
+          points: number;
+          order_index: number;
+        };
+        Insert: {
+          assessment_id: string;
+          question_id: string;
+          points: number;
+          order_index: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["assessment_questions"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_questions_assessment_id_fkey";
+            columns: ["assessment_id"];
+            isOneToOne: false;
+            referencedRelation: "assessments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "assessment_questions_question_id_fkey";
+            columns: ["question_id"];
+            isOneToOne: false;
+            referencedRelation: "question_bank";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessment_attempts: {
+        Row: {
+          id: string;
+          assessment_id: string;
+          enrollment_id: string;
+          attempt_kind: AssessmentAttemptKind;
+          started_at: string;
+          deadline_at: string;
+          submitted_at: string | null;
+          status: AssessmentAttemptStatus;
+          score: number | null;
+          correct_count: number | null;
+          total_count: number | null;
+          canceled_at: string | null;
+          canceled_by: string | null;
+          cancel_reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          assessment_id: string;
+          enrollment_id: string;
+          attempt_kind?: AssessmentAttemptKind;
+          deadline_at: string;
+          status?: AssessmentAttemptStatus;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["assessment_attempts"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_attempts_assessment_id_fkey";
+            columns: ["assessment_id"];
+            isOneToOne: false;
+            referencedRelation: "assessments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "assessment_attempts_enrollment_id_fkey";
+            columns: ["enrollment_id"];
+            isOneToOne: false;
+            referencedRelation: "enrollments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessment_attempt_questions: {
+        Row: {
+          id: string;
+          attempt_id: string;
+          question_id: string;
+          position: number;
+          prompt: string;
+          question_type: string;
+          selection_mode: string;
+          options_snapshot: Json;
+          points: number;
+          correct_option_ids_snapshot: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          attempt_id: string;
+          question_id: string;
+          position: number;
+          prompt: string;
+          question_type: string;
+          selection_mode: string;
+          options_snapshot: Json;
+          points: number;
+          correct_option_ids_snapshot: Json;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["assessment_attempt_questions"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_attempt_questions_attempt_id_fkey";
+            columns: ["attempt_id"];
+            isOneToOne: false;
+            referencedRelation: "assessment_attempts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessment_eligible_students: {
+        Row: {
+          id: string;
+          assessment_id: string;
+          enrollment_id: string;
+          computed_at: string;
+        };
+        Insert: {
+          id?: string;
+          assessment_id: string;
+          enrollment_id: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["assessment_eligible_students"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_eligible_students_assessment_id_fkey";
+            columns: ["assessment_id"];
+            isOneToOne: false;
+            referencedRelation: "assessments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessment_answers: {
+        Row: {
+          id: string;
+          attempt_id: string;
+          question_id: string;
+          selected_option_ids: Json;
+          is_correct: boolean;
+          answered_at: string;
+        };
+        Insert: {
+          id?: string;
+          attempt_id: string;
+          question_id: string;
+          selected_option_ids?: Json;
+          is_correct: boolean;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["assessment_answers"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_answers_attempt_id_fkey";
+            columns: ["attempt_id"];
+            isOneToOne: false;
+            referencedRelation: "assessment_attempts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      recovery_path_items: {
+        Row: {
+          id: string;
+          assessment_id: string;
+          content_id: string | null;
+          activity_id: string | null;
+          order_index: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          assessment_id: string;
+          content_id?: string | null;
+          activity_id?: string | null;
+          order_index: number;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["recovery_path_items"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "recovery_path_items_assessment_id_fkey";
+            columns: ["assessment_id"];
+            isOneToOne: false;
+            referencedRelation: "assessments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessment_exceptional_grants: {
+        Row: {
+          id: string;
+          assessment_id: string;
+          enrollment_id: string;
+          granted_by: string;
+          justification: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          assessment_id: string;
+          enrollment_id: string;
+          granted_by: string;
+          justification: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["assessment_exceptional_grants"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_exceptional_grants_assessment_id_fkey";
+            columns: ["assessment_id"];
+            isOneToOne: false;
+            referencedRelation: "assessments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -1194,6 +1484,38 @@ export interface Database {
           p_justification?: string | null;
         };
         Returns: Database["public"]["Tables"]["attendance_records"]["Row"];
+      };
+      start_assessment_attempt: {
+        Args: { p_assessment_id: string };
+        Returns: Database["public"]["Tables"]["assessment_attempts"]["Row"];
+      };
+      get_assessment_attempt_questions: {
+        Args: { p_attempt_id: string };
+        Returns: Json;
+      };
+      submit_assessment_answer: {
+        Args: {
+          p_attempt_id: string;
+          p_question_id: string;
+          p_selected_option_ids: Json;
+        };
+        Returns: Json;
+      };
+      finalize_assessment_attempt: {
+        Args: { p_attempt_id: string };
+        Returns: Database["public"]["Tables"]["assessment_attempts"]["Row"];
+      };
+      get_assessment_attempt_review: {
+        Args: { p_attempt_id: string };
+        Returns: Json;
+      };
+      publish_assessment: {
+        Args: { p_assessment_id: string };
+        Returns: Database["public"]["Tables"]["assessments"]["Row"];
+      };
+      release_answer_key_manually: {
+        Args: { p_assessment_id: string };
+        Returns: Database["public"]["Tables"]["assessments"]["Row"];
       };
     };
     Enums: {

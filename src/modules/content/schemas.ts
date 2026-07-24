@@ -97,11 +97,16 @@ export const createReleaseRuleSchema = z
 export type CreateReleaseRuleInput = z.infer<typeof createReleaseRuleSchema>;
 
 const questionTypeEnum = z.enum(["multiple_choice", "true_false"]);
+// "single" = uma resposta correta (rádio); "multiple" = marque todas as
+// corretas (checkbox) — ver supabase/migrations/
+// 00000000000029_question_selection_mode.sql.
+const selectionModeEnum = z.enum(["single", "multiple"]);
 
 export const createQuestionSchema = z.object({
   volumeId: z.string().uuid().optional().or(z.literal("")),
   lessonId: z.string().uuid().optional().or(z.literal("")),
   type: questionTypeEnum,
+  selectionMode: selectionModeEnum.default("single"),
   prompt: z.string().trim().min(1, "Informe o enunciado."),
   explanation: z.string().trim().optional(),
   bibleReference: z.string().trim().optional(),
@@ -112,7 +117,9 @@ export const createQuestionSchema = z.object({
   optionLabel2: z.string().trim().optional(),
   optionLabel3: z.string().trim().optional(),
   optionLabel4: z.string().trim().optional(),
+  // selectionMode = "single": um índice (rádio). "multiple": vários (checkbox).
   correctOptionIndex: z.coerce.number().int().min(1).max(4).optional(),
+  correctOptionIndices: z.array(z.coerce.number().int().min(1).max(4)).optional(),
   // Verdadeiro ou falso: qual das duas é a correta.
   trueFalseCorrect: z.enum(["true", "false"]).optional(),
 });

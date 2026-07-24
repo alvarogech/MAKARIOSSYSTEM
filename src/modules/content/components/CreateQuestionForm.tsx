@@ -16,6 +16,7 @@ export function CreateQuestionForm({
 }) {
   const [state, formAction, isPending] = useActionState(createQuestion, initialState);
   const [type, setType] = useState("multiple_choice");
+  const [selectionMode, setSelectionMode] = useState<"single" | "multiple">("single");
 
   return (
     <form action={formAction} className="flex flex-col gap-3" noValidate>
@@ -64,12 +65,28 @@ export function CreateQuestionForm({
 
       {type === "multiple_choice" ? (
         <div className="flex flex-col gap-2 rounded-[var(--radius-sm)] border border-neutral-200 p-3">
-          <p className="text-xs font-medium text-neutral-500">
-            Alternativas (preencha ao menos duas e marque a correta)
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-neutral-500">
+              Alternativas (preencha ao menos duas e marque a(s) correta(s))
+            </p>
+            <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                checked={selectionMode === "multiple"}
+                onChange={(e) => setSelectionMode(e.target.checked ? "multiple" : "single")}
+              />
+              Marque todas as corretas (mais de uma resposta certa)
+            </label>
+          </div>
+          <input type="hidden" name="selectionMode" value={selectionMode} />
           {[1, 2, 3, 4].map((n) => (
             <div key={n} className="flex items-center gap-2">
-              <input type="radio" name="correctOptionIndex" value={n} required={n === 1} />
+              <input
+                type={selectionMode === "multiple" ? "checkbox" : "radio"}
+                name={selectionMode === "multiple" ? "correctOptionIndices" : "correctOptionIndex"}
+                value={n}
+                required={selectionMode === "single" && n === 1}
+              />
               <Input name={`optionLabel${n}`} placeholder={`Alternativa ${n}`} />
             </div>
           ))}

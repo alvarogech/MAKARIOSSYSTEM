@@ -12,6 +12,7 @@ export interface ActivityQuestionOption {
 export interface ActivityQuestion {
   questionId: string;
   type: string;
+  selectionMode: "single" | "multiple";
   prompt: string;
   orderIndex: number;
   options: ActivityQuestionOption[];

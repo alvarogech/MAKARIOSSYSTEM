@@ -53,6 +53,11 @@ export type PermissionCheck =
   | { resource: "attendance"; action: "correct" }
   | { resource: "class_reports"; action: "submit" }
   | { resource: "class_reports"; action: "read" }
+  | { resource: "assessments"; action: "manage" }
+  | { resource: "assessments"; action: "publish" }
+  | { resource: "assessments"; action: "release_answer_key" }
+  | { resource: "assessments"; action: "grant_exceptional_attempt" }
+  | { resource: "assessments"; action: "take" }
   | { resource: "area"; action: "student" }
   | { resource: "area"; action: "teacher" }
   | { resource: "area"; action: "coordination" }

@@ -67,9 +67,14 @@ export default async function ConteudoAreaPage() {
             liberação e exercícios (banco de questões em página separada).
           </p>
         </div>
-        <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
-          Banco de questões e exercícios
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
+            Banco de questões e exercícios
+          </Link>
+          <Link href="/conteudo/avaliacoes" className={buttonVariants({ variant: "secondary" })}>
+            Avaliações
+          </Link>
+        </div>
       </div>
 
       <Card>

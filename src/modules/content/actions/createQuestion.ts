@@ -29,6 +29,7 @@ export async function createQuestion(
     volumeId: formData.get("volumeId") || undefined,
     lessonId: formData.get("lessonId") || undefined,
     type: formData.get("type"),
+    selectionMode: formData.get("selectionMode") || "single",
     prompt: formData.get("prompt"),
     explanation: formData.get("explanation") || undefined,
     bibleReference: formData.get("bibleReference") || undefined,
@@ -39,12 +40,17 @@ export async function createQuestion(
     optionLabel3: formData.get("optionLabel3") || undefined,
     optionLabel4: formData.get("optionLabel4") || undefined,
     correctOptionIndex: formData.get("correctOptionIndex") || undefined,
+    correctOptionIndices: formData.getAll("correctOptionIndices"),
     trueFalseCorrect: formData.get("trueFalseCorrect") || undefined,
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  // Verdadeiro/falso é sempre "single" (só existem 2 alternativas, uma
+  // correta) — a UI nem oferece a escolha, mas reforçamos aqui também.
+  const selectionMode = parsed.data.type === "true_false" ? "single" : parsed.data.selectionMode;
 
   const options: { label: string; isCorrect: boolean; orderIndex: number }[] = [];
 
@@ -59,14 +65,24 @@ export async function createQuestion(
     if (filled.length < 2) {
       return { error: "Informe pelo menos duas alternativas." };
     }
-    if (!parsed.data.correctOptionIndex || !labels[parsed.data.correctOptionIndex - 1]) {
-      return { error: "Selecione qual alternativa é a correta." };
+
+    const correctIndices =
+      selectionMode === "multiple"
+        ? (parsed.data.correctOptionIndices ?? [])
+        : parsed.data.correctOptionIndex
+          ? [parsed.data.correctOptionIndex]
+          : [];
+
+    const validCorrectIndices = correctIndices.filter((index) => Boolean(labels[index - 1]));
+    if (validCorrectIndices.length === 0) {
+      return { error: "Selecione qual alternativa (ou alternativas) é a correta." };
     }
+
     labels.forEach((label, index) => {
       if (label) {
         options.push({
           label,
-          isCorrect: index + 1 === parsed.data.correctOptionIndex,
+          isCorrect: validCorrectIndices.includes(index + 1),
           orderIndex: index + 1,
         });
       }
@@ -89,6 +105,7 @@ export async function createQuestion(
       volume_id: parsed.data.volumeId || null,
       lesson_id: parsed.data.lessonId || null,
       type: parsed.data.type,
+      selection_mode: selectionMode,
       prompt: parsed.data.prompt,
       explanation: parsed.data.explanation ?? null,
       bible_reference: parsed.data.bibleReference ?? null,

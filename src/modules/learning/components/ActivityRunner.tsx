@@ -17,7 +17,7 @@ export function ActivityRunner({ activityId }: { activityId: string }) {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [questions, setQuestions] = useState<ActivityQuestion[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [result, setResult] = useState<SubmitActivityAttemptResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,13 +44,10 @@ export function ActivityRunner({ activityId }: { activityId: string }) {
     setSubmitting(true);
     setError(null);
 
-    const payload = questions.map((q) => {
-      const selected = answers[q.questionId];
-      return {
-        questionId: q.questionId,
-        selectedOptionIds: selected ? [selected] : [],
-      };
-    });
+    const payload = questions.map((q) => ({
+      questionId: q.questionId,
+      selectedOptionIds: answers[q.questionId] ?? [],
+    }));
 
     const res = await submitActivityAttempt(attemptId, payload);
     setSubmitting(false);
@@ -103,27 +100,42 @@ export function ActivityRunner({ activityId }: { activityId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {questions.map((question) => (
-        <div key={question.questionId} className="rounded-[var(--radius-sm)] border border-neutral-200 p-3">
-          <p className="mb-2 text-sm font-medium text-neutral-800">{question.prompt}</p>
-          <div className="flex flex-col gap-1.5">
-            {question.options.map((option) => (
-              <label key={option.optionId} className="flex items-center gap-2 text-sm text-neutral-700">
-                <input
-                  type="radio"
-                  name={`question-${question.questionId}`}
-                  value={option.optionId}
-                  checked={answers[question.questionId] === option.optionId}
-                  onChange={() =>
-                    setAnswers((prev) => ({ ...prev, [question.questionId]: option.optionId }))
-                  }
-                />
-                {option.label}
-              </label>
-            ))}
+      {questions.map((question) => {
+        const selected = answers[question.questionId] ?? [];
+        const isMultiple = question.selectionMode === "multiple";
+
+        return (
+          <div key={question.questionId} className="rounded-[var(--radius-sm)] border border-neutral-200 p-3">
+            <p className="mb-1 text-xs font-medium uppercase text-neutral-400">
+              {isMultiple ? "Marque todas as corretas" : "Uma resposta correta"}
+            </p>
+            <p className="mb-2 text-sm font-medium text-neutral-800">{question.prompt}</p>
+            <div className="flex flex-col gap-1.5">
+              {question.options.map((option) => (
+                <label key={option.optionId} className="flex items-center gap-2 text-sm text-neutral-700">
+                  <input
+                    type={isMultiple ? "checkbox" : "radio"}
+                    name={`question-${question.questionId}`}
+                    value={option.optionId}
+                    checked={selected.includes(option.optionId)}
+                    onChange={() =>
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [question.questionId]: isMultiple
+                          ? selected.includes(option.optionId)
+                            ? selected.filter((id) => id !== option.optionId)
+                            : [...selected, option.optionId]
+                          : [option.optionId],
+                      }))
+                    }
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {questions.length === 0 ? (
         <p className="text-sm text-neutral-400">Este exercício ainda não tem questões.</p>

@@ -49,6 +49,16 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "attendance:correct": ["coordinator", "admin"],
   "class_reports:submit": ["teacher", "coordinator", "admin"],
   "class_reports:read": ["coordinator", "admin"],
+  // Autoria segue o mesmo grupo de "content:manage" (editor inclusive,
+  // doc 03 §6: editor "pode criar avaliações"); operações que mexem no
+  // estado acadêmico real da turma (publicar, liberar gabarito, conceder
+  // tentativa excepcional) ficam só com coordenação/admin — o editor
+  // nunca decide isso, mesmo podendo montar a prova.
+  "assessments:manage": ["coordinator", "admin", "content_editor"],
+  "assessments:publish": ["coordinator", "admin"],
+  "assessments:release_answer_key": ["coordinator", "admin"],
+  "assessments:grant_exceptional_attempt": ["coordinator", "admin"],
+  "assessments:take": ["student"],
   "area:student": ["student"],
   "area:teacher": ["teacher"],
   "area:coordination": ["coordinator", "admin"],

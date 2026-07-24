@@ -54,9 +54,33 @@ export default async function VolumeOutlinePage({
 
   const modules = await loadVolumeOutline(supabase, enrollment.id, offering.volume_id);
 
+  const { data: assessments } = await supabase
+    .from("assessments")
+    .select("id, title, type, status")
+    .eq("season_volume_offering_id", enrollment.season_volume_offering_id)
+    .eq("status", "open");
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold text-neutral-900">{volume?.name ?? "Volume"}</h1>
+
+      {(assessments ?? []).length > 0 ? (
+        <Card>
+          <h2 className="font-semibold text-neutral-900">Avaliações</h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {(assessments ?? []).map((assessment) => (
+              <li key={assessment.id}>
+                <Link
+                  href={`/avaliacoes/${assessment.id}`}
+                  className="text-sm text-brand-blue hover:underline"
+                >
+                  {assessment.title} ({assessment.type === "recovery" ? "recuperação" : "avaliação final"})
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       {modules.map((module_) => (
         <Card key={module_.id}>
