@@ -72,8 +72,8 @@ export async function saveAttendance(
         p_enrollment_id: row.enrollmentId,
         p_status: row.status,
         p_recognized_minutes: recognizedMinutes,
-        p_observation: row.observation ?? null,
-        p_justification: parsed.data.justification ?? null,
+        p_observation: row.observation ?? undefined,
+        p_justification: parsed.data.justification ?? undefined,
       });
 
       if (error) {

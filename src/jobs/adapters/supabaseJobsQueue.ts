@@ -77,7 +77,7 @@ export class SupabaseJobsQueue implements AsyncTaskQueue {
         p_payload: payload,
         p_available_at: (options?.availableAt ?? new Date()).toISOString(),
         p_max_attempts: options?.maxAttempts ?? 5,
-        p_idempotency_key: options?.idempotencyKey ?? null,
+        p_idempotency_key: options?.idempotencyKey ?? undefined,
       })
       .single();
 
@@ -94,7 +94,7 @@ export class SupabaseJobsQueue implements AsyncTaskQueue {
     const { data, error } = await this.adminClient
       .rpc("claim_job", {
         p_worker: options.worker,
-        p_types: options.types ?? null,
+        p_types: options.types ?? undefined,
       })
       .maybeSingle();
 

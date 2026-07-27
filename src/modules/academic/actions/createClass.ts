@@ -42,8 +42,8 @@ export async function createClass(
     p_season_volume_offering_id: parsed.data.seasonVolumeOfferingId,
     p_class_template_id: parsed.data.classTemplateId,
     p_name: parsed.data.name,
-    p_location: parsed.data.location ?? null,
-    p_capacity: parsed.data.capacity ?? null,
+    p_location: parsed.data.location ?? undefined,
+    p_capacity: parsed.data.capacity ?? undefined,
   });
 
   if (error) {
