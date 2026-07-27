@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { can, getAuthContext } from "@/authorization";
+import { can, canAccessArea, getAuthContext } from "@/authorization";
 import { ROLE_LABELS } from "@/lib/roleLabels";
 import { Card } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
@@ -22,6 +22,9 @@ export default async function DashboardPage() {
     action: "create",
   });
   const canManageContent = can(authContext, { resource: "content", action: "manage" });
+  const canAccessCoordination = canAccessArea(authContext, "coordination");
+  const canAccessTeacherArea = canAccessArea(authContext, "teacher");
+  const canAccessAdmin = canAccessArea(authContext, "admin");
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,6 +57,31 @@ export default async function DashboardPage() {
         </Card>
       ) : null}
 
+      {canAccessTeacherArea ? (
+        <Card>
+          <h2 className="text-lg font-semibold text-neutral-900">Área do professor</h2>
+          <div className="mt-3 flex gap-3">
+            <Link href="/professor" className={buttonVariants({ variant: "primary" })}>
+              Minhas turmas e agenda
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
+      {canAccessCoordination ? (
+        <Card>
+          <h2 className="text-lg font-semibold text-neutral-900">Coordenação</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Temporadas, ofertas de volume, turmas, matrículas e importação de alunos.
+          </p>
+          <div className="mt-3 flex gap-3">
+            <Link href="/coordenacao" className={buttonVariants({ variant: "primary" })}>
+              Área da coordenação
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
       {canManageContent ? (
         <Card>
           <h2 className="text-lg font-semibold text-neutral-900">Conteúdo</h2>
@@ -63,6 +91,20 @@ export default async function DashboardPage() {
             </Link>
             <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
               Banco de questões
+            </Link>
+            <Link href="/conteudo/avaliacoes" className={buttonVariants({ variant: "secondary" })}>
+              Avaliações
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
+      {canAccessAdmin ? (
+        <Card>
+          <h2 className="text-lg font-semibold text-neutral-900">Administração</h2>
+          <div className="mt-3 flex gap-3">
+            <Link href="/administracao" className={buttonVariants({ variant: "primary" })}>
+              Área administrativa
             </Link>
           </div>
         </Card>
