@@ -29,6 +29,7 @@ export default async function TurmasPage() {
     { data: meetings },
     { data: assignments },
     { data: profiles },
+    { data: modules },
   ] = await Promise.all([
     supabase.from("season_volume_offerings").select("id, season_id, volume_id"),
     supabase.from("volumes").select("id, name"),
@@ -42,8 +43,14 @@ export default async function TurmasPage() {
       .select("id, name, location, status, season_volume_offering_id, class_template_id")
       .order("created_at"),
     supabase.from("class_meetings").select("class_id"),
-    supabase.from("teacher_assignments").select("id, teacher_id, class_id, function"),
+    supabase
+      .from("teacher_assignments")
+      .select("id, teacher_id, class_id, module_id, function"),
     supabase.from("profiles").select("id, full_name, email"),
+    supabase
+      .from("modules")
+      .select("id, name, volume_id, academic_hours")
+      .order("order_index"),
   ]);
 
   const volumesById = new Map((volumes ?? []).map((v) => [v.id, v]));
@@ -57,6 +64,10 @@ export default async function TurmasPage() {
   };
   const templatesById = new Map((templates ?? []).map((t) => [t.id, t]));
   const profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const modulesById = new Map((modules ?? []).map((m) => [m.id, m]));
+  const offeringsById = new Map((offerings ?? []).map((o) => [o.id, o]));
+  const volumeIdForClass = (klass: { season_volume_offering_id: string }) =>
+    offeringsById.get(klass.season_volume_offering_id)?.volume_id ?? "";
 
   const meetingsCountByClass = new Map<string, number>();
   for (const meeting of meetings ?? []) {
@@ -70,8 +81,12 @@ export default async function TurmasPage() {
   for (const assignment of assignments ?? []) {
     const teacherName =
       profilesById.get(assignment.teacher_id)?.full_name ?? "Professor";
+    const moduleName = assignment.module_id
+      ? modulesById.get(assignment.module_id)?.name
+      : null;
+    const label = moduleName ? `${teacherName} (${moduleName})` : teacherName;
     const list = assignmentsByClass.get(assignment.class_id) ?? [];
-    list.push(teacherName);
+    list.push(label);
     assignmentsByClass.set(assignment.class_id, list);
   }
 
@@ -136,6 +151,13 @@ export default async function TurmasPage() {
             classes={(classes ?? []).map((k) => ({
               id: k.id,
               label: `${k.name} — ${offeringLabel(k.season_volume_offering_id)}`,
+              volumeId: volumeIdForClass(k),
+            }))}
+            modules={(modules ?? []).map((m) => ({
+              id: m.id,
+              name: m.name,
+              volumeId: m.volume_id,
+              academicHours: m.academic_hours,
             }))}
           />
         </div>

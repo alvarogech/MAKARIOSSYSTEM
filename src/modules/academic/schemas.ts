@@ -28,6 +28,7 @@ export type CreateClassInput = z.infer<typeof createClassSchema>;
 export const assignTeacherSchema = z.object({
   classId: z.string().uuid("Selecione uma turma."),
   teacherEmail: z.string().trim().email("E-mail inválido."),
+  moduleId: z.string().uuid().optional(),
 });
 
 export type AssignTeacherInput = z.infer<typeof assignTeacherSchema>;

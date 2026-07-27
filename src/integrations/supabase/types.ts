@@ -1245,6 +1245,7 @@ export type Database = {
       }
       modules: {
         Row: {
+          academic_hours: number | null
           created_at: string
           id: string
           name: string
@@ -1253,6 +1254,7 @@ export type Database = {
           volume_id: string
         }
         Insert: {
+          academic_hours?: number | null
           created_at?: string
           id?: string
           name: string
@@ -1261,6 +1263,7 @@ export type Database = {
           volume_id: string
         }
         Update: {
+          academic_hours?: number | null
           created_at?: string
           id?: string
           name?: string
@@ -1762,6 +1765,7 @@ export type Database = {
           function: string
           id: string
           meeting_id: string | null
+          module_id: string | null
           teacher_id: string
         }
         Insert: {
@@ -1770,6 +1774,7 @@ export type Database = {
           function?: string
           id?: string
           meeting_id?: string | null
+          module_id?: string | null
           teacher_id: string
         }
         Update: {
@@ -1778,6 +1783,7 @@ export type Database = {
           function?: string
           id?: string
           meeting_id?: string | null
+          module_id?: string | null
           teacher_id?: string
         }
         Relationships: [
@@ -1793,6 +1799,13 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_assignments_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
             referencedColumns: ["id"]
           },
         ]

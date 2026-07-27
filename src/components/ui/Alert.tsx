@@ -6,12 +6,14 @@ const VARIANT_STYLES = {
   info: "border-brand-blue/30 bg-brand-blue-light text-brand-blue-dark",
   success: "border-success/30 bg-success/10 text-success",
   danger: "border-danger/30 bg-danger/10 text-danger",
+  warning: "border-amber-400/40 bg-amber-50 text-amber-800",
 } as const;
 
 const VARIANT_ICONS = {
   info: Info,
   success: CheckCircle2,
   danger: AlertTriangle,
+  warning: AlertTriangle,
 } as const;
 
 export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
