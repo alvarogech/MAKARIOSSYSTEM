@@ -12,7 +12,7 @@ const initialState: CreateLessonState = {};
 export function CreateLessonForm({
   modules,
 }: {
-  modules: { id: string; label: string }[];
+  modules: { groupLabel: string; options: { id: string; label: string }[] }[];
 }) {
   const [state, formAction, isPending] = useActionState(createLesson, initialState);
 
@@ -29,8 +29,12 @@ export function CreateLessonForm({
             required
             className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
           >
-            {modules.map((m) => (
-              <option key={m.id} value={m.id}>{m.label}</option>
+            {modules.map((group) => (
+              <optgroup key={group.groupLabel} label={group.groupLabel}>
+                {group.options.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

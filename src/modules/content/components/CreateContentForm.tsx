@@ -23,7 +23,7 @@ const CLASSIFICATION_LABELS: Record<string, string> = {
 export function CreateContentForm({
   lessons,
 }: {
-  lessons: { id: string; label: string }[];
+  lessons: { groupLabel: string; options: { id: string; label: string }[] }[];
 }) {
   const [state, formAction, isPending] = useActionState(createContent, initialState);
   const [type, setType] = useState("video");
@@ -42,8 +42,12 @@ export function CreateContentForm({
             required
             className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
           >
-            {lessons.map((l) => (
-              <option key={l.id} value={l.id}>{l.label}</option>
+            {lessons.map((group) => (
+              <optgroup key={group.groupLabel} label={group.groupLabel}>
+                {group.options.map((l) => (
+                  <option key={l.id} value={l.id}>{l.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

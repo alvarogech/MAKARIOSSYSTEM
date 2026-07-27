@@ -16,8 +16,8 @@ export function CreateReleaseRuleForm({
   contents,
   activities,
 }: {
-  contents: { id: string; label: string }[];
-  activities: { id: string; label: string }[];
+  contents: { groupLabel: string; options: { id: string; label: string }[] }[];
+  activities: { groupLabel: string; options: { id: string; label: string }[] }[];
 }) {
   const [state, formAction, isPending] = useActionState(createReleaseRule, initialState);
   const [type, setType] = useState("immediate");
@@ -36,8 +36,12 @@ export function CreateReleaseRuleForm({
             required
             className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
           >
-            {contents.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
+            {contents.map((group) => (
+              <optgroup key={group.groupLabel} label={group.groupLabel}>
+                {group.options.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
@@ -74,8 +78,12 @@ export function CreateReleaseRuleForm({
             name="requiredContentId"
             className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
           >
-            {contents.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
+            {contents.map((group) => (
+              <optgroup key={group.groupLabel} label={group.groupLabel}>
+                {group.options.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
@@ -89,8 +97,12 @@ export function CreateReleaseRuleForm({
             name="requiredActivityId"
             className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
           >
-            {activities.map((a) => (
-              <option key={a.id} value={a.id}>{a.label}</option>
+            {activities.map((group) => (
+              <optgroup key={group.groupLabel} label={group.groupLabel}>
+                {group.options.map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
