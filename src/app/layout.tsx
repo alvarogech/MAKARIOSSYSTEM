@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | Plataforma Makários",
   },
   description:
-    "Ambiente digital de apoio ao ensino e à gestão acadêmica da Escola Makários — Igreja Emaús.",
+    "Ambiente digital de apoio ao ensino e à gestão acadêmica da Escola Makários, Igreja Emaús.",
 };
 
 export default function RootLayout({

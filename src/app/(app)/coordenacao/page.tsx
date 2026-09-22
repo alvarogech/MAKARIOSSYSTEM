@@ -8,6 +8,11 @@ export const metadata: Metadata = { title: "Coordenação" };
 
 const SECTIONS = [
   {
+    href: "/coordenacao/inscricoes",
+    title: "Solicitações de inscrição",
+    description: "Analisar os pedidos enviados pela página pública antes de convidar e matricular.",
+  },
+  {
     href: "/coordenacao/temporadas",
     title: "Temporadas e ofertas de volume",
     description: "Criar temporada (ex.: 2026.2) e as ofertas de Essência/Caminho/Voz nela.",

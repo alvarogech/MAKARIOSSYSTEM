@@ -43,6 +43,18 @@ npm run dev
 
 Acesse `http://localhost:3000`.
 
+### Página pública de inscrição
+
+- Formulário público: `http://localhost:3000/inscricao`
+- Triagem da coordenação: `http://localhost:3000/coordenacao/inscricoes`
+- Aplique a migration `00000000000040_enrollment_requests.sql` antes de usar.
+- Defina `ENROLLMENT_DATA_KEY` com uma chave gerada por
+  `openssl rand -base64 32`; ela cifra o CPF no servidor e não pode ser
+  exposta ao navegador nem trocada sem uma migração dos dados existentes.
+
+O formulário cria apenas uma solicitação pendente. Convite, exceção de
+pré-requisito e matrícula continuam sendo ações deliberadas da coordenação.
+
 ## Scripts
 
 | Comando | O que faz |

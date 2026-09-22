@@ -1728,6 +1728,92 @@ export type Database = {
           },
         ]
       }
+      enrollment_requests: {
+        Row: {
+          consent_at: string
+          cpf_encrypted: string
+          cpf_hash: string
+          cpf_last4: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          notes: string | null
+          primary_schedule_slug: string
+          primary_volume_slug: string
+          prerequisite_declaration: string | null
+          privacy_terms_version: string
+          protocol: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          season_id: string
+          secondary_schedule_slug: string | null
+          secondary_volume_slug: string | null
+          status: string
+          phone: string
+          updated_at: string
+          wants_second_volume: boolean
+        }
+        Insert: {
+          consent_at: string
+          cpf_encrypted: string
+          cpf_hash: string
+          cpf_last4: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          primary_schedule_slug: string
+          primary_volume_slug: string
+          prerequisite_declaration?: string | null
+          privacy_terms_version: string
+          protocol: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          season_id: string
+          secondary_schedule_slug?: string | null
+          secondary_volume_slug?: string | null
+          status?: string
+          phone: string
+          updated_at?: string
+          wants_second_volume?: boolean
+        }
+        Update: {
+          consent_at?: string
+          cpf_encrypted?: string
+          cpf_hash?: string
+          cpf_last4?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          primary_schedule_slug?: string
+          primary_volume_slug?: string
+          prerequisite_declaration?: string | null
+          privacy_terms_version?: string
+          protocol?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          season_id?: string
+          secondary_schedule_slug?: string | null
+          secondary_volume_slug?: string | null
+          status?: string
+          phone?: string
+          updated_at?: string
+          wants_second_volume?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_requests_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           created_at: string
