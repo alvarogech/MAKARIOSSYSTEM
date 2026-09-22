@@ -52,3 +52,16 @@ export function getServerEnv(): ServerEnv {
 
   return parsed.data;
 }
+
+/**
+ * Chave dedicada à proteção do CPF nas solicitações públicas. Mantida
+ * separada do schema geral para que apenas esse fluxo a exija em runtime.
+ * Gere com: `openssl rand -base64 32`.
+ */
+export function getEnrollmentDataKey(): string {
+  const value = process.env.ENROLLMENT_DATA_KEY;
+  if (!value) {
+    throw new Error("Variável server-side ENROLLMENT_DATA_KEY ausente.");
+  }
+  return value;
+}
