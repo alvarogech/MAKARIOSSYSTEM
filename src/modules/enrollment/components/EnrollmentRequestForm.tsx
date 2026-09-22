@@ -51,14 +51,14 @@ export function EnrollmentRequestForm() {
           <h2 className="text-2xl font-semibold text-neutral-900">Inscrição recebida</h2>
           <p className="mt-3 max-w-lg text-sm leading-6 text-neutral-600">
             Sua vaga na Escola Makários está garantida. Se precisarmos de mais alguma
-            informação, nossa equipe entra em contato pelos dados que você enviou.
+            informação, alguém da nossa equipe fala com você.
           </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-brand-blue/20 bg-brand-blue-light px-6 py-4">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-neutral-600">Seu protocolo</p>
           <p className="mt-1 text-xl font-semibold tracking-wide text-brand-blue-dark">{state.protocol}</p>
         </div>
-        <p className="text-sm text-neutral-500">Guarde este número para consultar sua solicitação.</p>
+        <p className="text-sm text-neutral-500">Guarde este número, caso precise falar com a gente.</p>
       </div>
     );
   }
@@ -68,8 +68,10 @@ export function EnrollmentRequestForm() {
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
 
       <section aria-labelledby="personal-data-title">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">01</p>
-        <h2 id="personal-data-title" className="mt-0.5 text-lg font-semibold text-neutral-900">Seus dados</h2>
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-light text-brand-blue/50 sm:text-4xl" aria-hidden="true">01</span>
+          <h2 id="personal-data-title" className="text-lg font-semibold text-neutral-900">Seus dados</h2>
+        </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label htmlFor="fullName">Nome completo</Label>
@@ -114,8 +116,10 @@ export function EnrollmentRequestForm() {
       </section>
 
       <section aria-labelledby="main-volume-title" className="border-t border-neutral-100 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">02</p>
-        <h2 id="main-volume-title" className="mt-0.5 text-lg font-semibold text-neutral-900">Volume</h2>
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-light text-brand-blue/50 sm:text-4xl" aria-hidden="true">02</span>
+          <h2 id="main-volume-title" className="text-lg font-semibold text-neutral-900">Volume</h2>
+        </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="primaryVolume">Qual volume você deseja cursar?</Label>
@@ -192,7 +196,7 @@ export function EnrollmentRequestForm() {
           <Label htmlFor="prerequisiteDeclaration">Já cursou algum volume antes?</Label>
           <p className="mb-2 text-xs leading-5 text-neutral-500">
             Conte quando e onde cursou. Se está pedindo dois volumes ao mesmo tempo, explique
-            também o motivo — a coordenação avalia caso a caso.
+            também o motivo; a coordenação avalia caso a caso.
           </p>
           <textarea id="prerequisiteDeclaration" name="prerequisiteDeclaration" className={textareaClass} required />
           <FieldError errors={state.fieldErrors?.prerequisiteDeclaration} />
@@ -200,8 +204,10 @@ export function EnrollmentRequestForm() {
       ) : null}
 
       <section className="border-t border-neutral-100 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">03</p>
-        <h2 className="mt-0.5 text-lg font-semibold text-neutral-900">Confirmação</h2>
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-light text-brand-blue/50 sm:text-4xl" aria-hidden="true">03</span>
+          <h2 className="text-lg font-semibold text-neutral-900">Confirmação</h2>
+        </div>
         <div className="mt-4">
           <Label htmlFor="notes">Observações <span className="font-normal text-neutral-400">(opcional)</span></Label>
           <textarea id="notes" name="notes" className={textareaClass} />
