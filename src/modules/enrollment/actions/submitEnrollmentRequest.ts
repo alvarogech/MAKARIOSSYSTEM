@@ -38,7 +38,6 @@ export async function submitEnrollmentRequest(
     prerequisiteDeclaration: formData.get("prerequisiteDeclaration") ?? "",
     notes: formData.get("notes") ?? "",
     privacyConsent: checked(formData, "privacyConsent"),
-    enrollmentAwareness: checked(formData, "enrollmentAwareness"),
     website: formData.get("website") ?? "",
   });
 

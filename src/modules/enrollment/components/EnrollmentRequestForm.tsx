@@ -48,10 +48,10 @@ export function EnrollmentRequestForm() {
           <CheckCircle2 className="size-8" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-2xl font-semibold text-neutral-900">Solicitação recebida</h2>
+          <h2 className="text-2xl font-semibold text-neutral-900">Inscrição recebida</h2>
           <p className="mt-3 max-w-lg text-sm leading-6 text-neutral-600">
-            Nossa equipe analisará as informações e entrará em contato pelos dados informados.
-            O envio ainda não representa confirmação de matrícula ou garantia de vaga.
+            Sua vaga na Escola Makários está garantida. Se precisarmos de mais alguma
+            informação, nossa equipe entra em contato pelos dados que você enviou.
           </p>
         </div>
         <div className="rounded-[var(--radius-md)] border border-brand-blue/20 bg-brand-blue-light px-6 py-4">
@@ -68,7 +68,8 @@ export function EnrollmentRequestForm() {
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
 
       <section aria-labelledby="personal-data-title">
-        <h2 id="personal-data-title" className="text-lg font-semibold text-neutral-900">Seus dados</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">01</p>
+        <h2 id="personal-data-title" className="mt-0.5 text-lg font-semibold text-neutral-900">Seus dados</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label htmlFor="fullName">Nome completo</Label>
@@ -113,7 +114,8 @@ export function EnrollmentRequestForm() {
       </section>
 
       <section aria-labelledby="main-volume-title" className="border-t border-neutral-100 pt-6">
-        <h2 id="main-volume-title" className="text-lg font-semibold text-neutral-900">Volume principal</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">02</p>
+        <h2 id="main-volume-title" className="mt-0.5 text-lg font-semibold text-neutral-900">Volume</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="primaryVolume">Qual volume você deseja cursar?</Label>
@@ -143,27 +145,22 @@ export function EnrollmentRequestForm() {
             <FieldError errors={state.fieldErrors?.primarySchedule} />
           </div>
         </div>
-      </section>
 
-      <section className="rounded-[var(--radius-md)] border border-neutral-200 bg-neutral-50 p-4">
-        <label className="flex cursor-pointer items-start gap-3">
+        <label className="mt-4 flex cursor-pointer items-center gap-2.5">
           <input
             type="checkbox"
             name="wantsSecondVolume"
-            className="mt-1 size-4 rounded border-neutral-300 accent-brand-blue"
+            className="size-4 rounded border-neutral-300 accent-brand-blue"
             checked={wantsSecondVolume}
             onChange={(event) => setWantsSecondVolume(event.target.checked)}
           />
-          <span>
-            <span className="block text-sm font-medium text-neutral-800">Quero solicitar dois volumes ao mesmo tempo</span>
-            <span className="mt-1 block text-xs leading-5 text-neutral-500">
-              A coordenação analisará a compatibilidade de horários e os pré-requisitos.
-            </span>
+          <span className="text-sm text-neutral-500">
+            Quero cursar um segundo volume ao mesmo tempo
           </span>
         </label>
 
         {wantsSecondVolume ? (
-          <div className="mt-5 grid gap-4 border-t border-neutral-200 pt-5 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="secondaryVolume">Segundo volume</Label>
               <select id="secondaryVolume" name="secondaryVolume" className={fieldClass} required>
@@ -191,43 +188,42 @@ export function EnrollmentRequestForm() {
       </section>
 
       {needsDeclaration ? (
-        <section>
-          <Label htmlFor="prerequisiteDeclaration">Declaração sobre pré-requisito</Label>
+        <section className="border-t border-neutral-100 pt-6">
+          <Label htmlFor="prerequisiteDeclaration">Já cursou algum volume antes?</Label>
           <p className="mb-2 text-xs leading-5 text-neutral-500">
-            Conte se já concluiu algum volume anterior, quando e onde cursou. Se deseja cursar dois volumes simultaneamente, explique também essa solicitação.
+            Conte quando e onde cursou. Se está pedindo dois volumes ao mesmo tempo, explique
+            também o motivo — a coordenação avalia caso a caso.
           </p>
           <textarea id="prerequisiteDeclaration" name="prerequisiteDeclaration" className={textareaClass} required />
           <FieldError errors={state.fieldErrors?.prerequisiteDeclaration} />
         </section>
       ) : null}
 
-      <div>
-        <Label htmlFor="notes">Observações <span className="font-normal text-neutral-400">(opcional)</span></Label>
-        <textarea id="notes" name="notes" className={textareaClass} />
-        <FieldError errors={state.fieldErrors?.notes} />
-      </div>
+      <section className="border-t border-neutral-100 pt-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">03</p>
+        <h2 className="mt-0.5 text-lg font-semibold text-neutral-900">Confirmação</h2>
+        <div className="mt-4">
+          <Label htmlFor="notes">Observações <span className="font-normal text-neutral-400">(opcional)</span></Label>
+          <textarea id="notes" name="notes" className={textareaClass} />
+          <FieldError errors={state.fieldErrors?.notes} />
+        </div>
+      </section>
 
       <div className="hidden" aria-hidden="true">
         <Label htmlFor="website">Website</Label>
         <Input id="website" name="website" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <fieldset className="flex flex-col gap-3 border-t border-neutral-100 pt-6">
-        <legend className="sr-only">Confirmações</legend>
+      <div>
         <label className="flex items-start gap-3 text-sm leading-5 text-neutral-600">
           <input type="checkbox" name="privacyConsent" className="mt-0.5 size-4 shrink-0 accent-brand-blue" required />
           <span>Autorizo o tratamento dos meus dados pessoais para análise da inscrição e contato da Escola Makários.</span>
         </label>
         <FieldError errors={state.fieldErrors?.privacyConsent} />
-        <label className="flex items-start gap-3 text-sm leading-5 text-neutral-600">
-          <input type="checkbox" name="enrollmentAwareness" className="mt-0.5 size-4 shrink-0 accent-brand-blue" required />
-          <span>Estou ciente de que esta solicitação será analisada e não representa confirmação de matrícula ou garantia de vaga.</span>
-        </label>
-        <FieldError errors={state.fieldErrors?.enrollmentAwareness} />
-      </fieldset>
+      </div>
 
       <Button type="submit" size="lg" isLoading={isPending} className="w-full sm:w-auto sm:self-end">
-        Enviar solicitação
+        Confirmar inscrição
       </Button>
     </form>
   );

@@ -14,7 +14,6 @@ const baseRequest = {
   prerequisiteDeclaration: "",
   notes: "",
   privacyConsent: true,
-  enrollmentAwareness: true,
   website: "",
 };
 
@@ -58,12 +57,11 @@ describe("enrollmentRequestSchema", () => {
     }
   });
 
-  it("exige os dois consentimentos", () => {
+  it("exige o consentimento de privacidade", () => {
     expect(
       enrollmentRequestSchema.safeParse({
         ...baseRequest,
         privacyConsent: false,
-        enrollmentAwareness: false,
       }).success,
     ).toBe(false);
   });

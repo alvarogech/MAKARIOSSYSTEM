@@ -21,7 +21,6 @@ export const enrollmentRequestSchema = z
     prerequisiteDeclaration: z.string().trim().max(2000).optional(),
     notes: z.string().trim().max(2000).optional(),
     privacyConsent: z.literal(true, { error: "Você precisa autorizar o tratamento dos dados." }),
-    enrollmentAwareness: z.literal(true, { error: "Confirme que compreendeu o processo de inscrição." }),
     website: z.string().max(200).optional(),
   })
   .superRefine((data, context) => {
