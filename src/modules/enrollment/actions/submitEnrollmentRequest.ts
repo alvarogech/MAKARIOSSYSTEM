@@ -101,13 +101,11 @@ export async function submitEnrollmentRequest(
             "Já existe uma solicitação ativa para este CPF. Se precisar corrigir alguma informação, fale com a equipe da Escola Makários.",
         };
       }
-      // DEBUG TEMP: detalhe do erro para diagnostico pos-deploy, remover depois.
-      return { error: `Não foi possível enviar sua solicitação. [DEBUG: ${error.code} ${error.message}]` };
+      return { error: "Não foi possível enviar sua solicitação. Tente novamente em alguns instantes." };
     }
 
     return { success: true, protocol };
-  } catch (err) {
-    // DEBUG TEMP: detalhe do erro para diagnostico pos-deploy, remover depois.
-    return { error: `Não foi possível enviar sua solicitação. [DEBUG: ${err instanceof Error ? err.message : String(err)}]` };
+  } catch {
+    return { error: "Não foi possível enviar sua solicitação. Tente novamente em alguns instantes." };
   }
 }
