@@ -36,9 +36,21 @@ describe("computeEnrollmentStats", () => {
     expect(stats.byVolume.find((v) => v.slug === "essencia")?.count).toBe(4);
   });
 
-  it("nunca inventa volumes/status fora do catálogo real", () => {
+  it("conta por turma (meio de semana / fim de semana)", () => {
+    const rows: EnrollmentStatsRow[] = [
+      row({ primaryScheduleSlug: "terca_quinta" }),
+      row({ primaryScheduleSlug: "terca_quinta" }),
+      row({ primaryScheduleSlug: "sabado" }),
+    ];
+    const stats = computeEnrollmentStats(rows, NOW);
+    expect(stats.bySchedule.find((s) => s.slug === "terca_quinta")?.count).toBe(2);
+    expect(stats.bySchedule.find((s) => s.slug === "sabado")?.count).toBe(1);
+  });
+
+  it("nunca inventa volumes/turmas/status fora do catálogo real", () => {
     const stats = computeEnrollmentStats([], NOW);
     expect(stats.byVolume.map((v) => v.slug)).toEqual(["essencia", "caminho", "voz"]);
+    expect(stats.bySchedule.map((s) => s.slug)).toEqual(["terca_quinta", "sabado"]);
     expect(stats.byStatus.map((s) => s.status)).toEqual([
       "pending",
       "approved",

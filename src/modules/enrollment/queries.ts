@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { ENROLLMENT_VOLUMES } from "@/config/enrollment";
+import { ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
 import {
   addSaoPauloDays,
   formatSaoPauloDayLabel,
@@ -260,6 +260,7 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
   let thisWeek = 0;
   let thisMonth = 0;
   const byVolumeMap = new Map<string, number>();
+  const byScheduleMap = new Map<string, number>();
   const byStatusMap = new Map<string, number>();
 
   for (const row of rows) {
@@ -270,6 +271,7 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
     if (created >= weekStart) thisWeek += 1;
     if (created >= monthStart) thisMonth += 1;
     byVolumeMap.set(row.primaryVolumeSlug, (byVolumeMap.get(row.primaryVolumeSlug) ?? 0) + 1);
+    byScheduleMap.set(row.primaryScheduleSlug, (byScheduleMap.get(row.primaryScheduleSlug) ?? 0) + 1);
     byStatusMap.set(row.status, (byStatusMap.get(row.status) ?? 0) + 1);
   }
 
@@ -284,6 +286,11 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
       slug: volume.slug,
       label: volume.label,
       count: byVolumeMap.get(volume.slug) ?? 0,
+    })),
+    bySchedule: ENROLLMENT_SCHEDULES.map((schedule) => ({
+      slug: schedule.slug,
+      label: schedule.label,
+      count: byScheduleMap.get(schedule.slug) ?? 0,
     })),
     byStatus: ALL_STATUSES.map((status) => ({ status, count: byStatusMap.get(status) ?? 0 })),
   };

@@ -32,14 +32,26 @@ export function EnrollmentStatsCards({ stats }: { stats: EnrollmentStats }) {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-[var(--radius-md)] border border-neutral-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-neutral-900">Por volume</h3>
+          <h3 className="text-sm font-semibold text-neutral-900">Por curso</h3>
           <ul className="mt-3 flex flex-col gap-2">
             {stats.byVolume.map((volume) => (
               <li key={volume.slug} className="flex items-center justify-between text-sm">
                 <span className="text-neutral-600">{volume.label}</span>
                 <span className="font-semibold text-neutral-900">{volume.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-[var(--radius-md)] border border-neutral-200 bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-neutral-900">Por turma</h3>
+          <ul className="mt-3 flex flex-col gap-2">
+            {stats.bySchedule.map((schedule) => (
+              <li key={schedule.slug} className="flex items-center justify-between text-sm">
+                <span className="text-neutral-600">{schedule.label}</span>
+                <span className="font-semibold text-neutral-900">{schedule.count}</span>
               </li>
             ))}
           </ul>
