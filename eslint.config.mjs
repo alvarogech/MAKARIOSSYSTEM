@@ -36,6 +36,13 @@ const eslintConfig = [
                 "e, nesse caso, isole o import num arquivo listado nas exceções deste " +
                 "eslint.config.mjs, não num Client Component.",
             },
+            {
+              name: "@/lib/serverEnv",
+              message:
+                "Variáveis server-only (SUPABASE_SECRET_KEY, ENROLLMENT_DATA_KEY) — " +
+                "use '@/lib/env' (getPublicEnv) se só precisar da URL/chave " +
+                "publicáveis. Import legítimo só nas exceções deste arquivo.",
+            },
           ],
         },
       ],
@@ -43,11 +50,13 @@ const eslintConfig = [
   },
   {
     // Exceções revisadas: os únicos lugares que legitimamente precisam do
-    // client administrativo nesta fase.
+    // client administrativo e/ou das variáveis server-only nesta fase.
     files: [
       "src/jobs/index.ts",
       "src/modules/**/actions/**",
       "netlify/functions/**",
+      "src/integrations/supabase/admin.ts",
+      "src/modules/enrollment/dataProtection.ts",
     ],
     rules: {
       "no-restricted-imports": "off",

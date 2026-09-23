@@ -3,6 +3,15 @@ import { z } from "zod";
 /**
  * Variáveis expostas ao navegador. Qualquer coisa aqui acaba no bundle
  * client-side — por isso este schema nunca deve conter segredos.
+ *
+ * Este arquivo é seguro para ser importado por Client Components (ex.:
+ * `@/integrations/supabase/client`). Variáveis exclusivamente server-side
+ * vivem em `@/lib/serverEnv`, guardado por `import "server-only"` — nunca
+ * junte as duas coisas neste arquivo de novo. Um `serverEnvSchema` já
+ * viveu aqui sem esse guard e vazou o nome de `SUPABASE_SECRET_KEY` para
+ * um bundle client-side assim que o primeiro Client Component passou a
+ * importar `getPublicEnv` (ver histórico do dashboard de inscrições) —
+ * corrigido separando os dois.
  */
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -27,41 +36,4 @@ export function getPublicEnv(): PublicEnv {
   }
 
   return parsed.data;
-}
-
-/**
- * Variáveis exclusivamente server-side. Este módulo importa "server-only"
- * — qualquer tentativa de usá-lo em um Client Component falha no build.
- */
-const serverEnvSchema = z.object({
-  SUPABASE_SECRET_KEY: z.string().min(1),
-});
-
-export type ServerEnv = z.infer<typeof serverEnvSchema>;
-
-export function getServerEnv(): ServerEnv {
-  const parsed = serverEnvSchema.safeParse({
-    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
-  });
-
-  if (!parsed.success) {
-    throw new Error(
-      `Variáveis de ambiente server-side inválidas ou ausentes: ${parsed.error.message}`,
-    );
-  }
-
-  return parsed.data;
-}
-
-/**
- * Chave dedicada à proteção do CPF nas solicitações públicas. Mantida
- * separada do schema geral para que apenas esse fluxo a exija em runtime.
- * Gere com: `openssl rand -base64 32`.
- */
-export function getEnrollmentDataKey(): string {
-  const value = process.env.ENROLLMENT_DATA_KEY;
-  if (!value) {
-    throw new Error("Variável server-side ENROLLMENT_DATA_KEY ausente.");
-  }
-  return value;
 }

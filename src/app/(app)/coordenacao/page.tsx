@@ -9,8 +9,8 @@ export const metadata: Metadata = { title: "Coordenação" };
 const SECTIONS = [
   {
     href: "/coordenacao/inscricoes",
-    title: "Solicitações de inscrição",
-    description: "Analisar os pedidos enviados pela página pública antes de convidar e matricular.",
+    title: "Dashboard de inscrições",
+    description: "Acompanhar em tempo real, aprovar ou recusar os pedidos enviados pela página pública.",
   },
   {
     href: "/coordenacao/temporadas",

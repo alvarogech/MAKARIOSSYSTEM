@@ -38,6 +38,7 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "prerequisite_exceptions:read": ["coordinator", "admin"],
   "imports:create": ["coordinator", "admin"],
   "imports:read": ["coordinator", "admin"],
+  "enrollment_requests:manage": ["coordinator", "admin"],
   "content:manage": ["coordinator", "admin", "content_editor"],
   "question_bank:manage": ["coordinator", "admin", "content_editor"],
   "activities:manage": ["coordinator", "admin", "content_editor"],

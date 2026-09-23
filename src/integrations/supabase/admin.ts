@@ -2,7 +2,8 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
-import { getPublicEnv, getServerEnv } from "@/lib/env";
+import { getPublicEnv } from "@/lib/env";
+import { getServerEnv } from "@/lib/serverEnv";
 
 /**
  * Client Supabase ADMINISTRATIVO — usa a SECRET KEY e IGNORA Row Level

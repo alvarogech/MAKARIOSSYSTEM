@@ -45,6 +45,7 @@ export type PermissionCheck =
   | { resource: "prerequisite_exceptions"; action: "read" }
   | { resource: "imports"; action: "create" }
   | { resource: "imports"; action: "read" }
+  | { resource: "enrollment_requests"; action: "manage" }
   | { resource: "content"; action: "manage" }
   | { resource: "question_bank"; action: "manage" }
   | { resource: "activities"; action: "manage" }

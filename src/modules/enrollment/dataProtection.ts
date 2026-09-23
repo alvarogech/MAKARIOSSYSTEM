@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createCipheriv, createHmac, randomBytes } from "node:crypto";
-import { getEnrollmentDataKey } from "@/lib/env";
+import { getEnrollmentDataKey } from "@/lib/serverEnv";
 
 function getKey(): Buffer {
   const key = Buffer.from(getEnrollmentDataKey(), "base64");
