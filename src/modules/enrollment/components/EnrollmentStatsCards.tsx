@@ -48,10 +48,13 @@ export function EnrollmentStatsCards({ stats }: { stats: EnrollmentStats }) {
         <div className="rounded-[var(--radius-md)] border border-neutral-200 bg-white p-4 shadow-sm">
           <h3 className="text-sm font-semibold text-neutral-900">Por turma</h3>
           <ul className="mt-3 flex flex-col gap-2">
-            {stats.bySchedule.map((schedule) => (
-              <li key={schedule.slug} className="flex items-center justify-between text-sm">
-                <span className="text-neutral-600">{schedule.label}</span>
-                <span className="font-semibold text-neutral-900">{schedule.count}</span>
+            {stats.byVolumeSchedule.map((entry) => (
+              <li
+                key={`${entry.volumeSlug}:${entry.scheduleSlug}`}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="text-neutral-600">{entry.label}</span>
+                <span className="font-semibold text-neutral-900">{entry.count}</span>
               </li>
             ))}
           </ul>

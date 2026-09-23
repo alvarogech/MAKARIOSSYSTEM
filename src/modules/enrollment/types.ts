@@ -50,7 +50,12 @@ export interface EnrollmentStats {
   thisWeek: number;
   thisMonth: number;
   byVolume: { slug: EnrollmentVolumeSlug; label: string; count: number }[];
-  bySchedule: { slug: EnrollmentScheduleSlug; label: string; count: number }[];
+  byVolumeSchedule: {
+    volumeSlug: EnrollmentVolumeSlug;
+    scheduleSlug: EnrollmentScheduleSlug;
+    label: string;
+    count: number;
+  }[];
   byStatus: { status: EnrollmentRequestStatus; count: number }[];
 }
 

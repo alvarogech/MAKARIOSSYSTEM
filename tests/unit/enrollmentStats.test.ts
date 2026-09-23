@@ -36,21 +36,37 @@ describe("computeEnrollmentStats", () => {
     expect(stats.byVolume.find((v) => v.slug === "essencia")?.count).toBe(4);
   });
 
-  it("conta por turma (meio de semana / fim de semana)", () => {
+  it("conta por curso e turma combinados (ex.: Essência · Sábados)", () => {
     const rows: EnrollmentStatsRow[] = [
-      row({ primaryScheduleSlug: "terca_quinta" }),
-      row({ primaryScheduleSlug: "terca_quinta" }),
-      row({ primaryScheduleSlug: "sabado" }),
+      row({ primaryVolumeSlug: "essencia", primaryScheduleSlug: "terca_quinta" }),
+      row({ primaryVolumeSlug: "essencia", primaryScheduleSlug: "terca_quinta" }),
+      row({ primaryVolumeSlug: "essencia", primaryScheduleSlug: "sabado" }),
+      row({ primaryVolumeSlug: "caminho", primaryScheduleSlug: "sabado" }),
     ];
     const stats = computeEnrollmentStats(rows, NOW);
-    expect(stats.bySchedule.find((s) => s.slug === "terca_quinta")?.count).toBe(2);
-    expect(stats.bySchedule.find((s) => s.slug === "sabado")?.count).toBe(1);
+    const find = (volumeSlug: string, scheduleSlug: string) =>
+      stats.byVolumeSchedule.find(
+        (entry) => entry.volumeSlug === volumeSlug && entry.scheduleSlug === scheduleSlug,
+      );
+
+    expect(find("essencia", "terca_quinta")?.count).toBe(2);
+    expect(find("essencia", "sabado")?.count).toBe(1);
+    expect(find("caminho", "sabado")?.count).toBe(1);
+    expect(find("caminho", "terca_quinta")?.count).toBe(0);
+    expect(find("essencia", "terca_quinta")?.label).toBe("Essência · Terças e quintas");
   });
 
   it("nunca inventa volumes/turmas/status fora do catálogo real", () => {
     const stats = computeEnrollmentStats([], NOW);
     expect(stats.byVolume.map((v) => v.slug)).toEqual(["essencia", "caminho", "voz"]);
-    expect(stats.bySchedule.map((s) => s.slug)).toEqual(["terca_quinta", "sabado"]);
+    expect(stats.byVolumeSchedule.map((entry) => `${entry.volumeSlug}:${entry.scheduleSlug}`)).toEqual([
+      "essencia:terca_quinta",
+      "essencia:sabado",
+      "caminho:terca_quinta",
+      "caminho:sabado",
+      "voz:terca_quinta",
+      "voz:sabado",
+    ]);
     expect(stats.byStatus.map((s) => s.status)).toEqual([
       "pending",
       "approved",
