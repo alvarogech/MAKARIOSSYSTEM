@@ -7,7 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { formatSaoPauloDateTime } from "@/lib/saoPauloDate";
 import { buildWhatsAppLink } from "@/services/whatsapp";
-import { scheduleLabel, volumeLabel } from "../labels";
+import { grNetworkLabel, scheduleLabel, volumeLabel } from "../labels";
 import { reviewEnrollmentRequest, type ReviewEnrollmentRequestState } from "../actions/reviewEnrollmentRequest";
 import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow } from "../types";
 import { EnrollmentStatusBadge } from "./EnrollmentStatusBadge";
@@ -142,6 +142,38 @@ export function EnrollmentDetailPanel({
             ) : null}
           </div>
         </section>
+
+        {row.isOtherChurchMember !== null || row.isEmausMember !== null ? (
+          <section className="mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Vínculo com a igreja
+            </h3>
+            <div className="mt-2 flex flex-col gap-1 text-sm text-neutral-700">
+              {row.isOtherChurchMember !== null ? (
+                <p>
+                  <strong className="font-medium text-neutral-900">Outra igreja:</strong>{" "}
+                  {row.isOtherChurchMember
+                    ? row.otherChurchName
+                      ? `Sim, ${row.otherChurchName}`
+                      : "Sim"
+                    : "Não"}
+                </p>
+              ) : null}
+              {row.isEmausMember !== null ? (
+                <p>
+                  <strong className="font-medium text-neutral-900">Membro da Emaús:</strong>{" "}
+                  {row.isEmausMember ? "Sim" : "Não"}
+                </p>
+              ) : null}
+              {row.isEmausMember && row.hasGr !== null ? (
+                <p>
+                  <strong className="font-medium text-neutral-900">Tem GR:</strong>{" "}
+                  {row.hasGr ? `Sim · ${grNetworkLabel(row.grNetworkSlug)}` : "Não"}
+                </p>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         {row.prerequisiteDeclaration ? (
           <section className="mt-6">

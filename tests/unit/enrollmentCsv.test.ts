@@ -17,6 +17,11 @@ function makeRow(overrides: Partial<EnrollmentRequestRow> = {}): EnrollmentReque
     secondaryScheduleSlug: null,
     prerequisiteDeclaration: null,
     notes: null,
+    isOtherChurchMember: null,
+    otherChurchName: null,
+    isEmausMember: null,
+    hasGr: null,
+    grNetworkSlug: null,
     status: "pending",
     reviewedAt: null,
     reviewedBy: null,
@@ -39,6 +44,25 @@ describe("buildEnrollmentRequestsCsv", () => {
     const csv = buildEnrollmentRequestsCsv([makeRow({ cpfLast4: "4725" })]);
     expect(csv).toContain("4725");
     expect(csv).not.toContain("cpf_encrypted");
+  });
+
+  it("mostra a rede do GR só quando a pessoa tem GR", () => {
+    const csv = buildEnrollmentRequestsCsv([
+      makeRow({
+        isEmausMember: true,
+        hasGr: true,
+        grNetworkSlug: "vitor_motta_slaves",
+      }),
+    ]);
+    expect(csv).toContain("Vitor Motta");
+  });
+
+  it("não inventa resposta para inscrições enviadas antes da pergunta existir", () => {
+    const csv = buildEnrollmentRequestsCsv([makeRow()]);
+    const [, dataLine] = csv.split("\r\n");
+    const columns = (dataLine ?? "").split(",");
+    // Frequenta outra igreja, Qual outra igreja, Membro da Emaús, Tem GR, Rede do GR
+    expect(columns.slice(10, 15).every((value) => value === "")).toBe(true);
   });
 });
 

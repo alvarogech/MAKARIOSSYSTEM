@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 import { formatSaoPauloDateTime } from "@/lib/saoPauloDate";
-import { scheduleLabel, volumeLabel } from "./labels";
+import { grNetworkLabel, scheduleLabel, volumeLabel } from "./labels";
 import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow } from "./types";
 
 /**
@@ -9,6 +9,11 @@ import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow } from "./types";
  * últimos dígitos, iguais aos exibidos no painel). BOM UTF-8 no início
  * para o Excel reconhecer acentuação sem configuração extra.
  */
+function yesNo(value: boolean | null): string {
+  if (value === null) return "";
+  return value ? "Sim" : "Não";
+}
+
 export function buildEnrollmentRequestsCsv(rows: EnrollmentRequestRow[]): string {
   const data = rows.map((row) => ({
     Protocolo: row.protocol,
@@ -21,6 +26,11 @@ export function buildEnrollmentRequestsCsv(rows: EnrollmentRequestRow[]): string
     "Segundo volume": row.wantsSecondVolume ? volumeLabel(row.secondaryVolumeSlug) : "",
     "Turma do segundo volume": row.wantsSecondVolume ? scheduleLabel(row.secondaryScheduleSlug) : "",
     "Declaração de pré-requisito": row.prerequisiteDeclaration ?? "",
+    "Frequenta outra igreja": yesNo(row.isOtherChurchMember),
+    "Qual outra igreja": row.otherChurchName ?? "",
+    "Membro da Emaús": yesNo(row.isEmausMember),
+    "Tem GR": row.isEmausMember ? yesNo(row.hasGr) : "",
+    "Rede do GR": row.hasGr ? grNetworkLabel(row.grNetworkSlug) : "",
     Observações: row.notes ?? "",
     Status: ENROLLMENT_STATUS_LABELS[row.status],
     "Data da inscrição": formatSaoPauloDateTime(row.createdAt),

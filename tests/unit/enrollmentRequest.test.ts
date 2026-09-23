@@ -13,6 +13,11 @@ const baseRequest = {
   secondarySchedule: "",
   prerequisiteDeclaration: "",
   notes: "",
+  isOtherChurchMember: false,
+  otherChurchName: "",
+  isEmausMember: false,
+  hasGr: undefined,
+  grNetwork: "",
   privacyConsent: true,
   website: "",
 };
@@ -64,6 +69,64 @@ describe("enrollmentRequestSchema", () => {
         privacyConsent: false,
       }).success,
     ).toBe(false);
+  });
+
+  it("exige resposta sobre outra igreja e sobre a Emaús", () => {
+    const { isOtherChurchMember: _isOtherChurchMember, ...withoutOtherChurch } = baseRequest;
+    expect(enrollmentRequestSchema.safeParse(withoutOtherChurch).success).toBe(false);
+
+    const { isEmausMember: _isEmausMember, ...withoutEmaus } = baseRequest;
+    expect(enrollmentRequestSchema.safeParse(withoutEmaus).success).toBe(false);
+  });
+
+  it("exige informar se tem GR quando é membro da Emaús", () => {
+    const result = enrollmentRequestSchema.safeParse({
+      ...baseRequest,
+      isEmausMember: true,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.hasGr).toBeDefined();
+    }
+  });
+
+  it("exige a rede quando a pessoa tem GR", () => {
+    const result = enrollmentRequestSchema.safeParse({
+      ...baseRequest,
+      isEmausMember: true,
+      hasGr: true,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.grNetwork).toBeDefined();
+    }
+  });
+
+  it("aceita membro da Emaús com GR e rede informados", () => {
+    const result = enrollmentRequestSchema.safeParse({
+      ...baseRequest,
+      isEmausMember: true,
+      hasGr: true,
+      grNetwork: "vitor_motta_slaves",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("não exige rede quando a pessoa não tem GR", () => {
+    const result = enrollmentRequestSchema.safeParse({
+      ...baseRequest,
+      isEmausMember: true,
+      hasGr: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("não exige pergunta de GR quando não é membro da Emaús", () => {
+    const result = enrollmentRequestSchema.safeParse({
+      ...baseRequest,
+      isEmausMember: false,
+    });
+    expect(result.success).toBe(true);
   });
 });
 

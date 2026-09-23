@@ -999,6 +999,107 @@ export type Database = {
           },
         ]
       }
+      enrollment_requests: {
+        Row: {
+          consent_at: string
+          cpf_encrypted: string
+          cpf_hash: string
+          cpf_last4: string
+          created_at: string
+          email: string
+          full_name: string
+          gr_network_slug: string | null
+          has_gr: boolean | null
+          id: string
+          is_emaus_member: boolean | null
+          is_other_church_member: boolean | null
+          notes: string | null
+          other_church_name: string | null
+          phone: string
+          prerequisite_declaration: string | null
+          primary_schedule_slug: string
+          primary_volume_slug: string
+          privacy_terms_version: string
+          protocol: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          season_id: string
+          secondary_schedule_slug: string | null
+          secondary_volume_slug: string | null
+          status: string
+          updated_at: string
+          wants_second_volume: boolean
+        }
+        Insert: {
+          consent_at: string
+          cpf_encrypted: string
+          cpf_hash: string
+          cpf_last4: string
+          created_at?: string
+          email: string
+          full_name: string
+          gr_network_slug?: string | null
+          has_gr?: boolean | null
+          id?: string
+          is_emaus_member?: boolean | null
+          is_other_church_member?: boolean | null
+          notes?: string | null
+          other_church_name?: string | null
+          phone: string
+          prerequisite_declaration?: string | null
+          primary_schedule_slug: string
+          primary_volume_slug: string
+          privacy_terms_version: string
+          protocol: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          season_id: string
+          secondary_schedule_slug?: string | null
+          secondary_volume_slug?: string | null
+          status?: string
+          updated_at?: string
+          wants_second_volume?: boolean
+        }
+        Update: {
+          consent_at?: string
+          cpf_encrypted?: string
+          cpf_hash?: string
+          cpf_last4?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          gr_network_slug?: string | null
+          has_gr?: boolean | null
+          id?: string
+          is_emaus_member?: boolean | null
+          is_other_church_member?: boolean | null
+          notes?: string | null
+          other_church_name?: string | null
+          phone?: string
+          prerequisite_declaration?: string | null
+          primary_schedule_slug?: string
+          primary_volume_slug?: string
+          privacy_terms_version?: string
+          protocol?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          season_id?: string
+          secondary_schedule_slug?: string | null
+          secondary_volume_slug?: string | null
+          status?: string
+          updated_at?: string
+          wants_second_volume?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_requests_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           authorized_at: string
@@ -1728,92 +1829,6 @@ export type Database = {
           },
         ]
       }
-      enrollment_requests: {
-        Row: {
-          consent_at: string
-          cpf_encrypted: string
-          cpf_hash: string
-          cpf_last4: string
-          created_at: string
-          email: string
-          full_name: string
-          id: string
-          notes: string | null
-          primary_schedule_slug: string
-          primary_volume_slug: string
-          prerequisite_declaration: string | null
-          privacy_terms_version: string
-          protocol: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          season_id: string
-          secondary_schedule_slug: string | null
-          secondary_volume_slug: string | null
-          status: string
-          phone: string
-          updated_at: string
-          wants_second_volume: boolean
-        }
-        Insert: {
-          consent_at: string
-          cpf_encrypted: string
-          cpf_hash: string
-          cpf_last4: string
-          created_at?: string
-          email: string
-          full_name: string
-          id?: string
-          notes?: string | null
-          primary_schedule_slug: string
-          primary_volume_slug: string
-          prerequisite_declaration?: string | null
-          privacy_terms_version: string
-          protocol: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          season_id: string
-          secondary_schedule_slug?: string | null
-          secondary_volume_slug?: string | null
-          status?: string
-          phone: string
-          updated_at?: string
-          wants_second_volume?: boolean
-        }
-        Update: {
-          consent_at?: string
-          cpf_encrypted?: string
-          cpf_hash?: string
-          cpf_last4?: string
-          created_at?: string
-          email?: string
-          full_name?: string
-          id?: string
-          notes?: string | null
-          primary_schedule_slug?: string
-          primary_volume_slug?: string
-          prerequisite_declaration?: string | null
-          privacy_terms_version?: string
-          protocol?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          season_id?: string
-          secondary_schedule_slug?: string | null
-          secondary_volume_slug?: string | null
-          status?: string
-          phone?: string
-          updated_at?: string
-          wants_second_volume?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollment_requests_season_id_fkey"
-            columns: ["season_id"]
-            isOneToOne: false
-            referencedRelation: "seasons"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       seasons: {
         Row: {
           created_at: string
@@ -2371,12 +2386,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2400,11 +2415,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2425,11 +2440,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2450,11 +2465,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2467,11 +2482,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

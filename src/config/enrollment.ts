@@ -25,8 +25,17 @@ export const ENROLLMENT_VOLUMES = [
   { slug: "voz", label: "Voz", order: 3 },
 ] as const;
 
+export const ENROLLMENT_GR_NETWORKS = [
+  { slug: "antonio_carlos", label: "Pr. Antônio Carlos" },
+  { slug: "ranyere_araujo", label: "Pr. Ranyere Araújo" },
+  { slug: "alvaro_henrique_huios", label: 'Pr. Álvaro Henrique "Huios"' },
+  { slug: "matheus_soares_folk", label: 'Pr. Matheus Soares "Folk"' },
+  { slug: "vitor_motta_slaves", label: 'Vitor Motta "Slaves"' },
+] as const;
+
 export const ENROLLMENT_PRIVACY_TERMS_VERSION = "2026-09-22";
 
 export type EnrollmentVolumeSlug = (typeof ENROLLMENT_VOLUMES)[number]["slug"];
 export type EnrollmentScheduleSlug = (typeof ENROLLMENT_SCHEDULES)[number]["slug"];
+export type EnrollmentGrNetworkSlug = (typeof ENROLLMENT_GR_NETWORKS)[number]["slug"];
 

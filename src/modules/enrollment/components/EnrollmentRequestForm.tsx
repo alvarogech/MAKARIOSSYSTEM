@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
+import { ENROLLMENT_GR_NETWORKS, ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
 import { formatCpf } from "@/services/cpf";
 import {
   submitEnrollmentRequest,
@@ -22,6 +22,50 @@ const textareaClass =
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.[0]) return null;
   return <p className="mt-1.5 text-sm text-danger" role="alert">{errors[0]}</p>;
+}
+
+function YesNoField({
+  name,
+  value,
+  onChange,
+  errors,
+}: {
+  name: string;
+  value: boolean | undefined;
+  onChange: (value: boolean) => void;
+  errors?: string[];
+}) {
+  return (
+    <div>
+      <div className="flex gap-5">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-600">
+          <input
+            type="radio"
+            name={name}
+            value="true"
+            required
+            checked={value === true}
+            onChange={() => onChange(true)}
+            className="size-4 accent-brand-blue"
+          />
+          Sim
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-600">
+          <input
+            type="radio"
+            name={name}
+            value="false"
+            required
+            checked={value === false}
+            onChange={() => onChange(false)}
+            className="size-4 accent-brand-blue"
+          />
+          Não
+        </label>
+      </div>
+      <FieldError errors={errors} />
+    </div>
+  );
 }
 
 function formatPhone(value: string): string {
@@ -40,6 +84,9 @@ export function EnrollmentRequestForm() {
   const [primaryVolume, setPrimaryVolume] = useState("essencia");
   const [wantsSecondVolume, setWantsSecondVolume] = useState(false);
   const needsDeclaration = primaryVolume !== "essencia" || wantsSecondVolume;
+  const [isOtherChurchMember, setIsOtherChurchMember] = useState<boolean | undefined>(undefined);
+  const [isEmausMember, setIsEmausMember] = useState<boolean | undefined>(undefined);
+  const [hasGr, setHasGr] = useState<boolean | undefined>(undefined);
 
   if (state.success) {
     return (
@@ -203,9 +250,72 @@ export function EnrollmentRequestForm() {
         </section>
       ) : null}
 
-      <section className="border-t border-neutral-100 pt-6">
+      <section aria-labelledby="church-title" className="border-t border-neutral-100 pt-6">
         <div className="flex items-baseline gap-3">
           <span className="text-3xl font-light text-brand-blue/50 sm:text-4xl" aria-hidden="true">03</span>
+          <h2 id="church-title" className="text-lg font-semibold text-neutral-900">Vínculo com a igreja</h2>
+        </div>
+        <div className="mt-4 flex flex-col gap-4">
+          <div>
+            <Label htmlFor="isOtherChurchMember">Você faz parte de outra igreja?</Label>
+            <div className="mt-2">
+              <YesNoField
+                name="isOtherChurchMember"
+                value={isOtherChurchMember}
+                onChange={setIsOtherChurchMember}
+                errors={state.fieldErrors?.isOtherChurchMember}
+              />
+            </div>
+          </div>
+
+          {isOtherChurchMember ? (
+            <div>
+              <Label htmlFor="otherChurchName">
+                Qual igreja? <span className="font-normal text-neutral-400">(opcional)</span>
+              </Label>
+              <Input id="otherChurchName" name="otherChurchName" />
+            </div>
+          ) : null}
+
+          <div>
+            <Label htmlFor="isEmausMember">Você faz parte da Igreja Emaús?</Label>
+            <div className="mt-2">
+              <YesNoField
+                name="isEmausMember"
+                value={isEmausMember}
+                onChange={setIsEmausMember}
+                errors={state.fieldErrors?.isEmausMember}
+              />
+            </div>
+          </div>
+
+          {isEmausMember ? (
+            <div>
+              <Label htmlFor="hasGr">Você tem GR (Grupo de Relacionamento)?</Label>
+              <div className="mt-2">
+                <YesNoField name="hasGr" value={hasGr} onChange={setHasGr} errors={state.fieldErrors?.hasGr} />
+              </div>
+            </div>
+          ) : null}
+
+          {isEmausMember && hasGr ? (
+            <div>
+              <Label htmlFor="grNetwork">De qual rede?</Label>
+              <select id="grNetwork" name="grNetwork" className={fieldClass} required defaultValue="">
+                <option value="" disabled>Selecione</option>
+                {ENROLLMENT_GR_NETWORKS.map((network) => (
+                  <option key={network.slug} value={network.slug}>{network.label}</option>
+                ))}
+              </select>
+              <FieldError errors={state.fieldErrors?.grNetwork} />
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="border-t border-neutral-100 pt-6">
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-light text-brand-blue/50 sm:text-4xl" aria-hidden="true">04</span>
           <h2 className="text-lg font-semibold text-neutral-900">Confirmação</h2>
         </div>
         <div className="mt-4">

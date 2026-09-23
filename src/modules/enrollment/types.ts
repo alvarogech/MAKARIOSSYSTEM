@@ -1,4 +1,8 @@
-import type { EnrollmentScheduleSlug, EnrollmentVolumeSlug } from "@/config/enrollment";
+import type {
+  EnrollmentGrNetworkSlug,
+  EnrollmentScheduleSlug,
+  EnrollmentVolumeSlug,
+} from "@/config/enrollment";
 
 export type EnrollmentRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 
@@ -17,6 +21,12 @@ export interface EnrollmentRequestRow {
   secondaryScheduleSlug: EnrollmentScheduleSlug | null;
   prerequisiteDeclaration: string | null;
   notes: string | null;
+  /** `null` = solicitação enviada antes de esta pergunta existir no formulário. */
+  isOtherChurchMember: boolean | null;
+  otherChurchName: string | null;
+  isEmausMember: boolean | null;
+  hasGr: boolean | null;
+  grNetworkSlug: EnrollmentGrNetworkSlug | null;
   status: EnrollmentRequestStatus;
   reviewedAt: string | null;
   reviewedBy: string | null;

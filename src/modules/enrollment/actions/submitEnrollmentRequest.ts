@@ -17,6 +17,14 @@ function checked(formData: FormData, name: string): boolean {
   return formData.get(name) === "on" || formData.get(name) === "true";
 }
 
+/** Lê um par de radios "true"/"false" — `undefined` quando nenhum foi marcado. */
+function boolField(formData: FormData, name: string): boolean | undefined {
+  const value = formData.get(name);
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
 function createProtocol(): string {
   return `MK-${new Date().getUTCFullYear()}-${randomBytes(4).toString("hex").toUpperCase()}`;
 }
@@ -37,6 +45,11 @@ export async function submitEnrollmentRequest(
     secondarySchedule: formData.get("secondarySchedule") ?? "",
     prerequisiteDeclaration: formData.get("prerequisiteDeclaration") ?? "",
     notes: formData.get("notes") ?? "",
+    isOtherChurchMember: boolField(formData, "isOtherChurchMember"),
+    otherChurchName: formData.get("otherChurchName") ?? "",
+    isEmausMember: boolField(formData, "isEmausMember"),
+    hasGr: boolField(formData, "hasGr"),
+    grNetwork: formData.get("grNetwork") ?? "",
     privacyConsent: checked(formData, "privacyConsent"),
     website: formData.get("website") ?? "",
   });
@@ -89,6 +102,14 @@ export async function submitEnrollmentRequest(
         : null,
       prerequisite_declaration: parsed.data.prerequisiteDeclaration || null,
       notes: parsed.data.notes || null,
+      is_other_church_member: parsed.data.isOtherChurchMember,
+      other_church_name: parsed.data.isOtherChurchMember
+        ? parsed.data.otherChurchName || null
+        : null,
+      is_emaus_member: parsed.data.isEmausMember,
+      has_gr: parsed.data.isEmausMember ? (parsed.data.hasGr ?? null) : null,
+      gr_network_slug:
+        parsed.data.isEmausMember && parsed.data.hasGr ? parsed.data.grNetwork || null : null,
       status: "pending",
       privacy_terms_version: ENROLLMENT_PRIVACY_TERMS_VERSION,
       consent_at: new Date().toISOString(),

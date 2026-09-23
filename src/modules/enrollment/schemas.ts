@@ -3,6 +3,13 @@ import { isValidCpf, normalizeCpf } from "@/services/cpf";
 
 const volumeSchema = z.enum(["essencia", "caminho", "voz"]);
 const scheduleSchema = z.enum(["terca_quinta", "sabado"]);
+const grNetworkSchema = z.enum([
+  "antonio_carlos",
+  "ranyere_araujo",
+  "alvaro_henrique_huios",
+  "matheus_soares_folk",
+  "vitor_motta_slaves",
+]);
 
 export const enrollmentRequestSchema = z
   .object({
@@ -20,6 +27,11 @@ export const enrollmentRequestSchema = z
     secondarySchedule: z.union([scheduleSchema, z.literal("")]).optional(),
     prerequisiteDeclaration: z.string().trim().max(2000).optional(),
     notes: z.string().trim().max(2000).optional(),
+    isOtherChurchMember: z.boolean({ error: "Informe se você faz parte de outra igreja." }),
+    otherChurchName: z.string().trim().max(150).optional(),
+    isEmausMember: z.boolean({ error: "Informe se você faz parte da Igreja Emaús." }),
+    hasGr: z.boolean().optional(),
+    grNetwork: z.union([grNetworkSchema, z.literal("")]).optional(),
     privacyConsent: z.literal(true, { error: "Você precisa autorizar o tratamento dos dados." }),
     website: z.string().max(200).optional(),
   })
@@ -46,6 +58,22 @@ export const enrollmentRequestSchema = z
         path: ["prerequisiteDeclaration"],
         message: "Explique seu histórico ou o motivo da solicitação (mínimo 10 caracteres).",
       });
+    }
+
+    if (data.isEmausMember) {
+      if (data.hasGr === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["hasGr"],
+          message: "Informe se você participa de um GR.",
+        });
+      } else if (data.hasGr && !data.grNetwork) {
+        context.addIssue({
+          code: "custom",
+          path: ["grNetwork"],
+          message: "Selecione a rede do seu GR.",
+        });
+      }
     }
   });
 

@@ -38,6 +38,11 @@ type EnrollmentRequestNarrowRow = Pick<
   | "secondary_schedule_slug"
   | "prerequisite_declaration"
   | "notes"
+  | "is_other_church_member"
+  | "other_church_name"
+  | "is_emaus_member"
+  | "has_gr"
+  | "gr_network_slug"
   | "status"
   | "reviewed_at"
   | "reviewed_by"
@@ -46,7 +51,7 @@ type EnrollmentRequestNarrowRow = Pick<
 >;
 
 const TABLE_COLUMNS =
-  "id, protocol, full_name, cpf_last4, email, phone, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug, prerequisite_declaration, notes, status, reviewed_at, reviewed_by, created_at, updated_at" as const;
+  "id, protocol, full_name, cpf_last4, email, phone, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug, prerequisite_declaration, notes, is_other_church_member, other_church_name, is_emaus_member, has_gr, gr_network_slug, status, reviewed_at, reviewed_by, created_at, updated_at" as const;
 
 function mapRow(row: EnrollmentRequestNarrowRow): EnrollmentRequestRow {
   return {
@@ -63,6 +68,11 @@ function mapRow(row: EnrollmentRequestNarrowRow): EnrollmentRequestRow {
     secondaryScheduleSlug: row.secondary_schedule_slug as EnrollmentRequestRow["secondaryScheduleSlug"],
     prerequisiteDeclaration: row.prerequisite_declaration,
     notes: row.notes,
+    isOtherChurchMember: row.is_other_church_member,
+    otherChurchName: row.other_church_name,
+    isEmausMember: row.is_emaus_member,
+    hasGr: row.has_gr,
+    grNetworkSlug: row.gr_network_slug as EnrollmentRequestRow["grNetworkSlug"],
     status: row.status as EnrollmentRequestStatus,
     reviewedAt: row.reviewed_at,
     reviewedBy: row.reviewed_by,
