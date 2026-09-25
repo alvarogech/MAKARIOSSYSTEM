@@ -39,6 +39,10 @@ export interface EnrollmentStatsRow {
   status: EnrollmentRequestStatus;
   primaryVolumeSlug: EnrollmentVolumeSlug;
   primaryScheduleSlug: EnrollmentScheduleSlug;
+  isOtherChurchMember: boolean | null;
+  isEmausMember: boolean | null;
+  hasGr: boolean | null;
+  grNetworkSlug: EnrollmentGrNetworkSlug | null;
   createdAt: string;
 }
 
@@ -57,6 +61,10 @@ export interface EnrollmentStats {
     count: number;
   }[];
   byStatus: { status: EnrollmentRequestStatus; count: number }[];
+  otherChurchMemberCount: number;
+  emausMemberCount: number;
+  noGrCount: number;
+  byGrNetwork: { slug: EnrollmentGrNetworkSlug; label: string; count: number }[];
 }
 
 export type ChartGranularity = "day" | "week" | "month";

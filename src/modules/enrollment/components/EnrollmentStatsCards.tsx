@@ -71,6 +71,36 @@ export function EnrollmentStatsCards({ stats }: { stats: EnrollmentStats }) {
             ))}
           </ul>
         </div>
+
+        <div className="rounded-[var(--radius-md)] border border-neutral-200 bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-neutral-900">Vínculo com a igreja</h3>
+          <ul className="mt-3 flex flex-col gap-2">
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-neutral-600">De outra igreja</span>
+              <span className="font-semibold text-neutral-900">{stats.otherChurchMemberCount}</span>
+            </li>
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-neutral-600">Membro da Emaús</span>
+              <span className="font-semibold text-neutral-900">{stats.emausMemberCount}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="rounded-[var(--radius-md)] border border-neutral-200 bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-neutral-900">Por rede de GR</h3>
+          <ul className="mt-3 flex flex-col gap-2">
+            {stats.byGrNetwork.map((network) => (
+              <li key={network.slug} className="flex items-center justify-between text-sm">
+                <span className="text-neutral-600">{network.label}</span>
+                <span className="font-semibold text-neutral-900">{network.count}</span>
+              </li>
+            ))}
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-neutral-600">Sem GR</span>
+              <span className="font-semibold text-neutral-900">{stats.noGrCount}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

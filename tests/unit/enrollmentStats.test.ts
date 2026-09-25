@@ -9,6 +9,10 @@ function row(overrides: Partial<EnrollmentStatsRow>): EnrollmentStatsRow {
     status: "pending",
     primaryVolumeSlug: "essencia",
     primaryScheduleSlug: "terca_quinta",
+    isOtherChurchMember: null,
+    isEmausMember: null,
+    hasGr: null,
+    grNetworkSlug: null,
     createdAt: NOW.toISOString(),
     ...overrides,
   };
@@ -73,6 +77,44 @@ describe("computeEnrollmentStats", () => {
       "rejected",
       "cancelled",
     ]);
+    expect(stats.byGrNetwork.map((n) => n.slug)).toEqual([
+      "antonio_carlos",
+      "ranyere_araujo",
+      "alvaro_henrique_huios",
+      "matheus_soares_folk",
+      "vitor_motta_slaves",
+    ]);
+    expect(stats.otherChurchMemberCount).toBe(0);
+    expect(stats.emausMemberCount).toBe(0);
+    expect(stats.noGrCount).toBe(0);
+  });
+
+  it("conta outra igreja, membros da Emaús e rede de GR", () => {
+    const rows: EnrollmentStatsRow[] = [
+      row({ isOtherChurchMember: true, isEmausMember: false }),
+      row({ isOtherChurchMember: false, isEmausMember: true, hasGr: false }),
+      row({
+        isOtherChurchMember: false,
+        isEmausMember: true,
+        hasGr: true,
+        grNetworkSlug: "vitor_motta_slaves",
+      }),
+      row({
+        isOtherChurchMember: false,
+        isEmausMember: true,
+        hasGr: true,
+        grNetworkSlug: "vitor_motta_slaves",
+      }),
+      row({}), // legado: perguntas nulas, não deve contar em nenhum bucket
+    ];
+
+    const stats = computeEnrollmentStats(rows, NOW);
+
+    expect(stats.otherChurchMemberCount).toBe(1);
+    expect(stats.emausMemberCount).toBe(3);
+    expect(stats.noGrCount).toBe(1);
+    expect(stats.byGrNetwork.find((n) => n.slug === "vitor_motta_slaves")?.count).toBe(2);
+    expect(stats.byGrNetwork.find((n) => n.slug === "antonio_carlos")?.count).toBe(0);
   });
 });
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
+import { ENROLLMENT_GR_NETWORKS, ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
 import {
   addSaoPauloDays,
   formatSaoPauloDayLabel,
@@ -231,7 +231,9 @@ export async function getEnrollmentStatsRows(
 ): Promise<EnrollmentStatsRow[]> {
   const { data, error } = await supabase
     .from("enrollment_requests")
-    .select("status, primary_volume_slug, primary_schedule_slug, created_at");
+    .select(
+      "status, primary_volume_slug, primary_schedule_slug, is_other_church_member, is_emaus_member, has_gr, gr_network_slug, created_at",
+    );
 
   if (error) {
     throw new Error(`Não foi possível carregar as estatísticas: ${error.message}`);
@@ -241,6 +243,10 @@ export async function getEnrollmentStatsRows(
     status: row.status as EnrollmentRequestStatus,
     primaryVolumeSlug: row.primary_volume_slug as EnrollmentStatsRow["primaryVolumeSlug"],
     primaryScheduleSlug: row.primary_schedule_slug as EnrollmentStatsRow["primaryScheduleSlug"],
+    isOtherChurchMember: row.is_other_church_member,
+    isEmausMember: row.is_emaus_member,
+    hasGr: row.has_gr,
+    grNetworkSlug: row.gr_network_slug as EnrollmentStatsRow["grNetworkSlug"],
     createdAt: row.created_at,
   }));
 }
@@ -259,9 +265,13 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
   let last30Days = 0;
   let thisWeek = 0;
   let thisMonth = 0;
+  let otherChurchMemberCount = 0;
+  let emausMemberCount = 0;
+  let noGrCount = 0;
   const byVolumeMap = new Map<string, number>();
   const byVolumeScheduleMap = new Map<string, number>();
   const byStatusMap = new Map<string, number>();
+  const byGrNetworkMap = new Map<string, number>();
 
   for (const row of rows) {
     const created = new Date(row.createdAt);
@@ -274,6 +284,15 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
     const volumeScheduleKey = `${row.primaryVolumeSlug}:${row.primaryScheduleSlug}`;
     byVolumeScheduleMap.set(volumeScheduleKey, (byVolumeScheduleMap.get(volumeScheduleKey) ?? 0) + 1);
     byStatusMap.set(row.status, (byStatusMap.get(row.status) ?? 0) + 1);
+
+    if (row.isOtherChurchMember) otherChurchMemberCount += 1;
+    if (row.isEmausMember) {
+      emausMemberCount += 1;
+      if (row.hasGr === false) noGrCount += 1;
+      if (row.hasGr && row.grNetworkSlug) {
+        byGrNetworkMap.set(row.grNetworkSlug, (byGrNetworkMap.get(row.grNetworkSlug) ?? 0) + 1);
+      }
+    }
   }
 
   return {
@@ -297,6 +316,14 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
       })),
     ),
     byStatus: ALL_STATUSES.map((status) => ({ status, count: byStatusMap.get(status) ?? 0 })),
+    otherChurchMemberCount,
+    emausMemberCount,
+    noGrCount,
+    byGrNetwork: ENROLLMENT_GR_NETWORKS.map((network) => ({
+      slug: network.slug,
+      label: network.label,
+      count: byGrNetworkMap.get(network.slug) ?? 0,
+    })),
   };
 }
 
