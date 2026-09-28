@@ -1028,6 +1028,8 @@ export type Database = {
           secondary_volume_slug: string | null
           status: string
           updated_at: string
+          viewed_at: string | null
+          viewed_by: string | null
           wants_second_volume: boolean
         }
         Insert: {
@@ -1058,6 +1060,8 @@ export type Database = {
           secondary_volume_slug?: string | null
           status?: string
           updated_at?: string
+          viewed_at?: string | null
+          viewed_by?: string | null
           wants_second_volume?: boolean
         }
         Update: {
@@ -1088,11 +1092,51 @@ export type Database = {
           secondary_volume_slug?: string | null
           status?: string
           updated_at?: string
+          viewed_at?: string | null
+          viewed_by?: string | null
           wants_second_volume?: boolean
         }
         Relationships: [
           {
             foreignKeyName: "enrollment_requests_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enrollment_turma_capacity: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          schedule_slug: string
+          season_id: string
+          updated_at: string
+          volume_slug: string
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          id?: string
+          schedule_slug: string
+          season_id: string
+          updated_at?: string
+          volume_slug: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          schedule_slug?: string
+          season_id?: string
+          updated_at?: string
+          volume_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_turma_capacity_season_id_fkey"
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "seasons"
@@ -2168,6 +2212,10 @@ export type Database = {
       is_teacher_assigned_to_class: {
         Args: { p_class_id: string }
         Returns: boolean
+      }
+      log_enrollment_admin_action: {
+        Args: { p_action: string; p_entity_id: string; p_new_value: Json }
+        Returns: undefined
       }
       publish_assessment: {
         Args: { p_assessment_id: string }

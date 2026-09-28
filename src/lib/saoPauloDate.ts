@@ -74,6 +74,11 @@ export function addSaoPauloDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 86_400_000);
 }
 
+/** Início do dia (00:00 em São Paulo) para uma chave "YYYY-MM-DD" — inverso de `getSaoPauloDateKey`. */
+export function startOfSaoPauloDayFromKey(key: string): Date {
+  return startOfSaoPauloDay(new Date(`${key}T12:00:00Z`));
+}
+
 /** "dd/MM/AAAA HH:mm" em São Paulo, para exibição na tabela/detalhes. */
 export function formatSaoPauloDateTime(iso: string): string {
   const formatted = new Intl.DateTimeFormat("pt-BR", {

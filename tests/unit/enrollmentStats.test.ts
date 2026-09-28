@@ -13,6 +13,7 @@ function row(overrides: Partial<EnrollmentStatsRow>): EnrollmentStatsRow {
     isEmausMember: null,
     hasGr: null,
     grNetworkSlug: null,
+    viewedAt: null,
     createdAt: NOW.toISOString(),
     ...overrides,
   };
@@ -84,15 +85,16 @@ describe("computeEnrollmentStats", () => {
       "matheus_soares_folk",
       "vitor_motta_slaves",
     ]);
-    expect(stats.otherChurchMemberCount).toBe(0);
-    expect(stats.emausMemberCount).toBe(0);
+    expect(stats.byChurchVinculo.map((c) => c.value)).toEqual(["member", "other", "nao_informado"]);
     expect(stats.noGrCount).toBe(0);
+    expect(stats.grNetworkNotInformedCount).toBe(0);
+    expect(stats.notViewedCount).toBe(0);
   });
 
-  it("conta outra igreja, membros da Emaús e rede de GR", () => {
+  it("segmentações de igreja/GR sempre fecham com o total, mesmo com registros legados", () => {
     const rows: EnrollmentStatsRow[] = [
-      row({ isOtherChurchMember: true, isEmausMember: false }),
-      row({ isOtherChurchMember: false, isEmausMember: true, hasGr: false }),
+      row({ isOtherChurchMember: true, isEmausMember: false }), // "outro vínculo"
+      row({ isOtherChurchMember: false, isEmausMember: true, hasGr: false }), // membro, sem GR
       row({
         isOtherChurchMember: false,
         isEmausMember: true,
@@ -105,16 +107,37 @@ describe("computeEnrollmentStats", () => {
         hasGr: true,
         grNetworkSlug: "vitor_motta_slaves",
       }),
-      row({}), // legado: perguntas nulas, não deve contar em nenhum bucket
+      row({}), // legado: perguntas nunca respondidas
+      row({}), // legado: idem
     ];
 
     const stats = computeEnrollmentStats(rows, NOW);
+    const churchTotal = stats.byChurchVinculo.reduce((sum, entry) => sum + entry.count, 0);
+    const grTotal =
+      stats.byGrNetwork.reduce((sum, entry) => sum + entry.count, 0) +
+      stats.noGrCount +
+      stats.grNetworkNotInformedCount;
 
-    expect(stats.otherChurchMemberCount).toBe(1);
-    expect(stats.emausMemberCount).toBe(3);
+    expect(churchTotal).toBe(stats.total);
+    expect(grTotal).toBe(stats.total);
+
+    expect(stats.byChurchVinculo.find((c) => c.value === "member")?.count).toBe(3);
+    expect(stats.byChurchVinculo.find((c) => c.value === "other")?.count).toBe(1);
+    expect(stats.byChurchVinculo.find((c) => c.value === "nao_informado")?.count).toBe(2);
+
     expect(stats.noGrCount).toBe(1);
+    expect(stats.grNetworkNotInformedCount).toBe(3); // 1 "outro vínculo" + 2 legados
     expect(stats.byGrNetwork.find((n) => n.slug === "vitor_motta_slaves")?.count).toBe(2);
     expect(stats.byGrNetwork.find((n) => n.slug === "antonio_carlos")?.count).toBe(0);
+  });
+
+  it("conta inscrições ainda não visualizadas", () => {
+    const rows: EnrollmentStatsRow[] = [
+      row({ viewedAt: null }),
+      row({ viewedAt: null }),
+      row({ viewedAt: "2026-03-12T14:00:00Z" }),
+    ];
+    expect(computeEnrollmentStats(rows, NOW).notViewedCount).toBe(2);
   });
 });
 
@@ -130,6 +153,13 @@ describe("buildChartPoints", () => {
     expect(points.at(-1)?.count).toBe(2); // hoje
     expect(points.at(-2)?.count).toBe(1); // ontem
     expect(points.at(0)?.count).toBe(0);
+  });
+
+  it("cada ponto inclui o intervalo real usado para o filtro ao clicar", () => {
+    const points = buildChartPoints([], "day", NOW);
+    const todayPoint = points.at(-1);
+    expect(todayPoint?.rangeStart).toBe("2026-03-12T03:00:00.000Z");
+    expect(todayPoint?.rangeEnd).toBe("2026-03-13T03:00:00.000Z");
   });
 });
 

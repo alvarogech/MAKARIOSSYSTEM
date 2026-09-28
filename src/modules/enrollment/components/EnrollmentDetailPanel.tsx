@@ -1,13 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Copy, MessageCircle, X } from "lucide-react";
+import { AlertTriangle, Check, Copy, MessageCircle, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { formatSaoPauloDateTime } from "@/lib/saoPauloDate";
+import { formatBrazilianPhone, isValidBrazilianPhone } from "@/services/phone";
 import { buildWhatsAppLink } from "@/services/whatsapp";
+import { checkEnrollmentDataQuality } from "../dataQuality";
 import { grNetworkLabel, scheduleLabel, volumeLabel } from "../labels";
+import { markEnrollmentRequestViewed } from "../actions/markEnrollmentRequestViewed";
 import { reviewEnrollmentRequest, type ReviewEnrollmentRequestState } from "../actions/reviewEnrollmentRequest";
 import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow } from "../types";
 import { EnrollmentStatusBadge } from "./EnrollmentStatusBadge";
@@ -49,6 +52,17 @@ export function EnrollmentDetailPanel({
   closeHref: string;
 }) {
   const [state, formAction, isPending] = useActionState(reviewEnrollmentRequest, initialState);
+  const dataQualityFlags = checkEnrollmentDataQuality({ email: row.email, phone: row.phone });
+  const phoneIsValid = isValidBrazilianPhone(row.phone);
+
+  useEffect(() => {
+    if (!row.viewedAt) {
+      void markEnrollmentRequestViewed(row.id);
+    }
+    // Só na primeira renderização deste id — marcar de novo a cada re-render seria redundante
+    // (a própria ação já é idempotente, mas evitamos a chamada extra).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.id]);
 
   return (
     <div className="fixed inset-0 z-30 flex justify-end">
@@ -70,8 +84,13 @@ export function EnrollmentDetailPanel({
               {row.protocol}
             </p>
             <h2 className="mt-1 text-xl font-semibold text-neutral-900">{row.fullName}</h2>
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2">
               <EnrollmentStatusBadge status={row.status} />
+              {!row.viewedAt ? (
+                <span className="inline-flex items-center rounded-full bg-brand-blue px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  Nova
+                </span>
+              ) : null}
             </div>
           </div>
           <Link
@@ -99,6 +118,20 @@ export function EnrollmentDetailPanel({
           </div>
         ) : null}
 
+        {dataQualityFlags.length > 0 ? (
+          <section className="mt-4 rounded-[var(--radius-sm)] border border-warning/30 bg-warning/5 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-warning">
+              <AlertTriangle className="size-3.5" aria-hidden="true" />
+              Possível inconsistência
+            </p>
+            <ul className="mt-1.5 flex flex-col gap-1 text-sm text-neutral-700">
+              {dataQualityFlags.map((flag) => (
+                <li key={flag.field}>{flag.suggestion ?? flag.message}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <section className="mt-6">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Contato</h3>
           <div className="mt-2 flex flex-col gap-2 text-sm text-neutral-700">
@@ -107,18 +140,28 @@ export function EnrollmentDetailPanel({
               <CopyButton value={row.email} label="e-mail" />
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span>{row.phone}</span>
+              <span>{formatBrazilianPhone(row.phone)}</span>
               <div className="flex items-center gap-2">
                 <CopyButton value={row.phone} label="telefone" />
-                <a
-                  href={buildWhatsAppLink(row.phone)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-success/30 bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
-                >
-                  <MessageCircle className="size-3.5" aria-hidden="true" />
-                  WhatsApp
-                </a>
+                {phoneIsValid ? (
+                  <a
+                    href={buildWhatsAppLink(row.phone)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-success/30 bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
+                  >
+                    <MessageCircle className="size-3.5" aria-hidden="true" />
+                    WhatsApp
+                  </a>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-400"
+                    title="Telefone incompleto — não é possível abrir o WhatsApp."
+                  >
+                    <MessageCircle className="size-3.5" aria-hidden="true" />
+                    WhatsApp indisponível
+                  </span>
+                )}
               </div>
             </div>
             <p className="text-xs text-neutral-400">CPF terminado em {row.cpfLast4}</p>
@@ -127,7 +170,7 @@ export function EnrollmentDetailPanel({
 
         <section className="mt-6">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Volume e turma
+            Curso e turma
           </h3>
           <div className="mt-2 text-sm text-neutral-700">
             <p>
@@ -146,7 +189,7 @@ export function EnrollmentDetailPanel({
         {row.isOtherChurchMember !== null || row.isEmausMember !== null ? (
           <section className="mt-6">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              Vínculo com a igreja
+              Igreja e rede de GR
             </h3>
             <div className="mt-2 flex flex-col gap-1 text-sm text-neutral-700">
               {row.isOtherChurchMember !== null ? (
@@ -196,11 +239,16 @@ export function EnrollmentDetailPanel({
         ) : null}
 
         <section className="mt-6">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Inscrição</h3>
-          <p className="mt-2 text-sm text-neutral-700">{formatSaoPauloDateTime(row.createdAt)}</p>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Datas</h3>
+          <p className="mt-2 text-sm text-neutral-700">Inscrição: {formatSaoPauloDateTime(row.createdAt)}</p>
           {row.reviewedAt ? (
             <p className="mt-1 text-xs text-neutral-400">
               Revisada em {formatSaoPauloDateTime(row.reviewedAt)}
+            </p>
+          ) : null}
+          {row.viewedAt ? (
+            <p className="mt-1 text-xs text-neutral-400">
+              Visualizada pela primeira vez em {formatSaoPauloDateTime(row.viewedAt)}
             </p>
           ) : null}
         </section>

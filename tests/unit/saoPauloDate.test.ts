@@ -4,6 +4,7 @@ import {
   formatSaoPauloDateTime,
   getSaoPauloDateKey,
   startOfSaoPauloDay,
+  startOfSaoPauloDayFromKey,
   startOfSaoPauloMonth,
   startOfSaoPauloWeek,
 } from "@/lib/saoPauloDate";
@@ -38,5 +39,10 @@ describe("saoPauloDate", () => {
 
   it("formata data e hora no padrão brasileiro", () => {
     expect(formatSaoPauloDateTime("2026-03-10T15:05:00Z")).toBe("10/03/2026 12:05");
+  });
+
+  it("recupera o início do dia a partir da chave (inverso de getSaoPauloDateKey)", () => {
+    expect(startOfSaoPauloDayFromKey("2026-03-10").toISOString()).toBe("2026-03-10T03:00:00.000Z");
+    expect(getSaoPauloDateKey(startOfSaoPauloDayFromKey("2026-03-10"))).toBe("2026-03-10");
   });
 });

@@ -9,6 +9,7 @@ import {
   formatSaoPauloMonthLabel,
   getSaoPauloDateKey,
   startOfSaoPauloDay,
+  startOfSaoPauloDayFromKey,
   startOfSaoPauloMonth,
   startOfSaoPauloWeek,
 } from "@/lib/saoPauloDate";
@@ -16,11 +17,14 @@ import {
   ENROLLMENT_PAGE_SIZE,
   type ChartGranularity,
   type ChartPoint,
+  type ChurchVinculoValue,
   type EnrollmentFilters,
   type EnrollmentRequestRow,
   type EnrollmentRequestStatus,
+  type EnrollmentSortField,
   type EnrollmentStats,
   type EnrollmentStatsRow,
+  type EnrollmentTurmaCapacity,
 } from "./types";
 
 type EnrollmentRequestNarrowRow = Pick<
@@ -46,12 +50,22 @@ type EnrollmentRequestNarrowRow = Pick<
   | "status"
   | "reviewed_at"
   | "reviewed_by"
+  | "viewed_at"
+  | "viewed_by"
   | "created_at"
   | "updated_at"
 >;
 
 const TABLE_COLUMNS =
-  "id, protocol, full_name, cpf_last4, email, phone, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug, prerequisite_declaration, notes, is_other_church_member, other_church_name, is_emaus_member, has_gr, gr_network_slug, status, reviewed_at, reviewed_by, created_at, updated_at" as const;
+  "id, protocol, full_name, cpf_last4, email, phone, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug, prerequisite_declaration, notes, is_other_church_member, other_church_name, is_emaus_member, has_gr, gr_network_slug, status, reviewed_at, reviewed_by, viewed_at, viewed_by, created_at, updated_at" as const;
+
+const SORT_COLUMNS: Record<EnrollmentSortField, string> = {
+  createdAt: "created_at",
+  fullName: "full_name",
+  primaryVolumeSlug: "primary_volume_slug",
+  primaryScheduleSlug: "primary_schedule_slug",
+  status: "status",
+};
 
 function mapRow(row: EnrollmentRequestNarrowRow): EnrollmentRequestRow {
   return {
@@ -76,6 +90,8 @@ function mapRow(row: EnrollmentRequestNarrowRow): EnrollmentRequestRow {
     status: row.status as EnrollmentRequestStatus,
     reviewedAt: row.reviewed_at,
     reviewedBy: row.reviewed_by,
+    viewedAt: row.viewed_at,
+    viewedBy: row.viewed_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -98,6 +114,94 @@ export function getPeriodStart(period: EnrollmentFilters["period"], now: Date): 
     default:
       return null;
   }
+}
+
+/**
+ * Intervalo de datas efetivo de um filtro: `dateFrom`/`dateTo` explícitos
+ * (usados ao clicar num ponto do gráfico) têm prioridade sobre `period`.
+ * `end` é exclusivo; `null` em ambos significa "sem filtro de data".
+ */
+export function getDateRange(
+  filters: Pick<EnrollmentFilters, "period" | "dateFrom" | "dateTo">,
+  now: Date,
+): { start: Date | null; end: Date | null } {
+  if (filters.dateFrom || filters.dateTo) {
+    const fromKey = filters.dateFrom ?? filters.dateTo;
+    const toKey = filters.dateTo ?? filters.dateFrom;
+    const start = fromKey ? startOfSaoPauloDayFromKey(fromKey) : null;
+    const end = toKey ? addSaoPauloDays(startOfSaoPauloDayFromKey(toKey), 1) : null;
+    return { start, end };
+  }
+  return { start: getPeriodStart(filters.period, now), end: null };
+}
+
+/**
+ * Único ponto de aplicação dos filtros de busca/segmentação — usado tanto
+ * na página paginada quanto na exportação CSV, para nunca deixar os dois
+ * caminhos divergirem silenciosamente.
+ *
+ * Tipado como `any` de propósito: o tipo real do query builder encadeável
+ * do supabase-js (`PostgrestFilterBuilder<...>`) exige type args que mudam
+ * conforme `select()`/`count` são chamados, e expressar isso genericamente
+ * numa função compartilhada não vale a complexidade — as duas chamadoras
+ * (`getEnrollmentRequestsPage`/`getAllFilteredEnrollmentRequests`) e os
+ * testes já cobrem o comportamento real.
+ */
+function applyEnrollmentFilters(
+  query: any,
+  filters: Omit<EnrollmentFilters, "page" | "granularity" | "sort" | "dir">,
+  now: Date,
+): any {
+  const rawTerm = filters.q.trim();
+  if (rawTerm) {
+    const escaped = rawTerm.replace(/[%_,()]/g, "");
+    const digitsOnly = rawTerm.replace(/\D/g, "");
+    const orParts = [`full_name.ilike.%${escaped}%`, `email.ilike.%${escaped}%`];
+    if (digitsOnly) orParts.push(`phone.ilike.%${digitsOnly}%`);
+    query = query.or(orParts.join(","));
+  }
+
+  if (filters.volume !== "all") {
+    query = query.eq("primary_volume_slug", filters.volume);
+  }
+
+  if (filters.schedule !== "all") {
+    query = query.eq("primary_schedule_slug", filters.schedule);
+  }
+
+  if (filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
+
+  if (filters.churchVinculo !== "all") {
+    if (filters.churchVinculo === "nao_informado") {
+      query = query.is("is_emaus_member", null);
+    } else if (filters.churchVinculo === "member") {
+      query = query.eq("is_emaus_member", true);
+    } else {
+      query = query.eq("is_emaus_member", false);
+    }
+  }
+
+  if (filters.grNetwork !== "all") {
+    if (filters.grNetwork === "nao_informado") {
+      query = query.or("is_emaus_member.is.null,is_emaus_member.eq.false,has_gr.is.null");
+    } else if (filters.grNetwork === "sem_gr") {
+      query = query.eq("is_emaus_member", true).eq("has_gr", false);
+    } else {
+      query = query.eq("has_gr", true).eq("gr_network_slug", filters.grNetwork);
+    }
+  }
+
+  if (filters.notViewed) {
+    query = query.is("viewed_at", null);
+  }
+
+  const { start, end } = getDateRange(filters, now);
+  if (start) query = query.gte("created_at", start.toISOString());
+  if (end) query = query.lt("created_at", end.toISOString());
+
+  return query;
 }
 
 export interface EnrollmentRequestsPage {
@@ -134,31 +238,12 @@ export async function getEnrollmentRequestsPage(
   filters: EnrollmentFilters,
   now: Date = new Date(),
 ): Promise<EnrollmentRequestsPage> {
-  let query = supabase
-    .from("enrollment_requests")
-    .select(TABLE_COLUMNS, { count: "exact" })
-    .order("created_at", { ascending: false });
-
-  const rawTerm = filters.q.trim();
-  if (rawTerm) {
-    const escaped = rawTerm.replace(/[%_,()]/g, "");
-    const digitsOnly = rawTerm.replace(/\D/g, "");
-    const orParts = [`full_name.ilike.%${escaped}%`, `email.ilike.%${escaped}%`];
-    if (digitsOnly) orParts.push(`phone.ilike.%${digitsOnly}%`);
-    query = query.or(orParts.join(","));
-  }
-
-  if (filters.volume !== "all") {
-    query = query.eq("primary_volume_slug", filters.volume);
-  }
-
-  if (filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-
-  const periodStart = getPeriodStart(filters.period, now);
-  if (periodStart) {
-    query = query.gte("created_at", periodStart.toISOString());
+  let query = supabase.from("enrollment_requests").select(TABLE_COLUMNS, { count: "exact" });
+  query = applyEnrollmentFilters(query, filters, now);
+  query = query.order(SORT_COLUMNS[filters.sort], { ascending: filters.dir === "asc" });
+  if (filters.sort !== "createdAt") {
+    // Critério de desempate estável quando a ordenação principal não é a data.
+    query = query.order("created_at", { ascending: false });
   }
 
   const from = (filters.page - 1) * ENROLLMENT_PAGE_SIZE;
@@ -182,32 +267,9 @@ export async function getAllFilteredEnrollmentRequests(
   filters: Omit<EnrollmentFilters, "page">,
   now: Date = new Date(),
 ): Promise<EnrollmentRequestRow[]> {
-  let query = supabase
-    .from("enrollment_requests")
-    .select(TABLE_COLUMNS)
-    .order("created_at", { ascending: false });
-
-  const rawTerm = filters.q.trim();
-  if (rawTerm) {
-    const escaped = rawTerm.replace(/[%_,()]/g, "");
-    const digitsOnly = rawTerm.replace(/\D/g, "");
-    const orParts = [`full_name.ilike.%${escaped}%`, `email.ilike.%${escaped}%`];
-    if (digitsOnly) orParts.push(`phone.ilike.%${digitsOnly}%`);
-    query = query.or(orParts.join(","));
-  }
-
-  if (filters.volume !== "all") {
-    query = query.eq("primary_volume_slug", filters.volume);
-  }
-
-  if (filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-
-  const periodStart = getPeriodStart(filters.period, now);
-  if (periodStart) {
-    query = query.gte("created_at", periodStart.toISOString());
-  }
+  let query = supabase.from("enrollment_requests").select(TABLE_COLUMNS);
+  query = applyEnrollmentFilters(query, filters, now);
+  query = query.order(SORT_COLUMNS[filters.sort], { ascending: filters.dir === "asc" });
 
   const { data, error } = await query;
 
@@ -218,22 +280,73 @@ export async function getAllFilteredEnrollmentRequests(
   return (data ?? []).map(mapRow);
 }
 
+const MAX_SELECTION_IDS = 500;
+
 /**
- * Colunas enxutas (sem PII) de todas as inscrições, usadas só para agregar
- * estatísticas e o gráfico — uma única leitura, nunca uma contagem por
- * card. O volume de inscrições de um curso presencial é pequeno o
- * suficiente para isso ser mais simples e barato do que várias queries de
- * `count` — se um dia crescer muito, trocar por uma função agregada no
- * Postgres sem mudar a assinatura desta função.
+ * Só os ids que atendem aos filtros ativos — usado por "selecionar todos os
+ * resultados do filtro" na barra de ações em lote. Nunca traz mais do que
+ * `MAX_SELECTION_IDS` de uma vez, nem nunca traz colunas com PII.
+ */
+export async function getFilteredEnrollmentRequestIds(
+  supabase: SupabaseClient<Database>,
+  filters: Omit<EnrollmentFilters, "page">,
+  now: Date = new Date(),
+): Promise<{ ids: string[]; truncated: boolean }> {
+  let query = supabase.from("enrollment_requests").select("id").limit(MAX_SELECTION_IDS + 1);
+  query = applyEnrollmentFilters(query, filters, now);
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Não foi possível carregar os ids filtrados: ${error.message}`);
+  }
+
+  const ids = (data ?? []).map((row: { id: string }) => row.id);
+  return { ids: ids.slice(0, MAX_SELECTION_IDS), truncated: ids.length > MAX_SELECTION_IDS };
+}
+
+/**
+ * Busca inscrições por um conjunto explícito de ids — usada pelas ações em
+ * lote e pela exportação de selecionados, sempre revalidando contra as
+ * mesmas colunas (nunca confia em ids vindos do cliente sem checar RLS).
+ */
+export async function getEnrollmentRequestsByIds(
+  supabase: SupabaseClient<Database>,
+  ids: string[],
+): Promise<EnrollmentRequestRow[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("enrollment_requests").select(TABLE_COLUMNS).in("id", ids);
+
+  if (error) {
+    throw new Error(`Não foi possível carregar as inscrições selecionadas: ${error.message}`);
+  }
+
+  return (data ?? []).map(mapRow);
+}
+
+/**
+ * Colunas enxutas (sem PII) das inscrições que atendem aos filtros ativos
+ * (exceto paginação/ordenação) — usadas para agregar estatísticas e o
+ * gráfico. Aplicar os mesmos filtros da tabela aqui é o que garante que
+ * cada segmentação ("Por curso", "Por status" etc.) sempre feche com o
+ * total filtrado exibido na tela, e não com o total geral da base. Uma
+ * única leitura, nunca uma contagem por card — o volume de inscrições de
+ * um curso presencial é pequeno o suficiente para isso ser mais simples e
+ * barato do que várias queries de `count`; se um dia crescer muito, trocar
+ * por uma função agregada no Postgres sem mudar a assinatura desta função.
  */
 export async function getEnrollmentStatsRows(
   supabase: SupabaseClient<Database>,
+  filters: Omit<EnrollmentFilters, "page" | "granularity" | "sort" | "dir">,
+  now: Date = new Date(),
 ): Promise<EnrollmentStatsRow[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("enrollment_requests")
     .select(
-      "status, primary_volume_slug, primary_schedule_slug, is_other_church_member, is_emaus_member, has_gr, gr_network_slug, created_at",
+      "status, primary_volume_slug, primary_schedule_slug, is_other_church_member, is_emaus_member, has_gr, gr_network_slug, viewed_at, created_at",
     );
+  query = applyEnrollmentFilters(query, filters, now);
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Não foi possível carregar as estatísticas: ${error.message}`);
@@ -247,11 +360,18 @@ export async function getEnrollmentStatsRows(
     isEmausMember: row.is_emaus_member,
     hasGr: row.has_gr,
     grNetworkSlug: row.gr_network_slug as EnrollmentStatsRow["grNetworkSlug"],
+    viewedAt: row.viewed_at,
     createdAt: row.created_at,
   }));
 }
 
 const ALL_STATUSES: EnrollmentRequestStatus[] = ["pending", "approved", "rejected", "cancelled"];
+
+function churchVinculoOf(row: EnrollmentStatsRow): ChurchVinculoValue {
+  if (row.isEmausMember === true) return "member";
+  if (row.isEmausMember === false) return "other";
+  return "nao_informado";
+}
 
 export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): EnrollmentStats {
   const todayStart = startOfSaoPauloDay(now);
@@ -265,13 +385,14 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
   let last30Days = 0;
   let thisWeek = 0;
   let thisMonth = 0;
-  let otherChurchMemberCount = 0;
-  let emausMemberCount = 0;
+  let notViewedCount = 0;
   let noGrCount = 0;
+  let grNetworkNotInformedCount = 0;
   const byVolumeMap = new Map<string, number>();
   const byVolumeScheduleMap = new Map<string, number>();
   const byStatusMap = new Map<string, number>();
   const byGrNetworkMap = new Map<string, number>();
+  const byChurchVinculoMap = new Map<ChurchVinculoValue, number>();
 
   for (const row of rows) {
     const created = new Date(row.createdAt);
@@ -280,18 +401,23 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
     if (created >= thirtyDaysAgo) last30Days += 1;
     if (created >= weekStart) thisWeek += 1;
     if (created >= monthStart) thisMonth += 1;
+    if (!row.viewedAt) notViewedCount += 1;
     byVolumeMap.set(row.primaryVolumeSlug, (byVolumeMap.get(row.primaryVolumeSlug) ?? 0) + 1);
     const volumeScheduleKey = `${row.primaryVolumeSlug}:${row.primaryScheduleSlug}`;
     byVolumeScheduleMap.set(volumeScheduleKey, (byVolumeScheduleMap.get(volumeScheduleKey) ?? 0) + 1);
     byStatusMap.set(row.status, (byStatusMap.get(row.status) ?? 0) + 1);
 
-    if (row.isOtherChurchMember) otherChurchMemberCount += 1;
-    if (row.isEmausMember) {
-      emausMemberCount += 1;
-      if (row.hasGr === false) noGrCount += 1;
-      if (row.hasGr && row.grNetworkSlug) {
-        byGrNetworkMap.set(row.grNetworkSlug, (byGrNetworkMap.get(row.grNetworkSlug) ?? 0) + 1);
-      }
+    const vinculo = churchVinculoOf(row);
+    byChurchVinculoMap.set(vinculo, (byChurchVinculoMap.get(vinculo) ?? 0) + 1);
+
+    if (row.isEmausMember === true && row.hasGr === true && row.grNetworkSlug) {
+      byGrNetworkMap.set(row.grNetworkSlug, (byGrNetworkMap.get(row.grNetworkSlug) ?? 0) + 1);
+    } else if (row.isEmausMember === true && row.hasGr === false) {
+      noGrCount += 1;
+    } else {
+      // Não é membro da Emaús, ou a pergunta nunca foi respondida: nenhuma
+      // informação de rede de GR se aplica a este registro.
+      grNetworkNotInformedCount += 1;
     }
   }
 
@@ -302,6 +428,7 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
     last30Days,
     thisWeek,
     thisMonth,
+    notViewedCount,
     byVolume: ENROLLMENT_VOLUMES.map((volume) => ({
       slug: volume.slug,
       label: volume.label,
@@ -316,14 +443,19 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
       })),
     ),
     byStatus: ALL_STATUSES.map((status) => ({ status, count: byStatusMap.get(status) ?? 0 })),
-    otherChurchMemberCount,
-    emausMemberCount,
-    noGrCount,
+    byChurchVinculo: (["member", "other", "nao_informado"] as ChurchVinculoValue[]).map((value) => ({
+      value,
+      label:
+        value === "member" ? "Membro da Emaús" : value === "other" ? "Outro vínculo" : "Não informado",
+      count: byChurchVinculoMap.get(value) ?? 0,
+    })),
     byGrNetwork: ENROLLMENT_GR_NETWORKS.map((network) => ({
       slug: network.slug,
       label: network.label,
       count: byGrNetworkMap.get(network.slug) ?? 0,
     })),
+    noGrCount,
+    grNetworkNotInformedCount,
   };
 }
 
@@ -357,6 +489,8 @@ export function buildChartPoints(
         key: getSaoPauloDateKey(dayStart),
         label: formatSaoPauloDayLabel(dayStart),
         count,
+        rangeStart: dayStart.toISOString(),
+        rangeEnd: dayEnd.toISOString(),
       });
     }
     return points;
@@ -377,6 +511,8 @@ export function buildChartPoints(
         key: getSaoPauloDateKey(weekStart),
         label: formatSaoPauloDayLabel(weekStart),
         count,
+        rangeStart: weekStart.toISOString(),
+        rangeEnd: weekEnd.toISOString(),
       });
     }
     return points;
@@ -395,7 +531,49 @@ export function buildChartPoints(
       key: getSaoPauloDateKey(monthStart),
       label: formatSaoPauloMonthLabel(monthStart),
       count,
+      rangeStart: monthStart.toISOString(),
+      rangeEnd: monthEnd.toISOString(),
     });
   }
   return points;
+}
+
+/**
+ * Temporada aberta atual — mesma checagem usada no envio do formulário
+ * público. `null` quando não há nenhuma temporada com inscrições abertas.
+ */
+export async function getOpenSeasonId(supabase: SupabaseClient<Database>): Promise<string | null> {
+  const { data } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+/**
+ * Capacidade configurada por curso+turma para uma temporada — ausência de
+ * linha significa "não configurada", nunca inventamos um número.
+ */
+export async function getEnrollmentTurmaCapacities(
+  supabase: SupabaseClient<Database>,
+  seasonId: string,
+): Promise<EnrollmentTurmaCapacity[]> {
+  const { data, error } = await supabase
+    .from("enrollment_turma_capacity")
+    .select("id, volume_slug, schedule_slug, capacity")
+    .eq("season_id", seasonId);
+
+  if (error) {
+    throw new Error(`Não foi possível carregar a capacidade das turmas: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    volumeSlug: row.volume_slug as EnrollmentTurmaCapacity["volumeSlug"],
+    scheduleSlug: row.schedule_slug as EnrollmentTurmaCapacity["scheduleSlug"],
+    capacity: row.capacity,
+  }));
 }

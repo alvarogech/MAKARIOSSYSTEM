@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getSaoPauloDateKey, addSaoPauloDays } from "@/lib/saoPauloDate";
 import type { ChartGranularity, ChartPoint } from "../types";
 
 const GRANULARITY_OPTIONS: { value: ChartGranularity; label: string }[] = [
@@ -7,21 +8,32 @@ const GRANULARITY_OPTIONS: { value: ChartGranularity; label: string }[] = [
   { value: "month", label: "Mês" },
 ];
 
+/** Último dia (inclusive) coberto por um ponto, a partir do seu fim exclusivo. */
+function inclusiveEndKey(point: ChartPoint): string {
+  return getSaoPauloDateKey(addSaoPauloDays(new Date(point.rangeEnd), -1));
+}
+
 /**
  * Gráfico de barras em SVG puro — sem biblioteca de gráficos (nenhuma
  * estava instalada; para um gráfico simples de contagem por período, SVG
  * direto é mais leve do que adicionar uma dependência nova). Alternar
  * dia/semana/mês é feito por link (muda `?granularity=`), então o próprio
- * Server Component recalcula os pontos — sem estado no cliente.
+ * Server Component recalcula os pontos — sem estado no cliente. Cada
+ * barra também é um link: clicar filtra a tabela pelo intervalo exato
+ * daquele ponto (`?de=...&ate=...`).
  */
 export function EnrollmentChart({
   points,
   granularity,
   buildHref,
+  buildDateRangeHref,
+  selectedDateKey,
 }: {
   points: ChartPoint[];
   granularity: ChartGranularity;
   buildHref: (granularity: ChartGranularity) => string;
+  buildDateRangeHref: (from: string, to: string) => string;
+  selectedDateKey: string | null;
 }) {
   const max = Math.max(1, ...points.map((point) => point.count));
   const width = 760;
@@ -61,30 +73,36 @@ export function EnrollmentChart({
           viewBox={`0 0 ${width} ${height}`}
           className="mt-4 h-52 w-full"
           role="img"
-          aria-label="Gráfico de barras: quantidade de inscrições ao longo do tempo"
+          aria-label="Gráfico de barras: quantidade de inscrições ao longo do tempo. Clique numa barra para filtrar a tabela por aquele período."
         >
           {points.map((point, index) => {
             const barHeight = (point.count / max) * (height - paddingBottom - 16);
             const x = index * (barWidth + barGap);
             const y = height - paddingBottom - barHeight;
+            const selected = point.key === selectedDateKey;
+            const href = buildDateRangeHref(point.key, inclusiveEndKey(point));
             return (
-              <g key={point.key}>
+              <Link
+                key={point.key}
+                href={href}
+                aria-pressed={selected}
+                aria-label={`${point.label}: ${point.count} inscrições. Clique para filtrar.`}
+                className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue"
+              >
+                <rect x={x} y={0} width={barWidth} height={height} fill="transparent" />
                 <rect
                   x={x}
                   y={y}
                   width={barWidth}
                   height={Math.max(barHeight, point.count > 0 ? 2 : 0)}
                   rx={3}
-                  className="fill-brand-blue"
+                  className={selected ? "fill-brand-blue-dark" : "fill-brand-blue"}
                 />
+                {selected ? (
+                  <rect x={x} y={height - paddingBottom + 2} width={barWidth} height={2} className="fill-brand-blue-dark" />
+                ) : null}
                 {point.count > 0 ? (
-                  <text
-                    x={x + barWidth / 2}
-                    y={y - 4}
-                    textAnchor="middle"
-                    className="fill-neutral-500"
-                    fontSize={10}
-                  >
+                  <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" className="fill-neutral-500" fontSize={10}>
                     {point.count}
                   </text>
                 ) : null}
@@ -92,12 +110,12 @@ export function EnrollmentChart({
                   x={x + barWidth / 2}
                   y={height - 8}
                   textAnchor="middle"
-                  className="fill-neutral-400"
+                  className={selected ? "fill-brand-blue-dark font-medium" : "fill-neutral-400"}
                   fontSize={10}
                 >
                   {point.label}
                 </text>
-              </g>
+              </Link>
             );
           })}
         </svg>

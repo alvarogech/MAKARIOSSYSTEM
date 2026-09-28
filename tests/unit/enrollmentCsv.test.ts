@@ -25,6 +25,8 @@ function makeRow(overrides: Partial<EnrollmentRequestRow> = {}): EnrollmentReque
     status: "pending",
     reviewedAt: null,
     reviewedBy: null,
+    viewedAt: null,
+    viewedBy: null,
     createdAt: "2026-03-12T14:00:00Z",
     updatedAt: "2026-03-12T14:00:00Z",
     ...overrides,
