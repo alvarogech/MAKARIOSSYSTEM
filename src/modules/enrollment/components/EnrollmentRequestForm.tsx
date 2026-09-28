@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -29,14 +29,16 @@ function YesNoField({
   value,
   onChange,
   errors,
+  groupLabelId,
 }: {
   name: string;
   value: boolean | undefined;
   onChange: (value: boolean) => void;
   errors?: string[];
+  groupLabelId: string;
 }) {
   return (
-    <div>
+    <div id={name} role="radiogroup" aria-labelledby={groupLabelId}>
       <div className="flex gap-5">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-600">
           <input
@@ -87,6 +89,20 @@ export function EnrollmentRequestForm() {
   const [isOtherChurchMember, setIsOtherChurchMember] = useState<boolean | undefined>(undefined);
   const [isEmausMember, setIsEmausMember] = useState<boolean | undefined>(undefined);
   const [hasGr, setHasGr] = useState<boolean | undefined>(undefined);
+  const errorAlertRef = useRef<HTMLDivElement>(null);
+
+  // Sem isso, um erro de validação (ex.: esqueceu de responder a seção
+  // "Vínculo com a igreja") só aparecia no topo do formulário — em um
+  // formulário longo, quem estava perto do botão "Confirmar inscrição" não
+  // via nenhuma mudança e achava que o envio simplesmente não fazia nada.
+  useEffect(() => {
+    if (!state.error) return;
+    const firstErrorField = state.fieldErrors
+      ? Object.keys(state.fieldErrors).find((key) => state.fieldErrors?.[key]?.length)
+      : undefined;
+    const target = (firstErrorField ? document.getElementById(firstErrorField) : null) ?? errorAlertRef.current;
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [state]);
 
   if (state.success) {
     return (
@@ -112,7 +128,11 @@ export function EnrollmentRequestForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-7" noValidate>
-      {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
+      {state.error ? (
+        <div ref={errorAlertRef}>
+          <Alert variant="danger">{state.error}</Alert>
+        </div>
+      ) : null}
 
       <section aria-labelledby="personal-data-title">
         <div className="flex items-baseline gap-3">
@@ -257,10 +277,13 @@ export function EnrollmentRequestForm() {
         </div>
         <div className="mt-4 flex flex-col gap-4">
           <div>
-            <Label htmlFor="isOtherChurchMember">Você faz parte de outra igreja?</Label>
+            <span id="isOtherChurchMember-label" className="mb-1.5 block text-sm font-medium text-neutral-700">
+              Você faz parte de outra igreja?
+            </span>
             <div className="mt-2">
               <YesNoField
                 name="isOtherChurchMember"
+                groupLabelId="isOtherChurchMember-label"
                 value={isOtherChurchMember}
                 onChange={setIsOtherChurchMember}
                 errors={state.fieldErrors?.isOtherChurchMember}
@@ -278,10 +301,13 @@ export function EnrollmentRequestForm() {
           ) : null}
 
           <div>
-            <Label htmlFor="isEmausMember">Você faz parte da Igreja Emaús?</Label>
+            <span id="isEmausMember-label" className="mb-1.5 block text-sm font-medium text-neutral-700">
+              Você faz parte da Igreja Emaús?
+            </span>
             <div className="mt-2">
               <YesNoField
                 name="isEmausMember"
+                groupLabelId="isEmausMember-label"
                 value={isEmausMember}
                 onChange={setIsEmausMember}
                 errors={state.fieldErrors?.isEmausMember}
@@ -291,9 +317,17 @@ export function EnrollmentRequestForm() {
 
           {isEmausMember ? (
             <div>
-              <Label htmlFor="hasGr">Você tem GR (Grupo de Relacionamento)?</Label>
+              <span id="hasGr-label" className="mb-1.5 block text-sm font-medium text-neutral-700">
+                Você tem GR (Grupo de Relacionamento)?
+              </span>
               <div className="mt-2">
-                <YesNoField name="hasGr" value={hasGr} onChange={setHasGr} errors={state.fieldErrors?.hasGr} />
+                <YesNoField
+                  name="hasGr"
+                  groupLabelId="hasGr-label"
+                  value={hasGr}
+                  onChange={setHasGr}
+                  errors={state.fieldErrors?.hasGr}
+                />
               </div>
             </div>
           ) : null}
