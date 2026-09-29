@@ -4,17 +4,9 @@ import { canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
+import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
 
 export const metadata: Metadata = { title: "Meus volumes" };
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Em andamento",
-  regularization: "Regularização",
-  approved: "Concluído",
-  failed: "Não aprovado",
-  canceled: "Cancelada",
-  withdrawn: "Trancada",
-};
 
 export default async function MeusVolumesPage() {
   const authContext = await getAuthContext();
@@ -74,7 +66,7 @@ export default async function MeusVolumesPage() {
                 <h2 className="font-semibold text-neutral-900">{volumeName ?? "Volume"}</h2>
                 <p className="mt-1 text-sm text-neutral-500">{seasonName ?? "Temporada"}</p>
                 <p className="mt-2 text-xs font-medium text-brand-blue">
-                  {STATUS_LABELS[enrollment.status] ?? enrollment.status}
+                  {ENROLLMENT_STATUS_LABELS[enrollment.status] ?? enrollment.status}
                 </p>
               </Card>
             </Link>

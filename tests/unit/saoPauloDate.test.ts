@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   addSaoPauloDays,
   formatSaoPauloDateTime,
+  formatSaoPauloLongDate,
+  formatSaoPauloTimeRange,
   getSaoPauloDateKey,
   startOfSaoPauloDay,
   startOfSaoPauloDayFromKey,
@@ -44,5 +46,20 @@ describe("saoPauloDate", () => {
   it("recupera o início do dia a partir da chave (inverso de getSaoPauloDateKey)", () => {
     expect(startOfSaoPauloDayFromKey("2026-03-10").toISOString()).toBe("2026-03-10T03:00:00.000Z");
     expect(getSaoPauloDateKey(startOfSaoPauloDayFromKey("2026-03-10"))).toBe("2026-03-10");
+  });
+
+  it("formata data longa em pt-BR a partir de uma chave de dia", () => {
+    // 2026-10-03 é um sábado.
+    expect(formatSaoPauloLongDate("2026-10-03")).toBe("sábado, 3 de outubro de 2026");
+    expect(formatSaoPauloLongDate("2026-10-03", { capitalize: true })).toBe(
+      "Sábado, 3 de outubro de 2026",
+    );
+  });
+
+  it("formata intervalo de horário, com ou sem um dos lados", () => {
+    expect(formatSaoPauloTimeRange("08:00:00", "12:30:00")).toBe("08:00 – 12:30");
+    expect(formatSaoPauloTimeRange("08:00:00", null)).toBe("08:00");
+    expect(formatSaoPauloTimeRange(null, "12:30:00")).toBe("12:30");
+    expect(formatSaoPauloTimeRange(null, null)).toBe("");
   });
 });

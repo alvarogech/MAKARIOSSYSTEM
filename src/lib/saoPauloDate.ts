@@ -112,3 +112,33 @@ export function formatSaoPauloMonthLabel(date: Date): string {
   }).format(date);
   return label.replace(".", "");
 }
+
+/**
+ * "sábado, 3 de outubro de 2026" a partir de uma chave "YYYY-MM-DD" (data de
+ * calendário pura, sem hora) — usado nos cards de encontro/agenda do aluno.
+ * `T12:00:00Z` evita que o dia vire a data anterior/seguinte por causa do
+ * fuso ao converter para `Date`.
+ */
+export function formatSaoPauloLongDate(dateKey: string, options?: { capitalize?: boolean }): string {
+  const formatted = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TZ,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${dateKey}T12:00:00Z`));
+  return options?.capitalize ? formatted.charAt(0).toUpperCase() + formatted.slice(1) : formatted;
+}
+
+/** "08:00" a partir de "08:00:00" (formato `time` do Postgres). */
+function toHoursMinutes(time: string): string {
+  return time.slice(0, 5);
+}
+
+/** "08:00 – 12:30", ou só um lado quando o outro horário não existe. */
+export function formatSaoPauloTimeRange(start: string | null, end: string | null): string {
+  if (start && end) return `${toHoursMinutes(start)} – ${toHoursMinutes(end)}`;
+  if (start) return toHoursMinutes(start);
+  if (end) return toHoursMinutes(end);
+  return "";
+}
