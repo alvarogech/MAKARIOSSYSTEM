@@ -84,9 +84,35 @@ export default async function ProfessorTurmaDetailPage({
   const contentsQuery = offering
     ? await supabase
         .from("contents")
-        .select("id, title, type, classification")
+        .select(
+          "id, title, type, classification, body, order_index, lesson:lessons(name, module:modules(name, order_index))",
+        )
         .eq("volume_id", offering.volume_id)
+        .order("order_index")
     : { data: [] };
+
+  const contentIds = (contentsQuery.data ?? []).map((content) => content.id);
+  const { data: contentFiles } = contentIds.length
+    ? await supabase.from("content_files").select("content_id, file_name, file_url").in("content_id", contentIds)
+    : { data: [] };
+  const filesByContentId = new Map<string, { file_name: string; file_url: string }[]>();
+  for (const file of contentFiles ?? []) {
+    const list = filesByContentId.get(file.content_id) ?? [];
+    list.push(file);
+    filesByContentId.set(file.content_id, list);
+  }
+
+  const materials = (contentsQuery.data ?? [])
+    .map((content) => ({
+      ...content,
+      moduleOrder: content.lesson?.module?.order_index ?? 0,
+      moduleName: content.lesson?.module?.name ?? null,
+      files: filesByContentId.get(content.id) ?? [],
+    }))
+    .sort((a, b) => a.moduleOrder - b.moduleOrder || a.order_index - b.order_index);
+
+  const apostilas = materials.filter((m) => m.classification !== "exclusivo_professor");
+  const slides = materials.filter((m) => m.classification === "exclusivo_professor");
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,22 +177,89 @@ export default async function ProfessorTurmaDetailPage({
       </Card>
 
       <Card>
-        <h2 className="font-semibold text-neutral-900">Materiais e preparação de aula</h2>
+        <h2 className="font-semibold text-neutral-900">Materiais da aula</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Conteúdos publicados do volume — inclui material exclusivo de
-          professor, quando existir.
+          Conteúdos publicados do volume, organizados por módulo.
         </p>
-        <ul className="mt-3 divide-y divide-neutral-100 text-sm">
-          {(contentsQuery.data ?? []).map((content) => (
-            <li key={content.id} className="py-1.5 text-neutral-700">
-              {content.title} <span className="text-neutral-400">({content.type}, {content.classification})</span>
-            </li>
+
+        <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+          Apostilas
+        </h3>
+        <ul className="mt-2 divide-y divide-neutral-100 text-sm">
+          {apostilas.map((material) => (
+            <MaterialRow key={material.id} material={material} />
           ))}
-          {(contentsQuery.data ?? []).length === 0 ? (
-            <li className="py-1.5 text-neutral-400">Nenhum material publicado ainda.</li>
+          {apostilas.length === 0 ? (
+            <li className="py-1.5 text-neutral-400">Nenhuma apostila publicada ainda.</li>
+          ) : null}
+        </ul>
+
+        <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+          Slides
+        </h3>
+        <p className="mt-1 text-xs text-neutral-400">
+          Visível apenas para professores e coordenação — nunca aparece na área do aluno.
+        </p>
+        <ul className="mt-2 divide-y divide-neutral-100 text-sm">
+          {slides.map((material) => (
+            <MaterialRow key={material.id} material={material} />
+          ))}
+          {slides.length === 0 ? (
+            <li className="py-1.5 text-neutral-400">Nenhum slide publicado ainda.</li>
           ) : null}
         </ul>
       </Card>
     </div>
+  );
+}
+
+function MaterialRow({
+  material,
+}: {
+  material: {
+    id: string;
+    title: string;
+    type: string;
+    body: string | null;
+    moduleName: string | null;
+    files: { file_name: string; file_url: string }[];
+  };
+}) {
+  const actions =
+    material.type === "file" && material.files.length > 0
+      ? material.files.map((file) => ({
+          label: file.file_name.endsWith("(PPTX)") ? "Baixar PPTX" : file.file_name.endsWith("(PDF)") ? "Abrir PDF" : "Baixar",
+          href: file.file_url,
+        }))
+      : material.type === "link" && material.body
+        ? [{ label: "Abrir apresentação", href: material.body }]
+        : [];
+
+  return (
+    <li className="flex items-center justify-between gap-3 py-1.5 text-neutral-700">
+      <span>
+        {material.title}
+        {material.moduleName ? (
+          <span className="text-neutral-400"> · {material.moduleName}</span>
+        ) : null}
+      </span>
+      {actions.length > 0 ? (
+        <div className="flex gap-2">
+          {actions.map((action) => (
+            <a
+              key={action.href}
+              href={action.href}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: "secondary", size: "sm" })}
+            >
+              {action.label}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <span className="text-xs text-neutral-400">Sem arquivo disponível</span>
+      )}
+    </li>
   );
 }
