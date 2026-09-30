@@ -187,6 +187,54 @@ export type Database = {
           },
         ]
       }
+      announcements: {
+        Row: {
+          body: string
+          class_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          module_id: string | null
+          published_at: string
+          title: string
+        }
+        Insert: {
+          body: string
+          class_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          module_id?: string | null
+          published_at?: string
+          title: string
+        }
+        Update: {
+          body?: string
+          class_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          module_id?: string | null
+          published_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcements_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_answers: {
         Row: {
           answered_at: string
@@ -657,6 +705,66 @@ export type Database = {
           },
         ]
       }
+      class_meeting_blocks: {
+        Row: {
+          class_meeting_id: string
+          coordination_notes: string | null
+          created_at: string
+          end_time: string | null
+          id: string
+          module_id: string | null
+          order_index: number
+          room: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["meeting_block_status"]
+          teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_meeting_id: string
+          coordination_notes?: string | null
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          module_id?: string | null
+          order_index?: number
+          room?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["meeting_block_status"]
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_meeting_id?: string
+          coordination_notes?: string | null
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          module_id?: string | null
+          order_index?: number
+          room?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["meeting_block_status"]
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_meeting_blocks_class_meeting_id_fkey"
+            columns: ["class_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_meeting_blocks_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_meeting_reports: {
         Row: {
           content_completed: string | null
@@ -719,7 +827,9 @@ export type Database = {
           end_time: string | null
           id: string
           location: string | null
+          location_id: string | null
           meeting_date: string | null
+          room: string | null
           sequence: number
           start_time: string | null
           status: string
@@ -732,7 +842,9 @@ export type Database = {
           end_time?: string | null
           id?: string
           location?: string | null
+          location_id?: string | null
           meeting_date?: string | null
+          room?: string | null
           sequence: number
           start_time?: string | null
           status?: string
@@ -745,7 +857,9 @@ export type Database = {
           end_time?: string | null
           id?: string
           location?: string | null
+          location_id?: string | null
           meeting_date?: string | null
+          room?: string | null
           sequence?: number
           start_time?: string | null
           status?: string
@@ -756,6 +870,13 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_meetings_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
         ]
@@ -809,6 +930,7 @@ export type Database = {
           created_at: string
           id: string
           location: string | null
+          location_id: string | null
           name: string
           season_volume_offering_id: string
           status: string
@@ -820,6 +942,7 @@ export type Database = {
           created_at?: string
           id?: string
           location?: string | null
+          location_id?: string | null
           name: string
           season_volume_offering_id: string
           status?: string
@@ -831,6 +954,7 @@ export type Database = {
           created_at?: string
           id?: string
           location?: string | null
+          location_id?: string | null
           name?: string
           season_volume_offering_id?: string
           status?: string
@@ -842,6 +966,13 @@ export type Database = {
             columns: ["class_template_id"]
             isOneToOne: false
             referencedRelation: "class_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
@@ -1387,6 +1518,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      locations: {
+        Row: {
+          address: string | null
+          arrival_minutes_before: number | null
+          coordination_contact: string | null
+          created_at: string
+          entry_instructions: string | null
+          id: string
+          name: string
+          parking_instructions: string | null
+          resources: string[]
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          arrival_minutes_before?: number | null
+          coordination_contact?: string | null
+          created_at?: string
+          entry_instructions?: string | null
+          id?: string
+          name: string
+          parking_instructions?: string | null
+          resources?: string[]
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          arrival_minutes_before?: number | null
+          coordination_contact?: string | null
+          created_at?: string
+          entry_instructions?: string | null
+          id?: string
+          name?: string
+          parking_instructions?: string | null
+          resources?: string[]
+          updated_at?: string
+        }
+        Relationships: []
       }
       modules: {
         Row: {
@@ -2115,6 +2285,7 @@ export type Database = {
           created_at: string
           id: string
           location: string | null
+          location_id: string | null
           name: string
           season_volume_offering_id: string
           status: string
@@ -2399,6 +2570,7 @@ export type Database = {
       content_status: "draft" | "published" | "archived"
       content_type: "video" | "file" | "text" | "link"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      meeting_block_status: "scheduled" | "changed" | "canceled"
       profile_status: "active" | "suspended"
       question_type:
         | "multiple_choice"
@@ -2577,6 +2749,7 @@ export const Constants = {
       content_status: ["draft", "published", "archived"],
       content_type: ["video", "file", "text", "link"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
+      meeting_block_status: ["scheduled", "changed", "canceled"],
       profile_status: ["active", "suspended"],
       question_type: [
         "multiple_choice",
@@ -2644,3 +2817,4 @@ export type AssessmentStatus = Database["public"]["Enums"]["assessment_status"];
 export type AnswerKeyReleaseReason = Database["public"]["Enums"]["answer_key_release_reason"];
 export type AssessmentAttemptStatus = Database["public"]["Enums"]["assessment_attempt_status"];
 export type AssessmentAttemptKind = "regular" | "exceptional";
+export type MeetingBlockStatus = Database["public"]["Enums"]["meeting_block_status"];

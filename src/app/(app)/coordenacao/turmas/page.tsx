@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateClassForm } from "@/modules/academic/components/CreateClassForm";
 import { AssignTeacherForm } from "@/modules/academic/components/AssignTeacherForm";
+import { AssignClassLocationForm } from "@/modules/academic/components/AssignClassLocationForm";
 
 export const metadata: Metadata = { title: "Turmas" };
 
@@ -30,6 +32,7 @@ export default async function TurmasPage() {
     { data: assignments },
     { data: profiles },
     { data: modules },
+    { data: locations },
   ] = await Promise.all([
     supabase.from("season_volume_offerings").select("id, season_id, volume_id"),
     supabase.from("volumes").select("id, name"),
@@ -40,7 +43,7 @@ export default async function TurmasPage() {
       .order("name"),
     supabase
       .from("classes")
-      .select("id, name, location, status, season_volume_offering_id, class_template_id")
+      .select("id, name, location, location_id, status, season_volume_offering_id, class_template_id")
       .order("created_at"),
     supabase.from("class_meetings").select("class_id"),
     supabase
@@ -51,6 +54,7 @@ export default async function TurmasPage() {
       .from("modules")
       .select("id, name, volume_id, academic_hours")
       .order("order_index"),
+    supabase.from("locations").select("id, name").order("name"),
   ]);
 
   const volumesById = new Map((volumes ?? []).map((v) => [v.id, v]));
@@ -114,19 +118,33 @@ export default async function TurmasPage() {
 
         <ul className="mt-6 divide-y divide-neutral-100">
           {(classes ?? []).map((klass) => (
-            <li key={klass.id} className="py-2 text-sm text-neutral-700">
-              <span className="font-medium">{klass.name}</span> —{" "}
-              {offeringLabel(klass.season_volume_offering_id)} ·{" "}
-              {templatesById.get(klass.class_template_id)?.name}
-              <span className="text-neutral-400">
-                {" "}
-                · {meetingsCountByClass.get(klass.id) ?? 0} encontros
-                {klass.location ? ` · ${klass.location}` : ""}
-              </span>
-              <div className="text-xs text-neutral-400">
-                Professor(es):{" "}
-                {(assignmentsByClass.get(klass.id) ?? []).join(", ") ||
-                  "nenhum designado"}
+            <li key={klass.id} className="py-3 text-sm text-neutral-700">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="font-medium">{klass.name}</span> —{" "}
+                  {offeringLabel(klass.season_volume_offering_id)} ·{" "}
+                  {templatesById.get(klass.class_template_id)?.name}
+                  <span className="text-neutral-400">
+                    {" "}
+                    · {meetingsCountByClass.get(klass.id) ?? 0} encontros
+                    {klass.location ? ` · ${klass.location}` : ""}
+                  </span>
+                  <div className="text-xs text-neutral-400">
+                    Professor(es):{" "}
+                    {(assignmentsByClass.get(klass.id) ?? []).join(", ") ||
+                      "nenhum designado"}
+                  </div>
+                </div>
+                <Link href={`/coordenacao/turmas/${klass.id}/escala`} className="text-sm text-brand-blue hover:underline">
+                  Escala de aulas
+                </Link>
+              </div>
+              <div className="mt-2">
+                <AssignClassLocationForm
+                  classId={klass.id}
+                  locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name }))}
+                  currentLocationId={klass.location_id}
+                />
               </div>
             </li>
           ))}

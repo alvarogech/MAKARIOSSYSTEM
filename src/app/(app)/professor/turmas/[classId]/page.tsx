@@ -6,6 +6,9 @@ import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
+import { loadMaterials } from "@/modules/teaching/loadMaterials";
+import { MaterialsSection } from "@/modules/teaching/components/MaterialsSection";
+import { formatSaoPauloLongDate, formatSaoPauloTimeRange } from "@/lib/saoPauloDate";
 
 export const metadata: Metadata = { title: "Turma" };
 
@@ -70,49 +73,42 @@ export default async function ProfessorTurmaDetailPage({
     : { data: [] };
   const profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
 
+  const meetingIds = (meetings ?? []).map((m) => m.id);
   const { data: attendanceCounts } = await supabase
     .from("attendance_records")
     .select("meeting_id")
-    .in("meeting_id", (meetings ?? []).map((m) => m.id));
+    .in("meeting_id", meetingIds);
   const recordedMeetingIds = new Set((attendanceCounts ?? []).map((a) => a.meeting_id));
   const reportedMeetingIds = new Set((reports ?? []).map((r) => r.meeting_id));
+
+  const { data: blocks } = await supabase
+    .from("class_meeting_blocks")
+    .select("id, class_meeting_id, module_id, teacher_id, start_time, end_time, status")
+    .in("class_meeting_id", meetingIds)
+    .order("order_index");
+
+  const blockModuleIds = [...new Set((blocks ?? []).map((b) => b.module_id).filter((id): id is string => Boolean(id)))];
+  const blockTeacherIds = [...new Set((blocks ?? []).map((b) => b.teacher_id).filter((id): id is string => Boolean(id)))];
+  const [{ data: blockModules }, { data: blockTeachers }] = await Promise.all([
+    blockModuleIds.length ? supabase.from("modules").select("id, name").in("id", blockModuleIds) : Promise.resolve({ data: [] }),
+    blockTeacherIds.length ? supabase.from("profiles").select("id, full_name").in("id", blockTeacherIds) : Promise.resolve({ data: [] }),
+  ]);
+  const blockModuleNameById = new Map((blockModules ?? []).map((m) => [m.id, m.name]));
+  const blockTeacherNameById = new Map((blockTeachers ?? []).map((p) => [p.id, p.full_name]));
+  const blocksByMeeting = new Map<string, NonNullable<typeof blocks>>();
+  for (const block of blocks ?? []) {
+    const list = blocksByMeeting.get(block.class_meeting_id) ?? [];
+    list.push(block);
+    blocksByMeeting.set(block.class_meeting_id, list);
+  }
 
   const volume = offering
     ? await supabase.from("volumes").select("name").eq("id", offering.volume_id).maybeSingle()
     : { data: null };
 
-  const contentsQuery = offering
-    ? await supabase
-        .from("contents")
-        .select(
-          "id, title, type, classification, body, order_index, lesson:lessons(name, module:modules(name, order_index))",
-        )
-        .eq("volume_id", offering.volume_id)
-        .order("order_index")
-    : { data: [] };
-
-  const contentIds = (contentsQuery.data ?? []).map((content) => content.id);
-  const { data: contentFiles } = contentIds.length
-    ? await supabase.from("content_files").select("content_id, file_name, file_url").in("content_id", contentIds)
-    : { data: [] };
-  const filesByContentId = new Map<string, { file_name: string; file_url: string }[]>();
-  for (const file of contentFiles ?? []) {
-    const list = filesByContentId.get(file.content_id) ?? [];
-    list.push(file);
-    filesByContentId.set(file.content_id, list);
-  }
-
-  const materials = (contentsQuery.data ?? [])
-    .map((content) => ({
-      ...content,
-      moduleOrder: content.lesson?.module?.order_index ?? 0,
-      moduleName: content.lesson?.module?.name ?? null,
-      files: filesByContentId.get(content.id) ?? [],
-    }))
-    .sort((a, b) => a.moduleOrder - b.moduleOrder || a.order_index - b.order_index);
-
-  const apostilas = materials.filter((m) => m.classification !== "exclusivo_professor");
-  const slides = materials.filter((m) => m.classification === "exclusivo_professor");
+  const materials = offering
+    ? await loadMaterials(supabase, { volumeId: offering.volume_id })
+    : { apostilas: [], slides: [] };
 
   return (
     <div className="flex flex-col gap-6">
@@ -140,36 +136,71 @@ export default async function ProfessorTurmaDetailPage({
 
       <Card>
         <h2 className="font-semibold text-neutral-900">Encontros</h2>
-        <ul className="mt-3 divide-y divide-neutral-100 text-sm">
-          {(meetings ?? []).map((meeting) => (
-            <li key={meeting.id} className="flex items-center justify-between py-2">
-              <span className="text-neutral-700">
-                Encontro {meeting.sequence}
-                {meeting.meeting_date ? ` — ${meeting.meeting_date}` : " — data a definir"}{" "}
-                <span className="text-neutral-400">({meeting.academic_minutes} min)</span>
-                {recordedMeetingIds.has(meeting.id) ? (
-                  <span className="ml-2 text-xs text-success">frequência registrada</span>
-                ) : null}
-                {reportedMeetingIds.has(meeting.id) ? (
-                  <span className="ml-2 text-xs text-success">relatório enviado</span>
-                ) : null}
-              </span>
-              <div className="flex gap-2">
-                <Link
-                  href={`/professor/turmas/${classId}/encontros/${meeting.id}/frequencia`}
-                  className={buttonVariants({ variant: "secondary", size: "sm" })}
-                >
-                  Frequência
-                </Link>
-                <Link
-                  href={`/professor/turmas/${classId}/encontros/${meeting.id}/relatorio`}
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Relatório
-                </Link>
-              </div>
-            </li>
-          ))}
+        <ul className="mt-3 flex flex-col divide-y divide-neutral-100 text-sm">
+          {(meetings ?? []).map((meeting) => {
+            const meetingBlocks = blocksByMeeting.get(meeting.id) ?? [];
+            return (
+              <li key={meeting.id} className="py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-neutral-700">
+                    {meeting.meeting_date
+                      ? formatSaoPauloLongDate(meeting.meeting_date, { capitalize: true })
+                      : `Encontro ${meeting.sequence} — data a definir`}
+                    {meeting.status === "canceled" ? (
+                      <span className="ml-2 text-xs font-semibold uppercase text-danger">Cancelado</span>
+                    ) : null}
+                    {recordedMeetingIds.has(meeting.id) ? (
+                      <span className="ml-2 text-xs text-success">frequência registrada</span>
+                    ) : null}
+                    {reportedMeetingIds.has(meeting.id) ? (
+                      <span className="ml-2 text-xs text-success">relatório enviado</span>
+                    ) : null}
+                  </span>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/professor/turmas/${classId}/encontros/${meeting.id}/frequencia`}
+                      className={buttonVariants({ variant: "secondary", size: "sm" })}
+                    >
+                      Frequência
+                    </Link>
+                    <Link
+                      href={`/professor/turmas/${classId}/encontros/${meeting.id}/relatorio`}
+                      className={buttonVariants({ variant: "ghost", size: "sm" })}
+                    >
+                      Relatório
+                    </Link>
+                  </div>
+                </div>
+
+                {meetingBlocks.length === 0 ? (
+                  <p className="mt-1.5 text-xs text-neutral-400">
+                    Encontro da turma — sua escala ainda não foi definida pela coordenação.
+                  </p>
+                ) : (
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {meetingBlocks.map((block) => {
+                      const isMine = block.teacher_id === authContext.userId;
+                      return (
+                        <li key={block.id} className="flex flex-wrap items-center justify-between gap-2 pl-3 text-sm">
+                          <span className={isMine ? "text-neutral-700" : "text-neutral-400"}>
+                            {formatSaoPauloTimeRange(block.start_time, block.end_time)} ·{" "}
+                            {block.module_id ? (blockModuleNameById.get(block.module_id) ?? "Tema a definir") : "Tema a definir"}
+                            {isMine ? null : ` · ${block.teacher_id ? (blockTeacherNameById.get(block.teacher_id) ?? "Outro professor") : "Professor a confirmar"}`}
+                            {block.status === "canceled" ? " · cancelada" : block.status === "changed" ? " · alterada" : ""}
+                          </span>
+                          {isMine ? (
+                            <Link href={`/professor/aulas/${block.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                              Preparar aula
+                            </Link>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
           {(meetings ?? []).length === 0 ? (
             <li className="py-1.5 text-neutral-400">Nenhum encontro cadastrado ainda.</li>
           ) : null}
@@ -177,89 +208,13 @@ export default async function ProfessorTurmaDetailPage({
       </Card>
 
       <Card>
-        <h2 className="font-semibold text-neutral-900">Materiais da aula</h2>
+        <h2 className="font-semibold text-neutral-900">Materiais do módulo</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Conteúdos publicados do volume, organizados por módulo.
+          Biblioteca completa do volume desta turma. Para os materiais de uma aula específica, abra
+          &ldquo;Preparar aula&rdquo; a partir do encontro correspondente.
         </p>
-
-        <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-neutral-400">
-          Apostilas
-        </h3>
-        <ul className="mt-2 divide-y divide-neutral-100 text-sm">
-          {apostilas.map((material) => (
-            <MaterialRow key={material.id} material={material} />
-          ))}
-          {apostilas.length === 0 ? (
-            <li className="py-1.5 text-neutral-400">Nenhuma apostila publicada ainda.</li>
-          ) : null}
-        </ul>
-
-        <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-neutral-400">
-          Slides
-        </h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          Visível apenas para professores e coordenação — nunca aparece na área do aluno.
-        </p>
-        <ul className="mt-2 divide-y divide-neutral-100 text-sm">
-          {slides.map((material) => (
-            <MaterialRow key={material.id} material={material} />
-          ))}
-          {slides.length === 0 ? (
-            <li className="py-1.5 text-neutral-400">Nenhum slide publicado ainda.</li>
-          ) : null}
-        </ul>
+        <MaterialsSection materials={materials} showModuleName />
       </Card>
     </div>
-  );
-}
-
-function MaterialRow({
-  material,
-}: {
-  material: {
-    id: string;
-    title: string;
-    type: string;
-    body: string | null;
-    moduleName: string | null;
-    files: { file_name: string; file_url: string }[];
-  };
-}) {
-  const actions =
-    material.type === "file" && material.files.length > 0
-      ? material.files.map((file) => ({
-          label: file.file_name.endsWith("(PPTX)") ? "Baixar PPTX" : file.file_name.endsWith("(PDF)") ? "Abrir PDF" : "Baixar",
-          href: file.file_url,
-        }))
-      : material.type === "link" && material.body
-        ? [{ label: "Abrir apresentação", href: material.body }]
-        : [];
-
-  return (
-    <li className="flex items-center justify-between gap-3 py-1.5 text-neutral-700">
-      <span>
-        {material.title}
-        {material.moduleName ? (
-          <span className="text-neutral-400"> · {material.moduleName}</span>
-        ) : null}
-      </span>
-      {actions.length > 0 ? (
-        <div className="flex gap-2">
-          {actions.map((action) => (
-            <a
-              key={action.href}
-              href={action.href}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              {action.label}
-            </a>
-          ))}
-        </div>
-      ) : (
-        <span className="text-xs text-neutral-400">Sem arquivo disponível</span>
-      )}
-    </li>
   );
 }

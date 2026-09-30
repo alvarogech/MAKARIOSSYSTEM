@@ -20,6 +20,8 @@ function buildNavLinks(authContext: AuthContext): NavLink[] {
 
   if (canAccessArea(authContext, "teacher")) {
     links.push({ href: "/professor", label: "Área do professor" });
+    links.push({ href: "/professor/agenda", label: "Agenda" });
+    links.push({ href: "/professor/turmas", label: "Minhas turmas" });
   }
 
   if (canAccessArea(authContext, "coordination")) {

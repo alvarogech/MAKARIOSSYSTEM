@@ -130,6 +130,19 @@ export function formatSaoPauloLongDate(dateKey: string, options?: { capitalize?:
   return options?.capitalize ? formatted.charAt(0).toUpperCase() + formatted.slice(1) : formatted;
 }
 
+/**
+ * Instante UTC correspondente a uma data+hora de parede em São Paulo — usado
+ * para gerar eventos de calendário (.ics/Google Calendar) a partir de
+ * `meeting_date` (date) + `start_time`/`end_time` (time), que são sempre
+ * horário local, nunca UTC.
+ */
+export function saoPauloWallTimeToUtc(dateKey: string, time: string): Date {
+  const [hours = 0, minutes = 0] = time.split(":").map(Number);
+  const naiveUtcMillis = new Date(`${dateKey}T00:00:00Z`).getTime() + (hours * 60 + minutes) * 60_000;
+  const offsetMinutes = getTimeZoneOffsetMinutes(new Date(naiveUtcMillis), SAO_PAULO_TZ);
+  return new Date(naiveUtcMillis - offsetMinutes * 60_000);
+}
+
 /** "08:00" a partir de "08:00:00" (formato `time` do Postgres). */
 function toHoursMinutes(time: string): string {
   return time.slice(0, 5);

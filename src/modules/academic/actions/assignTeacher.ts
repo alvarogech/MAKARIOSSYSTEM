@@ -66,62 +66,79 @@ export async function assignTeacher(
 
   // Checagem de choque de horário: nunca bloqueia (é um alerta, não um
   // pré-requisito), só avisa a coordenação se o mesmo professor já está
-  // designado a outra turma cujo modelo de horário se sobrepõe ao desta.
+  // designado, EM ESCOPO DE TURMA INTEIRA, a outra turma cujo modelo de
+  // horário se sobrepõe ao desta.
+  //
+  // Importante: essa comparação usa o horário total do `class_template`
+  // (ex.: "Sábado 08h-12h30"), não o horário real de uma matéria dentro do
+  // dia. Por isso, só faz sentido quando AMBOS os vínculos — o que está
+  // sendo criado agora e o que já existe — são de turma inteira (sem
+  // module_id/meeting_id). Um vínculo por matéria cobre só uma fração do
+  // dia por definição; comparar seu "dia inteiro" contra outra turma no
+  // mesmo horário geral gerava falso positivo (ex.: mesmo professor dando
+  // uma matéria de Essência das 8h-10h e outra de Caminho das 10h30-12h30,
+  // ambas aos sábados — vínculos válidos, sem sobreposição real). A
+  // detecção de conflito real por matéria/horário fica a cargo de
+  // `detectScheduleConflicts` sobre `class_meeting_blocks`, que compara
+  // intervalos de horário de verdade, não o molde da turma inteira.
   let warning: string | undefined;
 
-  const { data: targetClass } = await supabase
-    .from("classes")
-    .select("name, class_templates(weekdays, start_time, end_time)")
-    .eq("id", parsed.data.classId)
-    .maybeSingle();
+  if (!parsed.data.moduleId) {
+    const { data: targetClass } = await supabase
+      .from("classes")
+      .select("name, class_templates(weekdays, start_time, end_time)")
+      .eq("id", parsed.data.classId)
+      .maybeSingle();
 
-  const targetTemplate = targetClass?.class_templates as unknown as
-    | { weekdays: string[]; start_time: string; end_time: string }
-    | null
-    | undefined;
+    const targetTemplate = targetClass?.class_templates as unknown as
+      | { weekdays: string[]; start_time: string; end_time: string }
+      | null
+      | undefined;
 
-  if (targetTemplate) {
-    const { data: otherAssignments } = await supabase
-      .from("teacher_assignments")
-      .select(
-        "class_id, classes(name, class_templates(weekdays, start_time, end_time))",
-      )
-      .eq("teacher_id", teacher.userId)
-      .neq("class_id", parsed.data.classId);
+    if (targetTemplate) {
+      const { data: otherAssignments } = await supabase
+        .from("teacher_assignments")
+        .select(
+          "class_id, module_id, classes(name, class_templates(weekdays, start_time, end_time))",
+        )
+        .eq("teacher_id", teacher.userId)
+        .is("module_id", null)
+        .neq("class_id", parsed.data.classId);
 
-    const targetSlot: TemplateSlot = {
-      weekdays: targetTemplate.weekdays,
-      startTime: targetTemplate.start_time,
-      endTime: targetTemplate.end_time,
-    };
-
-    const conflictingClassNames = new Set<string>();
-    for (const assignment of otherAssignments ?? []) {
-      const otherClass = assignment.classes as unknown as
-        | {
-            name: string;
-            class_templates: { weekdays: string[]; start_time: string; end_time: string } | null;
-          }
-        | null;
-      const otherTemplate = otherClass?.class_templates;
-      if (!otherTemplate) continue;
-
-      const otherSlot: TemplateSlot = {
-        weekdays: otherTemplate.weekdays,
-        startTime: otherTemplate.start_time,
-        endTime: otherTemplate.end_time,
+      const targetSlot: TemplateSlot = {
+        weekdays: targetTemplate.weekdays,
+        startTime: targetTemplate.start_time,
+        endTime: targetTemplate.end_time,
       };
 
-      if (slotsOverlap(targetSlot, otherSlot)) {
-        conflictingClassNames.add(otherClass!.name);
-      }
-    }
+      const conflictingClassNames = new Set<string>();
+      for (const assignment of otherAssignments ?? []) {
+        const otherClass = assignment.classes as unknown as
+          | {
+              name: string;
+              class_templates: { weekdays: string[]; start_time: string; end_time: string } | null;
+            }
+          | null;
+        const otherTemplate = otherClass?.class_templates;
+        if (!otherTemplate) continue;
 
-    if (conflictingClassNames.size > 0) {
-      warning =
-        `Atenção: ${teacher.fullName} já está designado a outra turma com horário ` +
-        `conflitante (${Array.from(conflictingClassNames).join(", ")}). A designação ` +
-        "foi salva mesmo assim — confira se não é um choque de agenda real.";
+        const otherSlot: TemplateSlot = {
+          weekdays: otherTemplate.weekdays,
+          startTime: otherTemplate.start_time,
+          endTime: otherTemplate.end_time,
+        };
+
+        if (slotsOverlap(targetSlot, otherSlot)) {
+          conflictingClassNames.add(otherClass!.name);
+        }
+      }
+
+      if (conflictingClassNames.size > 0) {
+        warning =
+          `Atenção: ${teacher.fullName} já está designado (turma inteira) a outra turma com ` +
+          `horário conflitante (${Array.from(conflictingClassNames).join(", ")}). A designação ` +
+          "foi salva mesmo assim — confira se não é um choque de agenda real.";
+      }
     }
   }
 

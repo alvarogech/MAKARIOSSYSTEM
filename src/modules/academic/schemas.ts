@@ -51,3 +51,42 @@ export const createPrerequisiteExceptionSchema = z.object({
 export type CreatePrerequisiteExceptionInput = z.infer<
   typeof createPrerequisiteExceptionSchema
 >;
+
+export const assignLessonBlockSchema = z.object({
+  classMeetingId: z.string().uuid("Selecione um encontro."),
+  moduleId: z.string().uuid("Selecione um módulo/tema.").optional(),
+  teacherEmail: z.string().trim().email("E-mail inválido.").optional().or(z.literal("")),
+  startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Informe o horário de início (HH:MM)."),
+  endTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Informe o horário de término (HH:MM)."),
+  orderIndex: z.coerce.number().int().positive(),
+  coordinationNotes: z.string().trim().optional(),
+});
+
+export type AssignLessonBlockInput = z.infer<typeof assignLessonBlockSchema>;
+
+export const createLocationSchema = z.object({
+  name: z.string().trim().min(1, "Informe o nome do local."),
+  address: z.string().trim().optional(),
+  entryInstructions: z.string().trim().optional(),
+  parkingInstructions: z.string().trim().optional(),
+  arrivalMinutesBefore: z.coerce.number().int().positive().optional(),
+  coordinationContact: z.string().trim().optional(),
+});
+
+export type CreateLocationInput = z.infer<typeof createLocationSchema>;
+
+export const assignClassLocationSchema = z.object({
+  classId: z.string().uuid("Selecione uma turma."),
+  locationId: z.string().uuid("Selecione um local."),
+});
+
+export type AssignClassLocationInput = z.infer<typeof assignClassLocationSchema>;
+
+export const createAnnouncementSchema = z.object({
+  title: z.string().trim().min(1, "Informe o título do aviso."),
+  body: z.string().trim().min(1, "Informe o texto do aviso."),
+  classId: z.string().uuid().optional().or(z.literal("")),
+  moduleId: z.string().uuid().optional().or(z.literal("")),
+});
+
+export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;

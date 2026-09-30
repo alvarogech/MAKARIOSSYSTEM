@@ -5,6 +5,7 @@ import {
   formatSaoPauloLongDate,
   formatSaoPauloTimeRange,
   getSaoPauloDateKey,
+  saoPauloWallTimeToUtc,
   startOfSaoPauloDay,
   startOfSaoPauloDayFromKey,
   startOfSaoPauloMonth,
@@ -61,5 +62,11 @@ describe("saoPauloDate", () => {
     expect(formatSaoPauloTimeRange("08:00:00", null)).toBe("08:00");
     expect(formatSaoPauloTimeRange(null, "12:30:00")).toBe("12:30");
     expect(formatSaoPauloTimeRange(null, null)).toBe("");
+  });
+
+  it("converte data+hora de parede em São Paulo para o instante UTC correto", () => {
+    // 08:00 em São Paulo (UTC-3, sem horário de verão desde 2019) = 11:00 UTC.
+    expect(saoPauloWallTimeToUtc("2026-10-03", "08:00").toISOString()).toBe("2026-10-03T11:00:00.000Z");
+    expect(saoPauloWallTimeToUtc("2026-10-03", "12:30").toISOString()).toBe("2026-10-03T15:30:00.000Z");
   });
 });

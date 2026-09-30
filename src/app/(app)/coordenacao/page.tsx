@@ -37,6 +37,16 @@ const SECTIONS = [
     title: "Relatórios pós-aula",
     description: "O que os professores reportaram após cada encontro.",
   },
+  {
+    href: "/coordenacao/locais",
+    title: "Locais",
+    description: "Cadastro de espaços (endereço, sala, estacionamento, recursos) usado na área do professor.",
+  },
+  {
+    href: "/coordenacao/avisos",
+    title: "Avisos",
+    description: "Publicar avisos para os professores, gerais ou por turma/módulo.",
+  },
 ];
 
 export default async function CoordenacaoAreaPage() {
