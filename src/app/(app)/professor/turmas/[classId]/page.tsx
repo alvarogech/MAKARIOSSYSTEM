@@ -40,13 +40,22 @@ export default async function ProfessorTurmaDetailPage({
 
   const { data: klass } = await supabase
     .from("classes")
-    .select("id, name, location, season_volume_offering_id")
+    .select("id, name, location, location_id, season_volume_offering_id")
     .eq("id", classId)
     .maybeSingle();
 
   if (!klass) {
     notFound();
   }
+
+  const { data: classLocation } = klass.location_id
+    ? await supabase.from("locations").select("name, address").eq("id", klass.location_id).maybeSingle()
+    : { data: null };
+  const classLocationLabel = classLocation
+    ? classLocation.address
+      ? `${classLocation.name} — ${classLocation.address}`
+      : classLocation.name
+    : klass.location;
 
   const [{ data: offering }, { data: meetings }, { data: enrollments }, { data: reports }] =
     await Promise.all([
@@ -57,7 +66,7 @@ export default async function ProfessorTurmaDetailPage({
         .single(),
       supabase
         .from("class_meetings")
-        .select("id, sequence, meeting_date, academic_minutes, status")
+        .select("id, sequence, meeting_date, academic_minutes, status, room")
         .eq("class_id", classId)
         .order("sequence"),
       supabase
@@ -115,7 +124,7 @@ export default async function ProfessorTurmaDetailPage({
       <div>
         <h1 className="text-lg font-semibold text-neutral-900">{klass.name}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          {volume.data?.name ?? "Volume"} {klass.location ? `· ${klass.location}` : ""}
+          {volume.data?.name ?? "Volume"} {classLocationLabel ? `· ${classLocationLabel}` : "· Local a confirmar"}
         </p>
       </div>
 
@@ -155,6 +164,7 @@ export default async function ProfessorTurmaDetailPage({
                     {reportedMeetingIds.has(meeting.id) ? (
                       <span className="ml-2 text-xs text-success">relatório enviado</span>
                     ) : null}
+                    {meeting.room ? <span className="ml-2 text-xs text-neutral-400">· {meeting.room}</span> : null}
                   </span>
                   <div className="flex gap-2">
                     <Link
