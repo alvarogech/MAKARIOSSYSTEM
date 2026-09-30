@@ -21,8 +21,11 @@ export default async function SelecionarPerfilPage() {
     redirect("/acesso-negado");
   }
 
-  // Já resolvido (cookie válido ou perfil único) — nada para escolher.
-  if (authContext.activeRole) {
+  // Só um perfil possível — nada para escolher, mesmo que "Trocar perfil"
+  // tenha sido clicado explicitamente. Com 2+ perfis, sempre mostra a
+  // seleção (mesmo já havendo um perfil ativo via cookie), para que
+  // "Trocar perfil" funcione.
+  if (authContext.roles.length === 1) {
     redirect("/dashboard");
   }
 
