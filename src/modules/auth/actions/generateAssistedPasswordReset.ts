@@ -5,7 +5,9 @@ import { can, getAuthContext } from "@/authorization";
 import { getPublicEnv } from "@/lib/env";
 import { generateInviteToken, hashInviteToken } from "../inviteTokens";
 
-const RESET_TTL_MINUTES = 60;
+// 24h: curto o bastante para um link de troca de senha, mas dá tempo real
+// de alguém abrir o WhatsApp sem o coordenador ter que ficar regenerando.
+const RESET_TTL_HOURS = 24;
 
 export interface GenerateAssistedPasswordResetState {
   error?: string;
@@ -59,7 +61,7 @@ export async function generateAssistedPasswordReset(
 
   const rawToken = generateInviteToken();
   const tokenHash = hashInviteToken(rawToken);
-  const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000);
+  const expiresAt = new Date(Date.now() + RESET_TTL_HOURS * 60 * 60 * 1000);
 
   const { data: teacherRole } = await supabase
     .from("roles")
@@ -94,7 +96,7 @@ export async function generateAssistedPasswordReset(
 
   const whatsappMessage =
     `Olá, ${targetProfile.full_name}! Aqui está seu link para criar uma nova senha de acesso ` +
-    `à Escola Makários. Ele vale por ${RESET_TTL_MINUTES} minutos e só pode ser usado uma vez: ${link}`;
+    `à Escola Makários. Ele vale por ${RESET_TTL_HOURS} horas e só pode ser usado uma vez: ${link}`;
 
   return { result: { link, whatsappMessage } };
 }

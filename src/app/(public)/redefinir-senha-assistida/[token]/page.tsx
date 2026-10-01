@@ -10,7 +10,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   not_found: "Este link não é válido. Peça um novo à coordenação.",
   revoked: "Este link foi revogado. Peça um novo à coordenação.",
   consumed: "Este link já foi utilizado. Se você já trocou sua senha, faça login normalmente.",
-  expired: "Este link expirou (vale por 1 hora). Peça um novo à coordenação.",
+  expired: "Este link expirou (vale por 24 horas). Peça um novo à coordenação.",
   lookup_failed: "Não foi possível verificar o link agora. Atualize a página em alguns instantes.",
 };
 

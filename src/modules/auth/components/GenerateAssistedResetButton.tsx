@@ -33,7 +33,7 @@ export function GenerateAssistedResetButton({ userId }: { userId: string }) {
       {state.result ? (
         <Alert variant="success">
           <div className="flex flex-col gap-2">
-            <p>Link válido por 1 hora e uso único — copie e envie manualmente:</p>
+            <p>Link válido por 24 horas e uso único — copie e envie manualmente:</p>
             <p className="break-all rounded bg-white/60 p-2 text-xs text-neutral-700">
               {state.result.link}
             </p>
