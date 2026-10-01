@@ -87,6 +87,11 @@ export const acceptTeacherInvitationSchema = z
   .object({
     token: z.string().min(1),
     fullName: z.string().trim().min(1, "Informe o nome completo."),
+    // Editável: a coordenação pode não saber o e-mail real na hora de gerar
+    // o convite (ex.: usar um e-mail institucional provisório) — quem
+    // aceita confirma ou corrige aqui, e é esse valor que vira o e-mail de
+    // login de fato.
+    email: z.string().trim().min(1, "Informe o e-mail.").email("E-mail inválido."),
     phone: phoneSchema,
     password: passwordRules,
     confirmPassword: z.string(),

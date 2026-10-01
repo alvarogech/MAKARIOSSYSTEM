@@ -46,9 +46,16 @@ export function TeacherOnboardingForm({
 
       <div>
         <Label htmlFor="email">E-mail de acesso</Label>
-        <Input id="email" value={email} disabled readOnly />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          defaultValue={email}
+          required
+        />
         <p className="mt-1 text-xs text-neutral-500">
-          Este é o e-mail com o qual você vai entrar. Para alterá-lo, fale com a coordenação.
+          Confira se está certo — é o e-mail com o qual você vai entrar. Pode corrigir se não for o seu.
         </p>
       </div>
 

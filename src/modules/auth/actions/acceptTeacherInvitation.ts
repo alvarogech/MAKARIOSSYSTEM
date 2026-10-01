@@ -7,6 +7,7 @@ import { acceptTeacherInvitationSchema } from "../schemas";
 import { hashInviteToken } from "../inviteTokens";
 import { checkRateLimit, getClientIp } from "../rateLimit";
 import { linkSpecificMeetingBlocks } from "../manualInvite";
+import { normalizeEmail } from "../lookupTeacherCandidate";
 
 export interface AcceptTeacherInvitationState {
   error?: string;
@@ -47,6 +48,7 @@ export async function acceptTeacherInvitation(
   const parsed = acceptTeacherInvitationSchema.safeParse({
     token: formData.get("token"),
     fullName: formData.get("fullName"),
+    email: formData.get("email"),
     phone: formData.get("phone"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
@@ -55,6 +57,8 @@ export async function acceptTeacherInvitation(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  const submittedEmail = normalizeEmail(parsed.data.email);
 
   const admin = createSupabaseAdminClient();
 
@@ -69,17 +73,20 @@ export async function acceptTeacherInvitation(
   // Reivindicação atômica: só um submit concorrente consegue marcar
   // consumed_at. status/accepted_at (legado) ficam intocados de propósito
   // — handle_new_user ainda precisa encontrar esta linha como "pending"
-  // quando admin.createUser() disparar o trigger logo abaixo.
+  // quando admin.createUser() disparar o trigger logo abaixo. O e-mail
+  // também é corrigido aqui, ANTES do createUser: a coordenação pode ter
+  // usado um e-mail provisório ao gerar o convite (ex.: sem saber o real
+  // ainda) — o trigger casa por e-mail, então precisa ver o valor final.
   const { data: claimed, error: claimError } = await admin
     .from("invitations")
-    .update({ consumed_at: new Date().toISOString() })
+    .update({ consumed_at: new Date().toISOString(), email: submittedEmail })
     .eq("token_hash", tokenHash)
     .eq("channel", "manual_link")
     .eq("purpose", "teacher_onboarding")
     .is("consumed_at", null)
     .is("revoked_at", null)
     .gt("token_expires_at", new Date().toISOString())
-    .select("id, email, class_ids, meeting_block_ids")
+    .select("id, class_ids, meeting_block_ids")
     .maybeSingle();
 
   if (claimError) {
@@ -109,7 +116,7 @@ export async function acceptTeacherInvitation(
   }
 
   const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
-    email: claimed.email,
+    email: submittedEmail,
     password: parsed.data.password,
     email_confirm: true,
     user_metadata: { full_name: parsed.data.fullName },
@@ -149,7 +156,7 @@ export async function acceptTeacherInvitation(
 
   const supabase = await createSupabaseServerClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: claimed.email,
+    email: submittedEmail,
     password: parsed.data.password,
   });
 
