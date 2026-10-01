@@ -162,7 +162,13 @@ export default async function TurmasPage() {
         </h2>
         <p className="mt-1 text-sm text-neutral-500">
           O vínculo do professor com a turma é a única fonte de verdade do
-          escopo dele no sistema.
+          escopo dele no sistema. Use este formulário para um professor já
+          ativo — para o primeiro acesso dele (link manual por WhatsApp,
+          sem e-mail), use a tela{" "}
+          <Link href="/coordenacao/professores" className="text-brand-blue hover:underline">
+            Professores
+          </Link>
+          .
         </p>
         <div className="mt-4">
           <AssignTeacherForm

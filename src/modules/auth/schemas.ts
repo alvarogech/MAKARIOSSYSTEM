@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidBrazilianPhone } from "@/services/phone";
 
 /**
  * Zod é usado exclusivamente para validar o FORMATO dos dados de entrada
@@ -56,3 +57,54 @@ export const createInvitationSchema = z.object({
 });
 
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
+
+// Reaproveita o mesmo validador usado no dashboard de inscrições — nunca
+// duplicar a regra de "o que é um telefone brasileiro válido".
+export const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, "Informe o WhatsApp com DDD.")
+  .refine(isValidBrazilianPhone, {
+    message: "Informe um WhatsApp válido com DDD (ex.: 62 99999-9999).",
+  });
+
+export const createTeacherInvitationSchema = z.object({
+  fullName: z.string().trim().min(1, "Informe o nome completo."),
+  email: z.string().trim().min(1, "Informe o e-mail.").email("E-mail inválido."),
+  phone: phoneSchema,
+  classIds: z.array(z.string().uuid()).default([]),
+});
+
+export type CreateTeacherInvitationInput = z.infer<
+  typeof createTeacherInvitationSchema
+>;
+
+export const acceptTeacherInvitationSchema = z
+  .object({
+    token: z.string().min(1),
+    fullName: z.string().trim().min(1, "Informe o nome completo."),
+    phone: phoneSchema,
+    password: passwordRules,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
+
+export type AcceptTeacherInvitationInput = z.infer<
+  typeof acceptTeacherInvitationSchema
+>;
+
+export const acceptAssistedResetSchema = z
+  .object({
+    token: z.string().min(1),
+    password: passwordRules,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
+
+export type AcceptAssistedResetInput = z.infer<typeof acceptAssistedResetSchema>;

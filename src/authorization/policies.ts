@@ -26,6 +26,11 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "user_roles:manage": ["admin"],
   "invitations:create": ["coordinator", "admin"],
   "invitations:read": ["coordinator", "admin"],
+  // Escopo estreito e específico (ver migration 47): permite gerar/revogar
+  // link manual de primeiro acesso e conceder o papel "teacher" a uma conta
+  // existente — nunca um atalho para "coordenação administra papéis" em
+  // geral (isso continua em user_roles:manage, só admin).
+  "teacher_provisioning:manage": ["coordinator", "admin"],
   "audit_logs:read": ["admin"],
   "enrollments:manage": ["coordinator", "admin"],
   "volumes:manage": ["coordinator", "admin"],

@@ -18,6 +18,11 @@ const SECTIONS = [
     description: "Criar temporada (ex.: 2026.2) e as ofertas de Essência/Caminho/Voz nela.",
   },
   {
+    href: "/coordenacao/professores",
+    title: "Professores",
+    description: "Cadastrar primeiro acesso por link manual (WhatsApp) e gerir convites.",
+  },
+  {
     href: "/coordenacao/turmas",
     title: "Turmas e professores",
     description: "Criar turmas a partir dos modelos de horário e designar professores.",

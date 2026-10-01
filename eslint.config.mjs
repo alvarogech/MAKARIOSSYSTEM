@@ -57,6 +57,10 @@ const eslintConfig = [
       "netlify/functions/**",
       "src/integrations/supabase/admin.ts",
       "src/modules/enrollment/dataProtection.ts",
+      // Leitura pública (página sem sessão) do estado de um token de
+      // convite manual — precisa bypassar RLS de `invitations` (que nunca
+      // libera SELECT para anon, de propósito), mas só lê, nunca escreve.
+      "src/modules/auth/inspectInviteToken.ts",
     ],
     rules: {
       "no-restricted-imports": "off",

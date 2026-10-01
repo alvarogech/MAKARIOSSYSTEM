@@ -33,6 +33,7 @@ export type PermissionCheck =
   | { resource: "user_roles"; action: "manage" }
   | { resource: "invitations"; action: "create" }
   | { resource: "invitations"; action: "read" }
+  | { resource: "teacher_provisioning"; action: "manage" }
   | { resource: "audit_logs"; action: "read" }
   | { resource: "enrollments"; action: "manage" }
   | { resource: "volumes"; action: "manage" }

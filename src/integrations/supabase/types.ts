@@ -1446,30 +1446,60 @@ export type Database = {
       invitations: {
         Row: {
           accepted_at: string | null
+          channel: string
+          class_ids: string[]
+          consumed_at: string | null
           email: string
           id: string
+          intended_full_name: string | null
           intended_role_id: string
           invited_at: string
           invited_by: string
+          phone: string | null
+          purpose: string | null
+          revoked_at: string | null
+          revoked_by: string | null
           status: Database["public"]["Enums"]["invitation_status"]
+          token_expires_at: string | null
+          token_hash: string | null
         }
         Insert: {
           accepted_at?: string | null
+          channel?: string
+          class_ids?: string[]
+          consumed_at?: string | null
           email: string
           id?: string
+          intended_full_name?: string | null
           intended_role_id: string
           invited_at?: string
           invited_by: string
+          phone?: string | null
+          purpose?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           status?: Database["public"]["Enums"]["invitation_status"]
+          token_expires_at?: string | null
+          token_hash?: string | null
         }
         Update: {
           accepted_at?: string | null
+          channel?: string
+          class_ids?: string[]
+          consumed_at?: string | null
           email?: string
           id?: string
+          intended_full_name?: string | null
           intended_role_id?: string
           invited_at?: string
           invited_by?: string
+          phone?: string | null
+          purpose?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           status?: Database["public"]["Enums"]["invitation_status"]
+          token_expires_at?: string | null
+          token_hash?: string | null
         }
         Relationships: [
           {
@@ -1673,6 +1703,7 @@ export type Database = {
           full_name: string
           id: string
           last_access_at: string | null
+          onboarding_completed_at: string | null
           phone: string | null
           photo_url: string | null
           status: Database["public"]["Enums"]["profile_status"]
@@ -1685,6 +1716,7 @@ export type Database = {
           full_name: string
           id: string
           last_access_at?: string | null
+          onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
           status?: Database["public"]["Enums"]["profile_status"]
@@ -1697,6 +1729,7 @@ export type Database = {
           full_name?: string
           id?: string
           last_access_at?: string | null
+          onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
           status?: Database["public"]["Enums"]["profile_status"]
@@ -2260,6 +2293,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: { p_bucket: string; p_max_hits: number; p_window_seconds: number }
+        Returns: boolean
+      }
       claim_job: {
         Args: { p_types?: string[]; p_worker: string }
         Returns: unknown
@@ -2540,6 +2577,13 @@ export type Database = {
         }
         Returns: Json
       }
+      user_has_role: {
+        Args: {
+          check_role: Database["public"]["Enums"]["role_slug"]
+          target_user: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       answer_key_release_reason: "all_submitted" | "deadline" | "manual"
@@ -2818,3 +2862,5 @@ export type AnswerKeyReleaseReason = Database["public"]["Enums"]["answer_key_rel
 export type AssessmentAttemptStatus = Database["public"]["Enums"]["assessment_attempt_status"];
 export type AssessmentAttemptKind = "regular" | "exceptional";
 export type MeetingBlockStatus = Database["public"]["Enums"]["meeting_block_status"];
+export type InvitationChannel = "email" | "manual_link";
+export type InvitationPurpose = "teacher_onboarding" | "password_reset";
