@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { brandFont } from "@/lib/fonts";
 import "./globals.css";
 
@@ -15,6 +15,27 @@ export const metadata: Metadata = {
   },
   description:
     "Ambiente digital de apoio ao ensino e à gestão acadêmica da Escola Makários, Igreja Emaús.",
+  // manifest.ts (gerado em /manifest.webmanifest) + os ícones abaixo são o
+  // que permite "Adicionar à tela de início"/instalar como app no celular
+  // (Android via o manifest; iOS Safari via apple-touch-icon +
+  // apple-mobile-web-app-* no viewport/meta abaixo).
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Makários",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2e7fbf",
 };
 
 export default function RootLayout({
