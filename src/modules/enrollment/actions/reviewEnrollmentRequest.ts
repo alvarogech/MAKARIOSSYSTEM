@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
-import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { can, getAuthContext } from "@/authorization";
+import { createStudentOnboardingInvitation } from "../studentInvite";
 import type { EnrollmentRequestStatus } from "../types";
 
 export interface ReviewEnrollmentRequestState {
@@ -46,7 +46,9 @@ export async function reviewEnrollmentRequest(
 
   const { data: current, error: fetchError } = await supabase
     .from("enrollment_requests")
-    .select("id, full_name, email, status")
+    .select(
+      "id, full_name, email, status, season_id, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug",
+    )
     .eq("id", requestId)
     .maybeSingle();
 
@@ -72,29 +74,9 @@ export async function reviewEnrollmentRequest(
   let warning: string | undefined;
 
   if (nextStatus === "approved" && !alreadyApproved) {
-    const { data: role } = await supabase
-      .from("roles")
-      .select("id")
-      .eq("slug", "student")
-      .single();
-
-    if (!role) {
-      warning = "A inscrição foi aprovada, mas o perfil Aluno não foi encontrado para enviar o convite.";
-    } else {
-      await supabase.from("invitations").insert({
-        email: current.email,
-        intended_role_id: role.id,
-        invited_by: authContext.userId,
-      });
-
-      const admin = createSupabaseAdminClient();
-      const { error: inviteEmailError } = await admin.auth.admin.inviteUserByEmail(current.email, {
-        data: { full_name: current.full_name },
-      });
-
-      if (inviteEmailError) {
-        warning = `A inscrição foi aprovada, mas o convite por e-mail não pôde ser enviado: ${inviteEmailError.message}`;
-      }
+    const result = await createStudentOnboardingInvitation(supabase, current, authContext.userId);
+    if (!result.ok) {
+      warning = `A inscrição foi aprovada, mas o convite por e-mail não pôde ser enviado: ${result.error}`;
     }
   }
 

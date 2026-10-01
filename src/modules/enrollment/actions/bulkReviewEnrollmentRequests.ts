@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
-import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { can, getAuthContext } from "@/authorization";
+import { createStudentOnboardingInvitation } from "../studentInvite";
 import type { EnrollmentRequestStatus } from "../types";
 
 export interface BulkReviewResult {
@@ -46,7 +46,9 @@ export async function bulkReviewEnrollmentRequests(
 
   const { data: currentRows, error: fetchError } = await supabase
     .from("enrollment_requests")
-    .select("id, full_name, email, status")
+    .select(
+      "id, full_name, email, status, season_id, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug",
+    )
     .in("id", ids);
 
   if (fetchError || !currentRows || currentRows.length === 0) {
@@ -79,30 +81,15 @@ export async function bulkReviewEnrollmentRequests(
   if (nextStatus === "approved") {
     const newlyApproved = currentRows.filter((row) => row.status !== "approved");
     if (newlyApproved.length > 0) {
-      const { data: role } = await supabase.from("roles").select("id").eq("slug", "student").single();
+      let failedInvites = 0;
 
-      if (!role) {
-        warning = "As inscrições foram aprovadas, mas o perfil Aluno não foi encontrado para enviar os convites.";
-      } else {
-        const admin = createSupabaseAdminClient();
-        let failedInvites = 0;
+      for (const row of newlyApproved) {
+        const result = await createStudentOnboardingInvitation(supabase, row, authContext.userId);
+        if (!result.ok) failedInvites += 1;
+      }
 
-        for (const row of newlyApproved) {
-          await supabase.from("invitations").insert({
-            email: row.email,
-            intended_role_id: role.id,
-            invited_by: authContext.userId,
-          });
-
-          const { error: inviteEmailError } = await admin.auth.admin.inviteUserByEmail(row.email, {
-            data: { full_name: row.full_name },
-          });
-          if (inviteEmailError) failedInvites += 1;
-        }
-
-        if (failedInvites > 0) {
-          warning = `${failedInvites} de ${newlyApproved.length} convites não puderam ser enviados por e-mail.`;
-        }
+      if (failedInvites > 0) {
+        warning = `${failedInvites} de ${newlyApproved.length} convites não puderam ser enviados por e-mail.`;
       }
     }
   }

@@ -20,7 +20,7 @@ export default async function RedefinirSenhaAssistidaPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const info = await inspectInviteToken(token, "password_reset");
+  const info = await inspectInviteToken(token, "manual_link", "password_reset");
 
   if (info.status !== "valid") {
     return (

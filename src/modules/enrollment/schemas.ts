@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidCpf, normalizeCpf } from "@/services/cpf";
+import { passwordRules } from "@/modules/auth/schemas";
 
 const volumeSchema = z.enum(["essencia", "caminho", "voz"]);
 const scheduleSchema = z.enum(["terca_quinta", "sabado"]);
@@ -78,3 +79,20 @@ export const enrollmentRequestSchema = z
   });
 
 export type EnrollmentRequestInput = z.infer<typeof enrollmentRequestSchema>;
+
+export const acceptStudentInvitationSchema = z
+  .object({
+    token: z.string().min(1),
+    fullName: z.string().trim().min(1, "Informe o nome completo."),
+    // Editável pelo mesmo motivo do convite de professor: a coordenação
+    // pode não ter o e-mail certo na hora da aprovação.
+    email: z.string().trim().min(1, "Informe o e-mail.").email("E-mail inválido."),
+    password: passwordRules,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
+
+export type AcceptStudentInvitationInput = z.infer<typeof acceptStudentInvitationSchema>;

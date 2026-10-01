@@ -61,6 +61,16 @@ const eslintConfig = [
       // convite manual — precisa bypassar RLS de `invitations` (que nunca
       // libera SELECT para anon, de propósito), mas só lê, nunca escreve.
       "src/modules/auth/inspectInviteToken.ts",
+      // Único lugar que monta o transporte SMTP — precisa das credenciais
+      // server-only (SMTP_*) de @/lib/serverEnv.
+      "src/modules/notifications/mailer.ts",
+      // Lembrete de primeiro acesso do aluno é disparado por uma rota de
+      // cron sem sessão de usuário — precisa do client administrativo
+      // para ler/escrever `invitations` de qualquer um.
+      "src/modules/enrollment/studentReminders.ts",
+      // Rota chamada pelo pg_cron (sem sessão) — precisa do segredo
+      // compartilhado CRON_SECRET para autenticar a chamada.
+      "src/app/api/cron/student-reminders/route.ts",
     ],
     rules: {
       "no-restricted-imports": "off",

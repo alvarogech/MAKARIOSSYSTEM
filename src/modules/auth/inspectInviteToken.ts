@@ -27,7 +27,8 @@ export interface InviteTokenInfo {
  */
 export async function inspectInviteToken(
   rawToken: string,
-  purpose: "teacher_onboarding" | "password_reset",
+  channel: "manual_link" | "email",
+  purpose: "teacher_onboarding" | "password_reset" | "student_onboarding",
 ): Promise<InviteTokenInfo> {
   const admin = createSupabaseAdminClient();
   const tokenHash = hashInviteToken(rawToken);
@@ -36,7 +37,7 @@ export async function inspectInviteToken(
     .from("invitations")
     .select("id, email, intended_full_name, phone, consumed_at, revoked_at, token_expires_at")
     .eq("token_hash", tokenHash)
-    .eq("channel", "manual_link")
+    .eq("channel", channel)
     .eq("purpose", purpose)
     .maybeSingle();
 

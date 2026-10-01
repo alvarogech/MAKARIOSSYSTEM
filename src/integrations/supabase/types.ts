@@ -1450,14 +1450,17 @@ export type Database = {
           class_ids: string[]
           consumed_at: string | null
           email: string
+          enrollment_request_id: string | null
           id: string
           intended_full_name: string | null
           intended_role_id: string
           invited_at: string
           invited_by: string
+          last_sent_at: string | null
           meeting_block_ids: string[]
           phone: string | null
           purpose: string | null
+          reminder_stage: string
           revoked_at: string | null
           revoked_by: string | null
           status: Database["public"]["Enums"]["invitation_status"]
@@ -1470,14 +1473,17 @@ export type Database = {
           class_ids?: string[]
           consumed_at?: string | null
           email: string
+          enrollment_request_id?: string | null
           id?: string
           intended_full_name?: string | null
           intended_role_id: string
           invited_at?: string
           invited_by: string
+          last_sent_at?: string | null
           meeting_block_ids?: string[]
           phone?: string | null
           purpose?: string | null
+          reminder_stage?: string
           revoked_at?: string | null
           revoked_by?: string | null
           status?: Database["public"]["Enums"]["invitation_status"]
@@ -1490,14 +1496,17 @@ export type Database = {
           class_ids?: string[]
           consumed_at?: string | null
           email?: string
+          enrollment_request_id?: string | null
           id?: string
           intended_full_name?: string | null
           intended_role_id?: string
           invited_at?: string
           invited_by?: string
+          last_sent_at?: string | null
           meeting_block_ids?: string[]
           phone?: string | null
           purpose?: string | null
+          reminder_stage?: string
           revoked_at?: string | null
           revoked_by?: string | null
           status?: Database["public"]["Enums"]["invitation_status"]
@@ -1505,6 +1514,13 @@ export type Database = {
           token_hash?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invitations_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invitations_intended_role_id_fkey"
             columns: ["intended_role_id"]
@@ -2866,4 +2882,4 @@ export type AssessmentAttemptStatus = Database["public"]["Enums"]["assessment_at
 export type AssessmentAttemptKind = "regular" | "exceptional";
 export type MeetingBlockStatus = Database["public"]["Enums"]["meeting_block_status"];
 export type InvitationChannel = "email" | "manual_link";
-export type InvitationPurpose = "teacher_onboarding" | "password_reset";
+export type InvitationPurpose = "teacher_onboarding" | "password_reset" | "student_onboarding";
