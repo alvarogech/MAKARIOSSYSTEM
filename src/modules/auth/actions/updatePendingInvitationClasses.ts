@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { can, getAuthContext } from "@/authorization";
+import { resolveClassIdsForBlocks } from "../manualInvite";
 
 export interface UpdatePendingInvitationClassesState {
   error?: string;
@@ -10,9 +11,10 @@ export interface UpdatePendingInvitationClassesState {
 }
 
 /**
- * "Editar vínculos com turmas" para um convite manual AINDA pendente — só
- * atualiza class_ids na própria linha, sem mexer no token. Quando o
- * professor aceitar, teacher_assignments é criado a partir do valor que
+ * "Editar aulas" de um convite manual AINDA pendente — atualiza
+ * meeting_block_ids (e class_ids, derivado) na própria linha, sem mexer no
+ * token. Quando o professor aceitar, teacher_assignments e
+ * class_meeting_blocks.teacher_id são preenchidos a partir do valor que
  * estiver aqui NAQUELE momento (não do que estava no instante do convite).
  */
 export async function updatePendingInvitationClasses(
@@ -32,12 +34,13 @@ export async function updatePendingInvitationClasses(
     return { error: "Convite inválido." };
   }
 
-  const classIds = formData.getAll("classIds").map(String).filter(Boolean);
+  const meetingBlockIds = formData.getAll("meetingBlockIds").map(String).filter(Boolean);
   const supabase = await createSupabaseServerClient();
+  const classIds = await resolveClassIdsForBlocks(supabase, meetingBlockIds);
 
   const { error, data } = await supabase
     .from("invitations")
-    .update({ class_ids: classIds })
+    .update({ class_ids: classIds, meeting_block_ids: meetingBlockIds })
     .eq("id", invitationId)
     .eq("channel", "manual_link")
     .is("consumed_at", null)
@@ -46,7 +49,7 @@ export async function updatePendingInvitationClasses(
     .maybeSingle();
 
   if (error) {
-    return { error: "Não foi possível atualizar as turmas vinculadas." };
+    return { error: "Não foi possível atualizar as aulas vinculadas." };
   }
 
   if (!data) {

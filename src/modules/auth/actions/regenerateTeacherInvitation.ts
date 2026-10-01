@@ -36,7 +36,7 @@ export async function regenerateTeacherInvitation(
 
   const { data: old } = await supabase
     .from("invitations")
-    .select("email, intended_full_name, phone, class_ids, intended_role_id, consumed_at")
+    .select("email, intended_full_name, phone, class_ids, meeting_block_ids, intended_role_id, consumed_at")
     .eq("id", invitationId)
     .eq("channel", "manual_link")
     .eq("purpose", "teacher_onboarding")
@@ -65,6 +65,7 @@ export async function regenerateTeacherInvitation(
     fullName: old.intended_full_name ?? "Professor(a)",
     phone: old.phone ?? "",
     classIds: old.class_ids ?? [],
+    meetingBlockIds: old.meeting_block_ids ?? [],
     invitedBy: authContext.userId,
     teacherRoleId: old.intended_role_id,
   });

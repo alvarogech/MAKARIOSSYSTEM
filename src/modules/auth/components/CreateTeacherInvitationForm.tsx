@@ -5,6 +5,7 @@ import {
   createTeacherInvitation,
   type CreateTeacherInvitationState,
 } from "../actions/createTeacherInvitation";
+import type { AssignableLesson } from "../assignableLessons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -13,15 +14,29 @@ import { CopyButton } from "@/components/ui/CopyButton";
 
 const initialState: CreateTeacherInvitationState = {};
 
-export function CreateTeacherInvitationForm({
-  classes,
-}: {
-  classes: { id: string; name: string }[];
-}) {
+function formatLessonDate(isoDate: string): string {
+  if (!isoDate) return "";
+  const [, month, day] = isoDate.split("-");
+  return `${day}/${month}`;
+}
+
+function groupLessons(lessons: AssignableLesson[]): Map<string, AssignableLesson[]> {
+  const groups = new Map<string, AssignableLesson[]>();
+  for (const lesson of lessons) {
+    const key = `${lesson.volumeName} — ${lesson.className}`;
+    const list = groups.get(key) ?? [];
+    list.push(lesson);
+    groups.set(key, list);
+  }
+  return groups;
+}
+
+export function CreateTeacherInvitationForm({ lessons }: { lessons: AssignableLesson[] }) {
   const [state, formAction, isPending] = useActionState(
     createTeacherInvitation,
     initialState,
   );
+  const groups = groupLessons(lessons);
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,21 +59,41 @@ export function CreateTeacherInvitationForm({
         </div>
 
         <div>
-          <Label>Turmas (opcional — dá para cadastrar sem turma)</Label>
-          <div className="mt-2 flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-[var(--radius-sm)] border border-neutral-200 p-3">
-            {classes.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-sm text-neutral-700">
-                <input
-                  type="checkbox"
-                  name="classIds"
-                  value={c.id}
-                  className="size-4 rounded border-neutral-300 text-brand-blue focus:ring-brand-blue"
-                />
-                {c.name}
-              </label>
+          <Label>
+            Aulas que esta pessoa vai dar (opcional — dá para cadastrar sem aula ainda)
+          </Label>
+          <p className="mt-1 text-xs text-neutral-500">
+            Só aparecem aulas que ainda não têm professor. A turma é vinculada
+            automaticamente a partir das aulas escolhidas.
+          </p>
+          <div className="mt-2 flex max-h-64 flex-col gap-3 overflow-y-auto rounded-[var(--radius-sm)] border border-neutral-200 p-3">
+            {[...groups.entries()].map(([groupLabel, groupLessons]) => (
+              <div key={groupLabel}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  {groupLabel}
+                </p>
+                <div className="mt-1 flex flex-col gap-1">
+                  {groupLessons.map((lesson) => (
+                    <label
+                      key={lesson.blockId}
+                      className="flex items-center gap-2 text-sm text-neutral-700"
+                    >
+                      <input
+                        type="checkbox"
+                        name="meetingBlockIds"
+                        value={lesson.blockId}
+                        className="size-4 rounded border-neutral-300 text-brand-blue focus:ring-brand-blue"
+                      />
+                      {formatLessonDate(lesson.meetingDate)} — {lesson.moduleName}
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
-            {classes.length === 0 ? (
-              <p className="text-xs text-neutral-400">Nenhuma turma cadastrada ainda.</p>
+            {lessons.length === 0 ? (
+              <p className="text-xs text-neutral-400">
+                Nenhuma aula sem professor no momento.
+              </p>
             ) : null}
           </div>
         </div>

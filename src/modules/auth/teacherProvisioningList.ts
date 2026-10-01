@@ -22,6 +22,7 @@ export interface PendingInviteRow {
   phone: string | null;
   inviteStatus: "pending" | "expired" | "revoked";
   classIds: string[];
+  meetingBlockIds: string[];
   classNames: string[];
   invitedAt: string;
 }
@@ -50,7 +51,7 @@ export async function loadTeacherProvisioningData(
         : Promise.resolve({ data: [] as { user_id: string }[] }),
       supabase
         .from("invitations")
-        .select("id, email, intended_full_name, phone, class_ids, token_expires_at, revoked_at, invited_at")
+        .select("id, email, intended_full_name, phone, class_ids, meeting_block_ids, token_expires_at, revoked_at, invited_at")
         .eq("channel", "manual_link")
         .eq("purpose", "teacher_onboarding")
         .is("consumed_at", null)
@@ -110,6 +111,7 @@ export async function loadTeacherProvisioningData(
       phone: inv.phone,
       inviteStatus,
       classIds: inv.class_ids ?? [],
+      meetingBlockIds: inv.meeting_block_ids ?? [],
       classNames: (inv.class_ids ?? []).map((id) => classNameById.get(id) ?? "Turma").sort(),
       invitedAt: inv.invited_at,
     };

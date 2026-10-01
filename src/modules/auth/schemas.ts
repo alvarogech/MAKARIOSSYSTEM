@@ -72,7 +72,11 @@ export const createTeacherInvitationSchema = z.object({
   fullName: z.string().trim().min(1, "Informe o nome completo."),
   email: z.string().trim().min(1, "Informe o e-mail.").email("E-mail inválido."),
   phone: phoneSchema,
-  classIds: z.array(z.string().uuid()).default([]),
+  // Aulas específicas (class_meeting_blocks), não turmas inteiras — o
+  // painel do professor só mostra uma aula quando o teacher_id do bloco
+  // aponta pra ele, então é isso que precisa ser escolhido na hora do
+  // convite, não só "em qual turma a pessoa está".
+  meetingBlockIds: z.array(z.string().uuid()).default([]),
 });
 
 export type CreateTeacherInvitationInput = z.infer<

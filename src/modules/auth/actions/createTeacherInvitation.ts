@@ -5,7 +5,11 @@ import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { can, getAuthContext } from "@/authorization";
 import { createTeacherInvitationSchema } from "../schemas";
 import { escapeIlike, findExistingAccountByEmail, normalizeEmail } from "../lookupTeacherCandidate";
-import { createManualTeacherInvitationRow } from "../manualInvite";
+import {
+  createManualTeacherInvitationRow,
+  linkSpecificMeetingBlocks,
+  resolveClassIdsForBlocks,
+} from "../manualInvite";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -50,12 +54,12 @@ export async function createTeacherInvitation(
     return { error: "Você não tem permissão para cadastrar professores." };
   }
 
-  const classIds = formData.getAll("classIds").map(String).filter(Boolean);
+  const meetingBlockIds = formData.getAll("meetingBlockIds").map(String).filter(Boolean);
   const parsed = createTeacherInvitationSchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     phone: formData.get("phone"),
-    classIds,
+    meetingBlockIds,
   });
 
   if (!parsed.success) {
@@ -64,6 +68,7 @@ export async function createTeacherInvitation(
 
   const supabase = await createSupabaseServerClient();
   const email = normalizeEmail(parsed.data.email);
+  const classIds = await resolveClassIdsForBlocks(supabase, parsed.data.meetingBlockIds);
 
   const existing = await findExistingAccountByEmail(supabase, email);
 
@@ -95,7 +100,7 @@ export async function createTeacherInvitation(
     }
 
     try {
-      await linkClassesToTeacher(supabase, existing.userId, parsed.data.classIds);
+      await linkClassesToTeacher(supabase, existing.userId, classIds);
     } catch {
       revalidatePath("/coordenacao/professores");
       return {
@@ -104,6 +109,10 @@ export async function createTeacherInvitation(
           "possível vincular todas as turmas selecionadas. Vincule pela tela de Turmas.",
       };
     }
+
+    // Conta já existe — não há "aceite" posterior que faça isso, então o
+    // vínculo fino por aula precisa acontecer aqui mesmo, na hora.
+    await linkSpecificMeetingBlocks(supabase, existing.userId, parsed.data.meetingBlockIds);
 
     revalidatePath("/coordenacao/professores");
     return { result: { kind: "role_granted_existing", fullName: existing.fullName } };
@@ -146,7 +155,8 @@ export async function createTeacherInvitation(
     email,
     fullName: parsed.data.fullName,
     phone: parsed.data.phone,
-    classIds: parsed.data.classIds,
+    classIds,
+    meetingBlockIds: parsed.data.meetingBlockIds,
     invitedBy: authContext.userId,
     teacherRoleId: teacherRole.id,
   });

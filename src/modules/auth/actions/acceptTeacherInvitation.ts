@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { acceptTeacherInvitationSchema } from "../schemas";
 import { hashInviteToken } from "../inviteTokens";
 import { checkRateLimit, getClientIp } from "../rateLimit";
+import { linkSpecificMeetingBlocks } from "../manualInvite";
 
 export interface AcceptTeacherInvitationState {
   error?: string;
@@ -78,7 +79,7 @@ export async function acceptTeacherInvitation(
     .is("consumed_at", null)
     .is("revoked_at", null)
     .gt("token_expires_at", new Date().toISOString())
-    .select("id, email, class_ids")
+    .select("id, email, class_ids, meeting_block_ids")
     .maybeSingle();
 
   if (claimError) {
@@ -144,6 +145,7 @@ export async function acceptTeacherInvitation(
   }
 
   await linkPendingClasses(admin, teacherId, claimed.class_ids ?? []);
+  await linkSpecificMeetingBlocks(admin, teacherId, claimed.meeting_block_ids ?? []);
 
   const supabase = await createSupabaseServerClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({

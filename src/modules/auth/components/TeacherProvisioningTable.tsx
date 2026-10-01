@@ -1,4 +1,5 @@
 import type { PendingInviteRow, TeacherProvisioningRow } from "../teacherProvisioningList";
+import type { AssignableLesson } from "../assignableLessons";
 import { RevokeInvitationButton } from "./RevokeInvitationButton";
 import { RegenerateInvitationButton } from "./RegenerateInvitationButton";
 import { GenerateAssistedResetButton } from "./GenerateAssistedResetButton";
@@ -24,10 +25,10 @@ function Badge({ label, className }: { label: string; className: string }) {
 
 export function TeacherProvisioningTable({
   rows,
-  classes,
+  lessons,
 }: {
   rows: TeacherProvisioningRow[];
-  classes: { id: string; name: string }[];
+  lessons: AssignableLesson[];
 }) {
   if (rows.length === 0) {
     return <p className="py-4 text-sm text-neutral-400">Nenhum professor cadastrado ainda.</p>;
@@ -88,8 +89,8 @@ export function TeacherProvisioningTable({
                   <>
                     <EditPendingInvitationClassesForm
                       invitationId={row.invitationId}
-                      classes={classes}
-                      currentClassIds={row.classIds}
+                      lessons={lessons}
+                      currentMeetingBlockIds={row.meetingBlockIds}
                     />
                     <RevokeInvitationButton invitationId={row.invitationId} />
                   </>

@@ -1455,6 +1455,7 @@ export type Database = {
           intended_role_id: string
           invited_at: string
           invited_by: string
+          meeting_block_ids: string[]
           phone: string | null
           purpose: string | null
           revoked_at: string | null
@@ -1474,6 +1475,7 @@ export type Database = {
           intended_role_id: string
           invited_at?: string
           invited_by: string
+          meeting_block_ids?: string[]
           phone?: string | null
           purpose?: string | null
           revoked_at?: string | null
@@ -1493,6 +1495,7 @@ export type Database = {
           intended_role_id?: string
           invited_at?: string
           invited_by?: string
+          meeting_block_ids?: string[]
           phone?: string | null
           purpose?: string | null
           revoked_at?: string | null

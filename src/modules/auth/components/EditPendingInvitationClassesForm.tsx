@@ -5,19 +5,26 @@ import {
   updatePendingInvitationClasses,
   type UpdatePendingInvitationClassesState,
 } from "../actions/updatePendingInvitationClasses";
+import type { AssignableLesson } from "../assignableLessons";
 import { Button, buttonVariants } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 
 const initialState: UpdatePendingInvitationClassesState = {};
 
+function formatLessonDate(isoDate: string): string {
+  if (!isoDate) return "";
+  const [, month, day] = isoDate.split("-");
+  return `${day}/${month}`;
+}
+
 export function EditPendingInvitationClassesForm({
   invitationId,
-  classes,
-  currentClassIds,
+  lessons,
+  currentMeetingBlockIds,
 }: {
   invitationId: string;
-  classes: { id: string; name: string }[];
-  currentClassIds: string[];
+  lessons: AssignableLesson[];
+  currentMeetingBlockIds: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(
@@ -32,7 +39,7 @@ export function EditPendingInvitationClassesForm({
         onClick={() => setOpen(true)}
         className={buttonVariants({ variant: "ghost", size: "sm" })}
       >
-        Editar turmas
+        Editar aulas
       </button>
     );
   }
@@ -41,18 +48,19 @@ export function EditPendingInvitationClassesForm({
     <form action={formAction} className="flex flex-col gap-2 rounded-[var(--radius-sm)] border border-neutral-200 p-3">
       <input type="hidden" name="invitationId" value={invitationId} />
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
-      {state.success ? <Alert variant="success">Turmas atualizadas.</Alert> : null}
-      <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
-        {classes.map((c) => (
-          <label key={c.id} className="flex items-center gap-2 text-sm text-neutral-700">
+      {state.success ? <Alert variant="success">Aulas atualizadas.</Alert> : null}
+      <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+        {lessons.map((lesson) => (
+          <label key={lesson.blockId} className="flex items-center gap-2 text-sm text-neutral-700">
             <input
               type="checkbox"
-              name="classIds"
-              value={c.id}
-              defaultChecked={currentClassIds.includes(c.id)}
+              name="meetingBlockIds"
+              value={lesson.blockId}
+              defaultChecked={currentMeetingBlockIds.includes(lesson.blockId)}
               className="size-4 rounded border-neutral-300 text-brand-blue focus:ring-brand-blue"
             />
-            {c.name}
+            {lesson.volumeName} — {lesson.className} — {formatLessonDate(lesson.meetingDate)} —{" "}
+            {lesson.moduleName}
           </label>
         ))}
       </div>

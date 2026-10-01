@@ -4,6 +4,7 @@ import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loadTeacherProvisioningData } from "@/modules/auth/teacherProvisioningList";
+import { loadAssignableLessons } from "@/modules/auth/assignableLessons";
 import { CreateTeacherInvitationForm } from "@/modules/auth/components/CreateTeacherInvitationForm";
 import { TeacherProvisioningTable } from "@/modules/auth/components/TeacherProvisioningTable";
 
@@ -21,7 +22,10 @@ export default async function ProfessoresPage() {
   }
 
   const supabase = await createSupabaseServerClient();
-  const { rows, classes } = await loadTeacherProvisioningData(supabase);
+  const [{ rows }, lessons] = await Promise.all([
+    loadTeacherProvisioningData(supabase),
+    loadAssignableLessons(supabase),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -37,13 +41,13 @@ export default async function ProfessoresPage() {
       <Card>
         <h2 className="font-semibold text-neutral-900">Cadastrar professor</h2>
         <div className="mt-4">
-          <CreateTeacherInvitationForm classes={classes} />
+          <CreateTeacherInvitationForm lessons={lessons} />
         </div>
       </Card>
 
       <Card>
         <h2 className="font-semibold text-neutral-900">Professores e convites ({rows.length})</h2>
-        <TeacherProvisioningTable rows={rows} classes={classes} />
+        <TeacherProvisioningTable rows={rows} lessons={lessons} />
       </Card>
     </div>
   );
