@@ -178,9 +178,6 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
               Exportação para o calendário fica disponível quando a coordenação confirmar data e horário.
             </span>
           )}
-          <Link href={`/professor/turmas/${klass.id}/encontros/${meeting.id}/frequencia`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-            Frequência
-          </Link>
           <Link href={`/professor/turmas/${klass.id}/encontros/${meeting.id}/relatorio`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
             Relatório
           </Link>

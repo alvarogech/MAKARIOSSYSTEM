@@ -83,11 +83,6 @@ export default async function ProfessorTurmaDetailPage({
   const profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   const meetingIds = (meetings ?? []).map((m) => m.id);
-  const { data: attendanceCounts } = await supabase
-    .from("attendance_records")
-    .select("meeting_id")
-    .in("meeting_id", meetingIds);
-  const recordedMeetingIds = new Set((attendanceCounts ?? []).map((a) => a.meeting_id));
   const reportedMeetingIds = new Set((reports ?? []).map((r) => r.meeting_id));
 
   const { data: blocks } = await supabase
@@ -158,21 +153,12 @@ export default async function ProfessorTurmaDetailPage({
                     {meeting.status === "canceled" ? (
                       <span className="ml-2 text-xs font-semibold uppercase text-danger">Cancelado</span>
                     ) : null}
-                    {recordedMeetingIds.has(meeting.id) ? (
-                      <span className="ml-2 text-xs text-success">frequência registrada</span>
-                    ) : null}
                     {reportedMeetingIds.has(meeting.id) ? (
                       <span className="ml-2 text-xs text-success">relatório enviado</span>
                     ) : null}
                     {meeting.room ? <span className="ml-2 text-xs text-neutral-400">· {meeting.room}</span> : null}
                   </span>
                   <div className="flex gap-2">
-                    <Link
-                      href={`/professor/turmas/${classId}/encontros/${meeting.id}/frequencia`}
-                      className={buttonVariants({ variant: "secondary", size: "sm" })}
-                    >
-                      Frequência
-                    </Link>
                     <Link
                       href={`/professor/turmas/${classId}/encontros/${meeting.id}/relatorio`}
                       className={buttonVariants({ variant: "ghost", size: "sm" })}
