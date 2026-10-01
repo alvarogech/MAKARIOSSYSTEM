@@ -84,8 +84,13 @@ export async function acceptAssistedPasswordReset(
     };
   }
 
+  // email_confirm também aqui: contas antigas criadas pelo convite por
+  // e-mail (inviteUserByEmail) que nunca foram abertas ficam com
+  // email_confirmed_at nulo — sem isso, o signInWithPassword logo abaixo
+  // falharia com "Email not confirmed" mesmo com a senha certa.
   const { error: updateError } = await admin.auth.admin.updateUserById(profile.id, {
     password: parsed.data.password,
+    email_confirm: true,
   });
 
   if (updateError) {
