@@ -41,6 +41,29 @@ export const createEnrollmentSchema = z.object({
 
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
 
+export const enrollmentStatusValues = [
+  "active",
+  "regularization",
+  "approved",
+  "failed",
+  "canceled",
+  "withdrawn",
+] as const;
+
+export const updateEnrollmentStatusSchema = z.object({
+  enrollmentId: z.string().uuid(),
+  status: z.enum(enrollmentStatusValues, { message: "Status inválido." }),
+});
+
+export type UpdateEnrollmentStatusInput = z.infer<typeof updateEnrollmentStatusSchema>;
+
+export const transferEnrollmentClassSchema = z.object({
+  enrollmentId: z.string().uuid(),
+  classId: z.string().uuid("Selecione uma turma."),
+});
+
+export type TransferEnrollmentClassInput = z.infer<typeof transferEnrollmentClassSchema>;
+
 export const createPrerequisiteExceptionSchema = z.object({
   studentEmail: z.string().trim().email("E-mail inválido."),
   volumeId: z.string().uuid(),

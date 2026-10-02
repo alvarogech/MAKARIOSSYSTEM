@@ -4,6 +4,8 @@ import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { EnrollmentForm } from "@/modules/academic/components/EnrollmentForm";
+import { EnrollmentRowActions } from "@/modules/academic/components/EnrollmentRowActions";
+import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
 
 export const metadata: Metadata = { title: "Matrículas" };
 
@@ -45,6 +47,12 @@ export default async function MatriculasPage() {
   );
   const classesById = new Map((classes ?? []).map((c) => [c.id, c]));
   const profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const classesByOffering = new Map<string, { id: string; name: string }[]>();
+  for (const klass of classes ?? []) {
+    const list = classesByOffering.get(klass.season_volume_offering_id) ?? [];
+    list.push({ id: klass.id, name: klass.name });
+    classesByOffering.set(klass.season_volume_offering_id, list);
+  }
 
   const offeringLabel = (offeringId: string) => {
     const offering = (offerings ?? []).find((o) => o.id === offeringId);
@@ -87,14 +95,20 @@ export default async function MatriculasPage() {
         </h2>
         <ul className="mt-4 divide-y divide-neutral-100">
           {(enrollments ?? []).map((enrollment) => (
-            <li key={enrollment.id} className="py-2 text-sm text-neutral-700">
+            <li key={enrollment.id} className="py-3 text-sm text-neutral-700">
               <span className="font-medium">
                 {profilesById.get(enrollment.student_id)?.full_name ??
                   "Aluno"}
               </span>{" "}
               — {offeringLabel(enrollment.season_volume_offering_id)} ·{" "}
               {classesById.get(enrollment.class_id)?.name}
-              <span className="text-neutral-400"> ({enrollment.status})</span>
+              <span className="text-neutral-400"> ({ENROLLMENT_STATUS_LABELS[enrollment.status] ?? enrollment.status})</span>
+              <EnrollmentRowActions
+                enrollmentId={enrollment.id}
+                currentStatus={enrollment.status}
+                currentClassId={enrollment.class_id}
+                classesInSameOffering={classesByOffering.get(enrollment.season_volume_offering_id) ?? []}
+              />
             </li>
           ))}
           {(enrollments ?? []).length === 0 ? (
