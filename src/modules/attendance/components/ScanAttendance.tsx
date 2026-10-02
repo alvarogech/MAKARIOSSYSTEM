@@ -92,15 +92,28 @@ export function ScanAttendance({ token }: { token: string }) {
         <p className="text-neutral-700">
           {result.firstName}, {result.volumeName}
           <br />
-          Encontro {result.sequence}, {result.block === 1 ? "antes do intervalo" : "depois do intervalo"}, às {result.time}
+          Dia {result.date}, às {result.time} (horário de Brasília)
         </p>
-        <p className="text-sm text-neutral-500">
-          {result.lessonsCredited === result.lessonsTotal
-            ? `Valeram as ${result.lessonsTotal} aulas deste bloco.`
-            : result.lessonsCredited === 0
-              ? "Você chegou depois da tolerância das aulas deste bloco, então nenhuma aula foi contada."
-              : `Valeu ${result.lessonsCredited} de ${result.lessonsTotal} aulas deste bloco, por causa do horário de chegada.`}
-        </p>
+        <div className="rounded-[var(--radius-sm)] bg-neutral-50 px-3 py-3 text-left text-sm text-neutral-700">
+          <p className="font-medium text-neutral-900">
+            Encontro {result.sequence}, {result.block === 1 ? "antes do intervalo" : "depois do intervalo"}: {result.blockStart} às{" "}
+            {result.blockEnd}
+          </p>
+          {result.subjects.length > 0 ? <p className="mt-1">Matéria: {result.subjects.join("; ")}</p> : null}
+          <ul className="mt-2 flex flex-col gap-1">
+            {result.lessons.map((lesson) => (
+              <li key={lesson.number} className={lesson.counted ? "text-neutral-800" : "text-neutral-400 line-through"}>
+                {lesson.counted ? "✓" : "✗"} Aula {lesson.number}: {lesson.start} às {lesson.end}
+              </li>
+            ))}
+          </ul>
+          {result.lessonNumbers.length === 0 ? (
+            <p className="mt-2">Você chegou depois da tolerância de 15 minutos, então nenhuma aula deste bloco foi contada.</p>
+          ) : result.lessonsCredited < result.lessonsTotal ? (
+            <p className="mt-2">As aulas riscadas não contaram, por causa do horário de chegada (tolerância de 15 minutos).</p>
+          ) : null}
+          {result.placeLabel ? <p className="mt-2 text-neutral-500">Localização: {result.placeLabel}</p> : null}
+        </div>
         {result.makeupForSequence ? (
           <p className="text-sm text-neutral-500">Contou como reposição do encontro {result.makeupForSequence} da sua turma.</p>
         ) : null}

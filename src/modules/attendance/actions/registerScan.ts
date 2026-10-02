@@ -7,7 +7,11 @@ import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { checkRateLimit, getClientIp } from "@/modules/auth/rateLimit";
 import { hashCpf, signAttendanceDevice, verifyAttendanceDevice } from "@/modules/enrollment/dataProtection";
 import {
+  distanceMeters,
   evaluateScan,
+  LESSON_MINUTES,
+  meetingBlocks,
+  toMinutes,
   locationVerdict,
   makeupTargetSequence,
   weekStartOf,
@@ -32,9 +36,20 @@ export type ScanResult =
       volumeName: string;
       sequence: number;
       block: 1 | 2;
+      date: string;
       time: string;
+      /** Números das aulas do encontro que valeram (1 a 4 na terça/quinta, 1 a 8 no sábado). */
+      lessonNumbers: number[];
       lessonsCredited: number;
       lessonsTotal: number;
+      /** Início e fim do bloco: até o intervalo (bloco 1) ou até o fim (bloco 2). */
+      blockStart: string;
+      blockEnd: string;
+      lessons: { number: number; start: string; end: string; counted: boolean }[];
+      /** Matérias do bloco, quando a coordenação já montou a escala. */
+      subjects: string[];
+      /** Local mais próximo e a distância, quando há coordenadas cadastradas. */
+      placeLabel: string | null;
       makeupForSequence: number | null;
       locationStatus: string;
     }
@@ -57,6 +72,10 @@ function saoPauloMinuteNow(now: Date): number {
   }).formatToParts(now);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
   return get("hour") * 60 + get("minute");
+}
+
+function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short" }).format(new Date(iso));
 }
 
 function formatTime(iso: string): string {
@@ -122,7 +141,7 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
   // 3. Localização: perto de algum local cadastrado com coordenadas.
   const { data: places } = await supabase
     .from("locations")
-    .select("latitude, longitude, attendance_radius_meters")
+    .select("name, latitude, longitude, attendance_radius_meters")
     .not("latitude", "is", null);
   let locationStatus: "dentro" | "impreciso" | "sem_local_cadastrado" = "sem_local_cadastrado";
   if (places && places.length > 0) {
@@ -137,6 +156,13 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
       return fail("Você precisa estar no local da aula para marcar presença.");
     }
     locationStatus = verdict;
+  }
+  let placeLabel: string | null = null;
+  if (places && places.length > 0 && input.lat != null && input.lng != null) {
+    const nearest = places
+      .map((p) => ({ name: p.name, d: distanceMeters({ lat: input.lat!, lng: input.lng! }, { lat: p.latitude!, lng: p.longitude! }) }))
+      .sort((a, b) => a.d - b.d)[0];
+    if (nearest) placeLabel = `${nearest.name}, a ${Math.round(nearest.d)} m`;
   }
 
   // 4. Quem está escaneando: login, celular já lembrado ou CPF.
@@ -317,14 +343,46 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     });
   }
 
+  const block = meetingBlocks({
+    startTime: meeting.start_time!,
+    endTime: meeting.end_time!,
+    breakMinutes: meeting.break_minutes,
+  })[evaluation.block - 1]!;
+  const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const offset = evaluation.block === 2 ? evaluation.lessonsTotal : 0;
+  const lessons = Array.from({ length: evaluation.lessonsTotal }, (_, i) => ({
+    number: i + 1 + offset,
+    start: hhmm(block.start + i * LESSON_MINUTES),
+    end: hhmm(block.start + (i + 1) * LESSON_MINUTES),
+    counted: i >= evaluation.lessonsTotal - credited,
+  }));
+  const { data: subjectRows } = await supabase
+    .from("class_meeting_blocks")
+    .select("start_time, end_time, modules(name)")
+    .eq("class_meeting_id", meeting.id)
+    .order("start_time");
+  const subjects = (subjectRows ?? [])
+    .filter((r) => r.start_time && r.end_time && toMinutes(r.start_time) < block.end && toMinutes(r.end_time) > block.start)
+    .map((r) => `${r.modules?.name ?? "Matéria"} (${(r.start_time ?? "").slice(0, 5)} às ${(r.end_time ?? "").slice(0, 5)})`);
+
   return {
     ok: true,
+    blockStart: hhmm(block.start),
+    blockEnd: hhmm(block.end),
+    lessons,
+    subjects,
+    placeLabel,
     alreadyRegistered,
     firstName: fullName.split(" ")[0] ?? "",
     volumeName: qr.volumes.name,
     sequence: meeting.sequence,
     block: evaluation.block,
+    date: formatDate(registeredAt),
     time: formatTime(registeredAt),
+    lessonNumbers: Array.from(
+      { length: credited },
+      (_, i) => evaluation.lessonsTotal - credited + 1 + i + (evaluation.block === 2 ? evaluation.lessonsTotal : 0),
+    ),
     lessonsCredited: credited,
     lessonsTotal: evaluation.lessonsTotal,
     makeupForSequence: makeupForMeetingId ? makeupForSequence : null,
