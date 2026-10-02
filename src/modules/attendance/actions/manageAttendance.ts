@@ -4,33 +4,29 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { can, getAuthContext } from "@/authorization";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
-import { weekStartOf } from "../rules";
 
 export interface SimpleState {
   error?: string;
   success?: boolean;
 }
 
-/** Cria o QR Code da semana para cada volume que ainda não tem. */
-export async function generateWeekQrCodes(_prev: SimpleState, formData: FormData): Promise<SimpleState> {
+/** Cria o QR Code permanente de cada volume que ainda não tem. */
+export async function generateQrCodes(_prev: SimpleState): Promise<SimpleState> {
   const auth = await getAuthContext();
   if (!auth || !can(auth, { resource: "attendance", action: "correct" })) {
     return { error: "Você não tem permissão para gerar os QR Codes." };
   }
-  const week = String(formData.get("week") ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(week) || weekStartOf(week) !== week) return { error: "Semana inválida." };
 
   const supabase = await createSupabaseServerClient();
   const { data: volumes } = await supabase.from("volumes").select("id");
   const rows = (volumes ?? []).map((v) => ({
     volume_id: v.id,
-    week_start: week,
     token: randomBytes(16).toString("base64url"),
     created_by: auth.userId,
   }));
   const { error } = await supabase
     .from("attendance_qr_codes")
-    .upsert(rows, { onConflict: "volume_id,week_start", ignoreDuplicates: true });
+    .upsert(rows, { onConflict: "volume_id", ignoreDuplicates: true });
   if (error) return { error: "Não foi possível gerar os QR Codes." };
 
   revalidatePath("/coordenacao/presenca");

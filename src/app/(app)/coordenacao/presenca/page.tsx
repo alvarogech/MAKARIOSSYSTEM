@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { GenerateQrCodesForm } from "@/modules/attendance/components/AttendanceForms";
-import { weekStartOf } from "@/modules/attendance/rules";
 
 export const metadata: Metadata = { title: "Presença por QR Code" };
 
@@ -28,11 +27,10 @@ export default async function PresencaCoordenacaoPage({ searchParams }: { search
 
   const { dia } = await searchParams;
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : getSaoPauloDateKey(new Date());
-  const week = weekStartOf(day);
   const supabase = await createSupabaseServerClient();
 
   const [{ data: codes }, { data: volumes }, { data: meetings }] = await Promise.all([
-    supabase.from("attendance_qr_codes").select("volume_id").eq("week_start", week),
+    supabase.from("attendance_qr_codes").select("volume_id"),
     supabase.from("volumes").select("id"),
     supabase
       .from("class_meetings")
@@ -71,16 +69,16 @@ export default async function PresencaCoordenacaoPage({ searchParams }: { search
       <div>
         <h1 className="text-lg font-semibold text-neutral-900">Presença por QR Code</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Um QR Code por volume, que troca toda segunda-feira. O aluno escaneia na entrada e na volta do intervalo.
+          Um QR Code permanente por volume, que serve para as turmas de terça/quinta e de sábado. O aluno escaneia na entrada e na volta do intervalo.
         </p>
       </div>
 
       <Card className="flex flex-col gap-3">
-        <h2 className="font-semibold text-neutral-900">QR Codes da semana de {week.split("-").reverse().join("/")}</h2>
-        {missingCodes ? <GenerateQrCodesForm week={week} /> : null}
+        <h2 className="font-semibold text-neutral-900">QR Codes dos volumes</h2>
+        {missingCodes ? <GenerateQrCodesForm /> : null}
         {(codes?.length ?? 0) > 0 ? (
           <Link
-            href={`/presenca/imprimir?semana=${week}`}
+            href="/presenca/imprimir"
             target="_blank"
             className="self-start text-sm font-medium text-brand-blue hover:underline"
           >
@@ -92,7 +90,7 @@ export default async function PresencaCoordenacaoPage({ searchParams }: { search
           <Link href="/coordenacao/locais" className="underline">
             Locais
           </Link>
-          . Sem nenhuma coordenada, a presença é aceita de qualquer lugar.
+          . Sem nenhuma coordenada, a presença é aceita de qualquer lugar. Pode imprimir várias cópias do mesmo QR para as mesas.
         </p>
       </Card>
 

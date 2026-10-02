@@ -21,7 +21,6 @@ export type Database = {
           id: string
           token: string
           volume_id: string
-          week_start: string
         }
         Insert: {
           created_at?: string
@@ -29,7 +28,6 @@ export type Database = {
           id?: string
           token: string
           volume_id: string
-          week_start: string
         }
         Update: {
           created_at?: string
@@ -37,7 +35,6 @@ export type Database = {
           id?: string
           token?: string
           volume_id?: string
-          week_start?: string
         }
         Relationships: [
           {

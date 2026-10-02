@@ -14,7 +14,6 @@ import {
   toMinutes,
   locationVerdict,
   makeupTargetSequence,
-  weekStartOf,
   type ScheduleSlug,
 } from "../rules";
 
@@ -101,19 +100,16 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     return fail("Muitas tentativas seguidas. Espere alguns minutos e tente de novo.");
   }
 
-  // 1. O QR Code e a semana dele.
+  // 1. O QR Code (um permanente por volume).
   const { data: qr } = await supabase
     .from("attendance_qr_codes")
-    .select("id, volume_id, week_start, volumes(name, slug)")
+    .select("id, volume_id, volumes(name, slug)")
     .eq("token", input.token)
     .maybeSingle();
   if (!qr || !qr.volumes) return fail("Este QR Code não é válido.");
 
   const now = new Date();
   const today = getSaoPauloDateKey(now);
-  if (weekStartOf(today) !== qr.week_start) {
-    return fail("Este QR Code é de outra semana. Use o que está na porta da sala hoje.");
-  }
 
   // 2. Qual encontro deste volume está acontecendo agora.
   const { data: meetings } = await supabase

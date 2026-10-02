@@ -1,21 +1,20 @@
 "use client";
 
 import { useActionState } from "react";
-import { generateWeekQrCodes, updateLocationCoordinates, type SimpleState } from "../actions/manageAttendance";
+import { generateQrCodes, updateLocationCoordinates, type SimpleState } from "../actions/manageAttendance";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 const initial: SimpleState = {};
 
-export function GenerateQrCodesForm({ week }: { week: string }) {
-  const [state, action, pending] = useActionState(generateWeekQrCodes, initial);
+export function GenerateQrCodesForm() {
+  const [state, action, pending] = useActionState(generateQrCodes, initial);
   return (
     <form action={action} className="flex flex-col gap-2">
-      <input type="hidden" name="week" value={week} />
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
       <Button type="submit" isLoading={pending} className="self-start">
-        Gerar QR Codes desta semana
+        Gerar os QR Codes
       </Button>
     </form>
   );

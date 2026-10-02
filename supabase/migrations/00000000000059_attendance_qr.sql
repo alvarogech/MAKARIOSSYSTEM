@@ -25,17 +25,16 @@ alter table public.locations add constraint locations_coordinates_pair check (
   and attendance_radius_meters between 20 and 5000
 );
 
--- 2. Um QR por volume por semana (segunda a domingo, horario de Sao Paulo).
---    Trocar toda semana faz a foto da semana anterior parar de funcionar.
+-- 2. Um QR permanente por volume. Nao troca por semana: a checagem de
+--    localizacao ja impede que uma foto do QR funcione longe do local
+--    (decisao da coordenacao em 02/10/2026).
 create table if not exists public.attendance_qr_codes (
   id uuid primary key default gen_random_uuid(),
   volume_id uuid not null references public.volumes (id) on delete cascade,
-  week_start date not null,
   token text not null unique,
   created_by uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now(),
-  constraint attendance_qr_codes_volume_week_unique unique (volume_id, week_start),
-  constraint attendance_qr_codes_week_starts_monday check (extract(isodow from week_start) = 1),
+  constraint attendance_qr_codes_volume_unique unique (volume_id),
   constraint attendance_qr_codes_token_length check (length(token) >= 16)
 );
 
