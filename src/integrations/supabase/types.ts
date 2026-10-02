@@ -1158,6 +1158,7 @@ export type Database = {
           secondary_schedule_slug: string | null
           secondary_volume_slug: string | null
           status: string
+          student_id: string | null
           updated_at: string
           viewed_at: string | null
           viewed_by: string | null
@@ -1190,6 +1191,7 @@ export type Database = {
           secondary_schedule_slug?: string | null
           secondary_volume_slug?: string | null
           status?: string
+          student_id?: string | null
           updated_at?: string
           viewed_at?: string | null
           viewed_by?: string | null
@@ -1222,6 +1224,7 @@ export type Database = {
           secondary_schedule_slug?: string | null
           secondary_volume_slug?: string | null
           status?: string
+          student_id?: string | null
           updated_at?: string
           viewed_at?: string | null
           viewed_by?: string | null

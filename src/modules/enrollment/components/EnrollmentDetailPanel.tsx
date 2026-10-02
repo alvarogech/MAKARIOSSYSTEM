@@ -12,8 +12,10 @@ import { checkEnrollmentDataQuality } from "../dataQuality";
 import { grNetworkLabel, scheduleLabel, volumeLabel } from "../labels";
 import { markEnrollmentRequestViewed } from "../actions/markEnrollmentRequestViewed";
 import { reviewEnrollmentRequest, type ReviewEnrollmentRequestState } from "../actions/reviewEnrollmentRequest";
-import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow } from "../types";
+import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow, type StudentEnrollmentForTransfer } from "../types";
 import { EnrollmentStatusBadge } from "./EnrollmentStatusBadge";
+import { EnrollmentRowActions } from "@/modules/academic/components/EnrollmentRowActions";
+import { ENROLLMENT_STATUS_LABELS as MATRICULA_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
 
 const initialState: ReviewEnrollmentRequestState = {};
 
@@ -47,9 +49,11 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 export function EnrollmentDetailPanel({
   row,
   closeHref,
+  enrollments,
 }: {
   row: EnrollmentRequestRow;
   closeHref: string;
+  enrollments: StudentEnrollmentForTransfer[];
 }) {
   const [state, formAction, isPending] = useActionState(reviewEnrollmentRequest, initialState);
   const dataQualityFlags = checkEnrollmentDataQuality({ email: row.email, phone: row.phone });
@@ -185,6 +189,43 @@ export function EnrollmentDetailPanel({
             ) : null}
           </div>
         </section>
+
+        {row.studentId && enrollments.length > 0 ? (
+          <section className="mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Matrícula
+            </h3>
+            <div className="mt-2 flex flex-col gap-4">
+              {enrollments.map((enrollment) => (
+                <div key={enrollment.enrollmentId} className="text-sm text-neutral-700">
+                  <p>
+                    <strong className="font-medium text-neutral-900">{enrollment.className}</strong>{" "}
+                    — {enrollment.offeringLabel}{" "}
+                    <span className="text-neutral-400">
+                      ({MATRICULA_STATUS_LABELS[enrollment.status] ?? enrollment.status})
+                    </span>
+                  </p>
+                  <EnrollmentRowActions
+                    enrollmentId={enrollment.enrollmentId}
+                    currentStatus={enrollment.status}
+                    currentClassId={enrollment.classId}
+                    classesInSameOffering={enrollment.classesInSameOffering}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : row.status === "approved" && !row.studentId ? (
+          <section className="mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Matrícula
+            </h3>
+            <p className="mt-2 text-sm text-neutral-400">
+              Aprovada, mas a pessoa ainda não aceitou o convite e criou a conta — ainda não há
+              turma pra mover.
+            </p>
+          </section>
+        ) : null}
 
         {row.isOtherChurchMember !== null || row.isEmausMember !== null ? (
           <section className="mt-6">

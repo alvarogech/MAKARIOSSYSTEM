@@ -22,11 +22,13 @@ import {
   getEnrollmentStatsRows,
   getEnrollmentTurmaCapacities,
   getOpenSeasonId,
+  getStudentEnrollmentsForTransfer,
 } from "@/modules/enrollment/queries";
 import {
   ENROLLMENT_PAGE_SIZE,
   type EnrollmentRequestRow,
   type EnrollmentTurmaCapacity,
+  type StudentEnrollmentForTransfer,
 } from "@/modules/enrollment/types";
 
 export const metadata: Metadata = { title: "Inscrições" };
@@ -102,6 +104,7 @@ export default async function EnrollmentDashboardPage({
   let stats = computeEnrollmentStats([], now);
   let chartPoints = buildChartPoints([], filters.granularity, now);
   let detailRow: EnrollmentRequestRow | null = null;
+  let detailEnrollments: StudentEnrollmentForTransfer[] = [];
   let capacities: EnrollmentTurmaCapacity[] = [];
   let openSeasonId: string | null = null;
 
@@ -125,6 +128,9 @@ export default async function EnrollmentDashboardPage({
       detailRow =
         rows.find((row) => row.id === detailId) ??
         (await getEnrollmentRequestById(supabase, detailId));
+      if (detailRow?.studentId) {
+        detailEnrollments = await getStudentEnrollmentsForTransfer(supabase, detailRow.studentId);
+      }
     }
   } catch (err) {
     loadError = err instanceof Error ? err.message : "Não foi possível carregar as inscrições.";
@@ -225,7 +231,11 @@ export default async function EnrollmentDashboardPage({
       )}
 
       {detailRow ? (
-        <EnrollmentDetailPanel row={detailRow} closeHref={buildHref({ detail: null })} />
+        <EnrollmentDetailPanel
+          row={detailRow}
+          closeHref={buildHref({ detail: null })}
+          enrollments={detailEnrollments}
+        />
       ) : null}
     </div>
   );

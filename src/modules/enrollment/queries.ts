@@ -25,6 +25,7 @@ import {
   type EnrollmentStats,
   type EnrollmentStatsRow,
   type EnrollmentTurmaCapacity,
+  type StudentEnrollmentForTransfer,
 } from "./types";
 
 type EnrollmentRequestNarrowRow = Pick<
@@ -54,10 +55,11 @@ type EnrollmentRequestNarrowRow = Pick<
   | "viewed_by"
   | "created_at"
   | "updated_at"
+  | "student_id"
 >;
 
 const TABLE_COLUMNS =
-  "id, protocol, full_name, cpf_last4, email, phone, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug, prerequisite_declaration, notes, is_other_church_member, other_church_name, is_emaus_member, has_gr, gr_network_slug, status, reviewed_at, reviewed_by, viewed_at, viewed_by, created_at, updated_at" as const;
+  "id, protocol, full_name, cpf_last4, email, phone, primary_volume_slug, primary_schedule_slug, wants_second_volume, secondary_volume_slug, secondary_schedule_slug, prerequisite_declaration, notes, is_other_church_member, other_church_name, is_emaus_member, has_gr, gr_network_slug, status, reviewed_at, reviewed_by, viewed_at, viewed_by, created_at, updated_at, student_id" as const;
 
 const SORT_COLUMNS: Record<EnrollmentSortField, string> = {
   createdAt: "created_at",
@@ -94,7 +96,62 @@ function mapRow(row: EnrollmentRequestNarrowRow): EnrollmentRequestRow {
     viewedBy: row.viewed_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    studentId: row.student_id,
   };
+}
+
+/**
+ * Matrículas do aluno (geralmente uma só) com as outras turmas da mesma
+ * oferta de volume, pro painel de detalhes da inscrição oferecer mover de
+ * turma sem precisar ir em Matrículas. Só chamada quando a inscrição já
+ * tem `student_id` (ou seja, a pessoa já aceitou o convite).
+ */
+export async function getStudentEnrollmentsForTransfer(
+  supabase: SupabaseClient<Database>,
+  studentId: string,
+): Promise<StudentEnrollmentForTransfer[]> {
+  const { data: enrollments } = await supabase
+    .from("enrollments")
+    .select("id, status, class_id, season_volume_offering_id")
+    .eq("student_id", studentId);
+  if (!enrollments || enrollments.length === 0) return [];
+
+  const offeringIds = [...new Set(enrollments.map((e) => e.season_volume_offering_id))];
+  const [{ data: offerings }, { data: allClasses }] = await Promise.all([
+    supabase.from("season_volume_offerings").select("id, season_id, volume_id").in("id", offeringIds),
+    supabase.from("classes").select("id, name, season_volume_offering_id").in("season_volume_offering_id", offeringIds),
+  ]);
+
+  const volumeIds = [...new Set((offerings ?? []).map((o) => o.volume_id))];
+  const seasonIds = [...new Set((offerings ?? []).map((o) => o.season_id))];
+  const [{ data: volumes }, { data: seasons }] = await Promise.all([
+    supabase.from("volumes").select("id, name").in("id", volumeIds),
+    supabase.from("seasons").select("id, name").in("id", seasonIds),
+  ]);
+
+  const offeringsById = new Map((offerings ?? []).map((o) => [o.id, o]));
+  const volumeNamesById = new Map((volumes ?? []).map((v) => [v.id, v.name]));
+  const seasonNamesById = new Map((seasons ?? []).map((s) => [s.id, s.name]));
+  const classesById = new Map((allClasses ?? []).map((c) => [c.id, c]));
+
+  return enrollments.map((enrollment) => {
+    const offering = offeringsById.get(enrollment.season_volume_offering_id);
+    const offeringLabel = offering
+      ? `${volumeNamesById.get(offering.volume_id) ?? "Volume"} — ${seasonNamesById.get(offering.season_id) ?? "Temporada"}`
+      : "Oferta";
+    const classesInSameOffering = (allClasses ?? [])
+      .filter((c) => c.season_volume_offering_id === enrollment.season_volume_offering_id)
+      .map((c) => ({ id: c.id, name: c.name }));
+
+    return {
+      enrollmentId: enrollment.id,
+      status: enrollment.status,
+      classId: enrollment.class_id,
+      className: classesById.get(enrollment.class_id)?.name ?? "Turma",
+      offeringLabel,
+      classesInSameOffering,
+    };
+  });
 }
 
 /** Início do período em São Paulo — `null` significa "sem filtro de data". */

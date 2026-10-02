@@ -35,6 +35,8 @@ export interface EnrollmentRequestRow {
   viewedBy: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Preenchido quando a pessoa aceita o convite e cria a conta — `null` até lá. */
+  studentId: string | null;
 }
 
 /** Linha enxuta (sem PII) usada só para agregação de estatísticas/gráfico. */
@@ -133,6 +135,16 @@ export interface EnrollmentTurmaCapacity {
   volumeSlug: EnrollmentVolumeSlug;
   scheduleSlug: EnrollmentScheduleSlug;
   capacity: number;
+}
+
+/** Matrícula de um aluno, para o painel de detalhes da inscrição mover de turma direto dali. */
+export interface StudentEnrollmentForTransfer {
+  enrollmentId: string;
+  status: string;
+  classId: string;
+  className: string;
+  offeringLabel: string;
+  classesInSameOffering: { id: string; name: string }[];
 }
 
 export interface DataQualityFlag {

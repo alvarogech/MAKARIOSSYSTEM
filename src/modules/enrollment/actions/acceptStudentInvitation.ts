@@ -194,6 +194,14 @@ export async function acceptStudentInvitation(
       .maybeSingle();
     if (request?.reviewed_by) authorizedBy = request.reviewed_by;
     if (request?.reviewed_at) authorizedAt = request.reviewed_at;
+
+    // Liga a inscrição à conta recém-criada — é isso que permite ao
+    // Dashboard de Inscrições mostrar a turma atual e oferecer mover de
+    // turma direto por lá, sem precisar abrir Matrículas.
+    await admin
+      .from("enrollment_requests")
+      .update({ student_id: studentId })
+      .eq("id", invitation.enrollment_request_id);
   }
 
   await createEnrollments(admin, studentId, invitation.class_ids ?? [], authorizedBy, authorizedAt);

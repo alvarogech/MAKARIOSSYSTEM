@@ -29,6 +29,7 @@ function makeRow(overrides: Partial<EnrollmentRequestRow> = {}): EnrollmentReque
     viewedBy: null,
     createdAt: "2026-03-12T14:00:00Z",
     updatedAt: "2026-03-12T14:00:00Z",
+    studentId: null,
     ...overrides,
   };
 }
