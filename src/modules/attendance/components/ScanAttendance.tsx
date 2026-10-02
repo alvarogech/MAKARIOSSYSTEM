@@ -11,13 +11,12 @@ import { Spinner } from "@/components/ui/Spinner";
 
 type Position = { lat: number; lng: number; accuracy: number } | null;
 
-function readPosition(): Promise<Position> {
+function tryPosition(highAccuracy: boolean, ms: number): Promise<Position> {
   return new Promise((resolve) => {
-    if (!("geolocation" in navigator)) return resolve(null);
     // O `timeout` do navegador só começa a contar depois que a pessoa
-    // responde à pergunta de permissão; sem este limite, a tela ficaria
-    // presa em "Registrando..." enquanto a pergunta estiver aberta.
-    const fallback = setTimeout(() => resolve(null), 20000);
+    // responde à pergunta de permissão; sem este limite próprio, a tela
+    // ficaria presa em "Registrando..." enquanto a pergunta estiver aberta.
+    const fallback = setTimeout(() => resolve(null), ms + 10000);
     navigator.geolocation.getCurrentPosition(
       (p) => {
         clearTimeout(fallback);
@@ -27,9 +26,19 @@ function readPosition(): Promise<Position> {
         clearTimeout(fallback);
         resolve(null);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+      { enableHighAccuracy: highAccuracy, timeout: ms, maximumAge: 60000 },
     );
   });
+}
+
+/**
+ * GPS de alta precisão dentro de prédio pode demorar; se falhar, tenta a
+ * localização pela rede (Wi-Fi/antena), mais rápida e suficiente para um
+ * raio de 200 m.
+ */
+async function readPosition(): Promise<Position> {
+  if (!("geolocation" in navigator)) return null;
+  return (await tryPosition(true, 8000)) ?? (await tryPosition(false, 8000));
 }
 
 export function ScanAttendance({ token }: { token: string }) {
