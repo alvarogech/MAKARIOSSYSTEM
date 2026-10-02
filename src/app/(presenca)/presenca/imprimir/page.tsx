@@ -8,42 +8,100 @@ import { PrintButton } from "@/modules/attendance/components/AttendanceForms";
 
 export const metadata: Metadata = { title: "QR Codes de presença", robots: { index: false } };
 
+// Uma folha A4 por volume, na identidade da Makários (creme, azul da marca,
+// moldura de linha fina, lema "filhos bem-aventurados").
+const PRINT_CSS = `
+@page { size: A4; margin: 0; }
+@media print {
+  html, body { background: #f7f6f1 !important; }
+  .folha { box-shadow: none !important; margin: 0 !important; }
+}
+.folha { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+`;
+
+const STEPS = ["Abra a câmera do celular", "Aponte para o QR Code", "Permita a localização e confirme"];
+
 export default async function ImprimirQrPage() {
   const auth = await getAuthContext();
   if (!auth || !canAccessArea(auth, "coordination")) {
     return <AccessDenied description="Esta área é exclusiva da Coordenação (ou Administrador)." />;
   }
   const supabase = await createSupabaseServerClient();
-  const { data: codes } = await supabase
-    .from("attendance_qr_codes")
-    .select("token, volumes(name)")
-    .order("created_at");
+  const { data: codes } = await supabase.from("attendance_qr_codes").select("token, volumes(name)").order("created_at");
 
   const base = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-
   const cards = await Promise.all(
     (codes ?? []).map(async (c) => ({
       name: c.volumes?.name ?? "",
-      svg: await QRCode.toString(`${base}/presenca/${c.token}`, { type: "svg", margin: 1, errorCorrectionLevel: "M" }),
+      svg: await QRCode.toString(`${base}/presenca/${c.token}`, {
+        type: "svg",
+        margin: 0,
+        errorCorrectionLevel: "M",
+        color: { dark: "#1b4f7a", light: "#ffffff" },
+      }),
     })),
   );
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <div className="flex items-center justify-between print:hidden">
-        <p className="text-sm text-neutral-500">Uma folha por volume. Cole na porta da sala e, se quiser, imprima cópias para as mesas.</p>
+    <main className="flex flex-col items-center gap-8 bg-neutral-200 py-8 print:gap-0 print:bg-transparent print:py-0">
+      <style>{PRINT_CSS}</style>
+      <div className="flex w-[210mm] items-center justify-between print:hidden">
+        <p className="text-sm text-neutral-600">
+          Uma folha A4 por volume. No diálogo de impressão, marque &quot;Gráficos de fundo&quot; para sair o fundo creme.
+        </p>
         <PrintButton />
       </div>
       {cards.length === 0 ? <p className="text-neutral-500">Nenhum QR Code gerado ainda.</p> : null}
+
       {cards.map((card) => (
         <section
           key={card.name}
-          className="flex min-h-[90vh] break-after-page flex-col items-center justify-center gap-6 text-center"
+          className="folha relative flex h-[297mm] w-[210mm] flex-col items-center overflow-hidden bg-brand-cream shadow-xl break-after-page"
         >
-          <h1 className="text-4xl font-semibold text-neutral-900">{card.name}</h1>
-          <p className="text-xl text-neutral-700">Escaneie para marcar presença</p>
-          <div className="w-[70vw] max-w-[420px]" dangerouslySetInnerHTML={{ __html: card.svg }} />
-          <p className="text-lg text-neutral-700">Na entrada e na volta do intervalo</p>
+          {/* moldura de linha fina */}
+          <div className="pointer-events-none absolute inset-[12mm] border border-brand-blue" />
+
+          {/* "makarios" vazado ao fundo */}
+          <p
+            aria-hidden
+            className="pointer-events-none absolute bottom-[34mm] select-none text-[64mm] font-semibold leading-none tracking-tight text-transparent"
+            style={{ WebkitTextStroke: "0.35mm #2e7fbf", opacity: 0.18 }}
+          >
+            makarios
+          </p>
+
+          <div className="relative flex h-full w-full flex-col items-center px-[24mm] pt-[24mm] pb-[22mm] text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo-makarios-oficial-azul.png" alt="Makários" className="h-[16mm] w-auto" />
+
+            <p className="mt-[10mm] text-[11pt] font-medium tracking-[0.35em] text-brand-blue uppercase">
+              Chamada · Escola Makários
+            </p>
+            <h1 className="mt-[3mm] text-[46pt] leading-tight font-semibold text-brand-blue-dark">{card.name}</h1>
+
+            <div className="mt-[8mm] rounded-[6mm] border border-brand-blue bg-white p-[7mm]">
+              <div className="h-[100mm] w-[100mm]" dangerouslySetInnerHTML={{ __html: card.svg }} />
+            </div>
+
+            <p className="mt-[9mm] text-[17pt] font-semibold text-brand-blue-dark">Escaneie para marcar presença</p>
+            <p className="mt-[2mm] text-[12pt] text-neutral-700">Na chegada e de novo na volta do intervalo</p>
+
+            <ol className="mt-[8mm] grid w-full grid-cols-3 gap-[5mm]">
+              {STEPS.map((step, i) => (
+                <li key={step} className="flex flex-col items-center gap-[2mm] text-[10pt] leading-snug text-neutral-700">
+                  <span className="flex h-[9mm] w-[9mm] items-center justify-center rounded-full bg-brand-blue text-[12pt] font-semibold text-white">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-auto flex flex-col items-center gap-[1mm]">
+              <p className="text-[15pt] font-semibold text-brand-blue">filhos bem-aventurados</p>
+              <p className="text-[9pt] tracking-[0.25em] text-neutral-500 uppercase">Igreja Emaús</p>
+            </div>
+          </div>
         </section>
       ))}
     </main>
