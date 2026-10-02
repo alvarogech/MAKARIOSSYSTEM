@@ -55,7 +55,7 @@ function scanDetail(s: ScanRow) {
 export default async function PresencaCoordenacaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dia?: string; aba?: string }>;
+  searchParams: Promise<{ dia?: string; aba?: string; temporada?: string }>;
 }) {
   const auth = await getAuthContext();
   if (!auth) return null;
@@ -63,17 +63,21 @@ export default async function PresencaCoordenacaoPage({
     return <AccessDenied description="Esta área é exclusiva da Coordenação (ou Administrador)." />;
   }
 
-  const { dia, aba } = await searchParams;
+  const { dia, aba, temporada } = await searchParams;
   const today = getSaoPauloDateKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : today;
   const general = aba === "geral";
   const supabase = await createSupabaseServerClient();
+  // Uma turma por semestre: o relatório mostra uma temporada por vez, a mais
+  // recente por padrão.
+  const { data: seasons } = await supabase.from("seasons").select("id, name").order("starts_on", { ascending: false, nullsFirst: false });
+  const season = (seasons ?? []).find((s) => s.id === temporada) ?? seasons?.[0];
 
   const [{ data: codes }, { data: volumes }, { data: settings }, data] = await Promise.all([
     supabase.from("attendance_qr_codes").select("volume_id, token, volumes(name)").order("created_at"),
     supabase.from("volumes").select("id"),
     supabase.from("attendance_settings").select("require_location").maybeSingle(),
-    loadAttendanceData(supabase, today, nowMinuteSaoPaulo()),
+    loadAttendanceData(supabase, today, nowMinuteSaoPaulo(), season?.id ?? ""),
   ]);
   const base = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   const missingCodes = (volumes?.length ?? 0) > (codes?.length ?? 0);
@@ -127,19 +131,42 @@ export default async function PresencaCoordenacaoPage({
       </Card>
 
       <Card className="flex flex-col gap-4">
-        <div className="flex gap-5 text-sm">
-          <Link href={`?aba=dia&dia=${day}`} className={tab(!general)}>
-            Relatório do dia
-          </Link>
-          <Link href={`?aba=geral&dia=${day}`} className={tab(general)}>
-            Relatório geral
-          </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-5 text-sm">
+            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(!general)}>
+              Relatório do dia
+            </Link>
+            <Link href={`?aba=geral&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(general)}>
+              Relatório geral
+            </Link>
+          </div>
+          <form method="get" className="flex items-center gap-2 text-sm text-neutral-600">
+            <input type="hidden" name="aba" value={general ? "geral" : "dia"} />
+            <input type="hidden" name="dia" value={day} />
+            <label htmlFor="temporada">Temporada</label>
+            <select
+              id="temporada"
+              name="temporada"
+              defaultValue={season?.id}
+              className="rounded-[var(--radius-sm)] border border-neutral-300 bg-white px-2 py-1 text-neutral-800"
+            >
+              {(seasons ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="text-brand-blue hover:underline">
+              Trocar
+            </button>
+          </form>
         </div>
 
         {!general ? (
           <>
             <form className="flex flex-wrap items-end gap-2" method="get">
               <input type="hidden" name="aba" value="dia" />
+              <input type="hidden" name="temporada" value={season?.id ?? ""} />
               <label className="flex flex-col gap-1 text-sm text-neutral-600">
                 Data
                 <input

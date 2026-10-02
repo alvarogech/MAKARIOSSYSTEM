@@ -59,12 +59,13 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
  * da turma vem da inscrição aprovada (volume principal e segundo volume) e,
  * se a pessoa já tem matrícula naquele volume, da matrícula, que vence.
  */
-export async function loadAttendanceData(supabase: DB, today: string, nowMinute: number) {
+export async function loadAttendanceData(supabase: DB, today: string, nowMinute: number, seasonId: string) {
   const [classes, meetings, requests, enrollments, scans] = await Promise.all([
     fetchAll((a, b) =>
       supabase
         .from("classes")
-        .select("id, class_templates!inner(slug), season_volume_offerings!inner(volumes!inner(name, slug))")
+        .select("id, class_templates!inner(slug), season_volume_offerings!inner(season_id, volumes!inner(name, slug))")
+        .eq("season_volume_offerings.season_id", seasonId)
         .order("created_at")
         .range(a, b),
     ),
@@ -81,6 +82,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
         .from("enrollment_requests")
         .select("id, full_name, student_id, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug")
         .eq("status", "approved")
+        .eq("season_id", seasonId)
         .order("full_name")
         .range(a, b),
     ),

@@ -111,7 +111,7 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
   const { data: meetings } = await supabase
     .from("class_meetings")
     .select(
-      "id, sequence, start_time, end_time, break_minutes, class_id, classes!inner(id, season_volume_offering_id, class_templates!inner(slug), season_volume_offerings!inner(volume_id))",
+      "id, sequence, start_time, end_time, break_minutes, class_id, classes!inner(id, season_volume_offering_id, class_templates!inner(slug), season_volume_offerings!inner(volume_id, season_id))",
     )
     .eq("meeting_date", today)
     .neq("status", "canceled")
@@ -173,12 +173,13 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
 
   // 4. Quem está escaneando: login, celular já lembrado ou CPF.
   const requestColumns =
-    "id, full_name, student_id, cpf_hash, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug";
+    "id, full_name, student_id, cpf_hash, season_id, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug";
   type RequestRow = {
     id: string;
     full_name: string;
     student_id: string | null;
     cpf_hash: string | null;
+    season_id: string;
     primary_volume_slug: string;
     primary_schedule_slug: string;
     secondary_volume_slug: string | null;
@@ -258,12 +259,23 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
   const volumeSlug = qr.volumes.slug;
   const coversVolume = (r: RequestRow) =>
     r.primary_volume_slug === volumeSlug || r.secondary_volume_slug === volumeSlug;
-  if (request && !coversVolume(request)) {
+  //     Vale também entre semestres: a inscrição precisa ser da temporada
+  //     desta aula, senão a de um semestre passado marcaria presença aqui.
+  const seasonId = current.meeting.classes.season_volume_offerings.season_id;
+  const fits = (r: RequestRow) => coversVolume(r) && r.season_id === seasonId;
+  if (request && !fits(request)) {
     const siblings = request.cpf_hash
-      ? await supabase.from("enrollment_requests").select(requestColumns).eq("cpf_hash", request.cpf_hash).eq("status", "approved")
+      ? await supabase
+          .from("enrollment_requests")
+          .select(requestColumns)
+          .eq("cpf_hash", request.cpf_hash)
+          .eq("status", "approved")
+          .eq("season_id", seasonId)
       : { data: [] };
-    const match = ((siblings.data ?? []) as RequestRow[]).find(coversVolume);
-    if (match) request = match;
+    request = ((siblings.data ?? []) as RequestRow[]).find(fits) ?? null;
+    if (!request && identifiedBy !== "login") {
+      return fail(`Não encontramos a sua inscrição no ${qr.volumes.name} deste semestre. Procure a coordenação.`);
+    }
   }
 
   // 5. Em qual turma deste volume a pessoa está: a matrícula manda (pode
