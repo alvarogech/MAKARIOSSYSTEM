@@ -17,6 +17,7 @@ export interface InviteTokenInfo {
   email?: string;
   fullName?: string;
   phone?: string;
+  useAccessCode?: boolean;
 }
 
 /**
@@ -35,7 +36,7 @@ export async function inspectInviteToken(
 
   const { data, error } = await admin
     .from("invitations")
-    .select("id, email, intended_full_name, phone, consumed_at, revoked_at, token_expires_at")
+    .select("id, email, intended_full_name, phone, consumed_at, revoked_at, token_expires_at, use_access_code")
     .eq("token_hash", tokenHash)
     .eq("channel", channel)
     .eq("purpose", purpose)
@@ -67,5 +68,6 @@ export async function inspectInviteToken(
     email: data.email,
     fullName: data.intended_full_name ?? "",
     phone: data.phone ?? "",
+    useAccessCode: data.use_access_code,
   };
 }

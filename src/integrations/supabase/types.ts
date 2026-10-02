@@ -1466,6 +1466,7 @@ export type Database = {
           status: Database["public"]["Enums"]["invitation_status"]
           token_expires_at: string | null
           token_hash: string | null
+          use_access_code: boolean
         }
         Insert: {
           accepted_at?: string | null
@@ -1489,6 +1490,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["invitation_status"]
           token_expires_at?: string | null
           token_hash?: string | null
+          use_access_code?: boolean
         }
         Update: {
           accepted_at?: string | null
@@ -1512,6 +1514,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["invitation_status"]
           token_expires_at?: string | null
           token_hash?: string | null
+          use_access_code?: boolean
         }
         Relationships: [
           {
@@ -2842,7 +2845,6 @@ export const Constants = {
     },
   },
 } as const
-
 // --- Aliases de conveniência (mantidos manualmente após cada regeneração) --
 // Os que existem como enum real no Postgres derivam de Database["public"]["Enums"];
 // os que são `text` com CHECK constraint (sem enum no banco) ficam como

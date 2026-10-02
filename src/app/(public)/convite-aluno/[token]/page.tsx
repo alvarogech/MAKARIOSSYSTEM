@@ -41,6 +41,7 @@ export default async function ConviteAlunoPage({
       token={token}
       defaultFullName={info.fullName ?? ""}
       email={info.email ?? ""}
+      useAccessCode={info.useAccessCode ?? false}
     />
   );
 }

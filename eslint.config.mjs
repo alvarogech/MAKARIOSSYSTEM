@@ -68,6 +68,10 @@ const eslintConfig = [
       // cron sem sessão de usuário — precisa do client administrativo
       // para ler/escrever `invitations` de qualquer um.
       "src/modules/enrollment/studentReminders.ts",
+      // Decide se o convite usa e-mail+senha ou código de acesso —
+      // precisa checar auth.users (admin) pra saber se o e-mail já está
+      // em uso por outra conta.
+      "src/modules/enrollment/studentInvite.ts",
       // Rota chamada pelo pg_cron (sem sessão) — precisa do segredo
       // compartilhado CRON_SECRET para autenticar a chamada.
       "src/app/api/cron/student-reminders/route.ts",

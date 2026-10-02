@@ -19,10 +19,12 @@ export function StudentOnboardingForm({
   token,
   defaultFullName,
   email,
+  useAccessCode,
 }: {
   token: string;
   defaultFullName: string;
   email: string;
+  useAccessCode: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(acceptStudentInvitation, initialState);
 
@@ -30,22 +32,30 @@ export function StudentOnboardingForm({
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl font-semibold text-neutral-900">Conta criada!</h1>
-        <Alert variant="success">
-          <div className="flex flex-col gap-2">
+        {state.result.mode === "access_code" ? (
+          <Alert variant="success">
+            <div className="flex flex-col gap-2">
+              <p>
+                Seu e-mail de contato pode ser o mesmo de outra pessoa da família — por isso, para
+                entrar da próxima vez, use este <strong>código de acesso pessoal</strong>, junto com a
+                senha que você acabou de criar:
+              </p>
+              <p className="text-center text-2xl font-bold tracking-wide text-brand-blue-dark">
+                {state.result.accessCode}
+              </p>
+              <CopyButton value={state.result.accessCode} label="código" className="self-center" />
+              <p className="text-xs text-neutral-500">
+                Também enviamos este código por e-mail, caso você precise consultar depois.
+              </p>
+            </div>
+          </Alert>
+        ) : (
+          <Alert variant="success">
             <p>
-              Seu e-mail de contato pode ser o mesmo de outra pessoa da família — por isso, para
-              entrar da próxima vez, use este <strong>código de acesso pessoal</strong>, junto com a
-              senha que você acabou de criar:
+              Para entrar da próxima vez, use seu e-mail e a senha que você acabou de criar.
             </p>
-            <p className="text-center text-2xl font-bold tracking-wide text-brand-blue-dark">
-              {state.result.accessCode}
-            </p>
-            <CopyButton value={state.result.accessCode} label="código" className="self-center" />
-            <p className="text-xs text-neutral-500">
-              Também enviamos este código por e-mail, caso você precise consultar depois.
-            </p>
-          </div>
-        </Alert>
+          </Alert>
+        )}
         <Link href="/meus-volumes" className="self-center text-sm font-medium text-brand-blue hover:underline">
           Ir para minhas turmas →
         </Link>
@@ -69,11 +79,13 @@ export function StudentOnboardingForm({
       <input type="hidden" name="token" value={token} />
 
       <div>
-        <Label htmlFor="email">E-mail de contato</Label>
+        <Label htmlFor="email">{useAccessCode ? "E-mail de contato" : "E-mail"}</Label>
         <Input id="email" name="email" type="email" autoComplete="email" defaultValue={email} required />
         <p className="mt-1 text-xs text-neutral-500">
-          Usado só para a escola te avisar de coisas importantes — pode ser o mesmo e-mail de outra
-          pessoa da sua família. Seu login será um código próprio, mostrado no final deste cadastro.
+          {useAccessCode
+            ? "Usado só para a escola te avisar de coisas importantes — pode ser o mesmo e-mail de outra " +
+              "pessoa da sua família. Seu login será um código próprio, mostrado no final deste cadastro."
+            : "É com esse e-mail e a senha que você vai criar que você vai entrar da próxima vez."}
         </p>
       </div>
 

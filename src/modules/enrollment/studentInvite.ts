@@ -6,6 +6,7 @@ import { getPublicEnv } from "@/lib/env";
 import { formatSaoPauloLongDate, formatSaoPauloTimeRange } from "@/lib/saoPauloDate";
 import { generateInviteToken, hashInviteToken } from "@/modules/auth/inviteTokens";
 import { sendMail } from "@/modules/notifications/mailer";
+import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 
 const STUDENT_INVITE_TTL_DAYS = 14;
 
@@ -203,6 +204,46 @@ export async function createStudentOnboardingInvitation(
   const tokenHash = hashInviteToken(rawToken);
   const expiresAt = new Date(Date.now() + STUDENT_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 
+  // A maioria dos alunos loga com e-mail+senha normalmente. O código de
+  // acesso só é necessário quando o e-mail já está — ou vai ficar — em uso
+  // por outra conta de verdade (ex.: irmãos cadastrados com o e-mail de um
+  // responsável); fora desse caso, criar a conta por e-mail colidiria no
+  // Supabase Auth (e-mail é único lá). Precisa do client administrativo só
+  // pra essa checagem (auth.users não é lido pelo client comum).
+  const normalizedEmail = request.email.trim().toLowerCase();
+  const admin = createSupabaseAdminClient();
+
+  let emailAlreadyRegistered = false;
+  for (let page = 1; page <= 20; page++) {
+    const { data: usersPage } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    const users = usersPage?.users ?? [];
+    if (users.some((u) => u.email?.toLowerCase() === normalizedEmail)) {
+      emailAlreadyRegistered = true;
+      break;
+    }
+    if (users.length < 200) break;
+  }
+
+  const { data: otherPendingInvites } = await admin
+    .from("invitations")
+    .select("id, use_access_code")
+    .eq("purpose", "student_onboarding")
+    .eq("channel", "email")
+    .ilike("email", normalizedEmail)
+    .is("consumed_at", null)
+    .is("revoked_at", null);
+
+  const useAccessCode = emailAlreadyRegistered || (otherPendingInvites?.length ?? 0) > 0;
+
+  // Se um irmão ainda não cadastrado também está nessa lista e por acaso
+  // ainda não foi marcado como exceção, atualiza ele também agora — melhor
+  // descobrir isso na hora de gerar o segundo convite do que deixar os dois
+  // competindo pelo mesmo e-mail no Supabase Auth mais tarde.
+  const toFlip = (otherPendingInvites ?? []).filter((inv) => !inv.use_access_code).map((inv) => inv.id);
+  if (toFlip.length > 0) {
+    await admin.from("invitations").update({ use_access_code: true }).in("id", toFlip);
+  }
+
   const { error: insertError } = await supabase.from("invitations").insert({
     email: request.email,
     intended_role_id: studentRole.id,
@@ -214,6 +255,7 @@ export async function createStudentOnboardingInvitation(
     enrollment_request_id: request.id,
     token_hash: tokenHash,
     token_expires_at: expiresAt.toISOString(),
+    use_access_code: useAccessCode,
   });
 
   if (insertError) {

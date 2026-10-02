@@ -11,7 +11,7 @@ import { sendMail } from "@/modules/notifications/mailer";
 
 export interface AcceptStudentInvitationState {
   error?: string;
-  result?: { accessCode: string };
+  result?: { mode: "access_code"; accessCode: string } | { mode: "email" };
 }
 
 /**
@@ -93,7 +93,7 @@ export async function acceptStudentInvitation(
 
   const { data: invitation, error: fetchError } = await admin
     .from("invitations")
-    .select("id, class_ids, enrollment_request_id, consumed_at, revoked_at, token_expires_at")
+    .select("id, class_ids, enrollment_request_id, consumed_at, revoked_at, token_expires_at, use_access_code")
     .eq("token_hash", tokenHash)
     .eq("channel", "email")
     .eq("purpose", "student_onboarding")
@@ -115,18 +115,35 @@ export async function acceptStudentInvitation(
     return { error: "Este link expirou. Peça um novo acesso à coordenação." };
   }
 
-  const accessCode = await generateUniqueAccessCode(admin);
+  // A maioria dos alunos tem e-mail exclusivo e loga normalmente com
+  // e-mail+senha. O código de acesso só entra quando o convite foi
+  // marcado como exceção (use_access_code) — e-mail já em uso por outra
+  // conta, tipicamente de um familiar. Ver migração 00000000000054.
+  const useAccessCode = invitation.use_access_code;
+  const accessCode = useAccessCode ? await generateUniqueAccessCode(admin) : null;
 
-  const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
-    phone: accessCode,
-    password: parsed.data.password,
-    phone_confirm: true,
-    user_metadata: { full_name: parsed.data.fullName, contact_email: contactEmail },
-  });
+  const { data: createdUser, error: createError } = await admin.auth.admin.createUser(
+    useAccessCode
+      ? {
+          phone: accessCode!,
+          password: parsed.data.password,
+          phone_confirm: true,
+          user_metadata: { full_name: parsed.data.fullName, contact_email: contactEmail },
+        }
+      : {
+          email: contactEmail,
+          password: parsed.data.password,
+          email_confirm: true,
+          user_metadata: { full_name: parsed.data.fullName },
+        },
+  );
 
   if (createError || !createdUser.user) {
     console.error("Falha ao criar conta no primeiro acesso do aluno:", createError);
-    return { error: "Não foi possível criar sua conta agora. Tente novamente em instantes." };
+    const message = !useAccessCode && createError?.code === "email_exists"
+      ? "Este e-mail já está em uso por outra conta. Se for compartilhado com um familiar que já tem cadastro, peça à coordenação para gerar um convite com código de acesso."
+      : "Não foi possível criar sua conta agora. Tente novamente em instantes.";
+    return { error: message };
   }
 
   const studentId = createdUser.user.id;
@@ -182,34 +199,53 @@ export async function acceptStudentInvitation(
   await createEnrollments(admin, studentId, invitation.class_ids ?? [], authorizedBy, authorizedAt);
 
   const supabase = await createSupabaseServerClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    phone: accessCode,
-    password: parsed.data.password,
-  });
+  const { error: signInError } = await supabase.auth.signInWithPassword(
+    useAccessCode
+      ? { phone: accessCode!, password: parsed.data.password }
+      : { email: contactEmail, password: parsed.data.password },
+  );
 
   if (signInError) {
     console.error("Falha ao autenticar logo após criar a conta do aluno:", signInError);
   }
 
   try {
-    await sendMail({
-      to: contactEmail,
-      subject: "Sua conta na Escola Makários está pronta — guarde seu código de acesso",
-      html:
-        `<p>Olá, ${parsed.data.fullName}!</p>` +
-        `<p>Sua conta foi criada com sucesso. Para os próximos acessos, use:</p>` +
-        `<p style="font-size:20px;font-weight:700;letter-spacing:1px;">${formatAccessCode(accessCode)}</p>` +
-        `<p>Guarde este código — ele é pessoal e substitui o e-mail como login (o e-mail de contato ` +
-        `pode ser o mesmo de outras pessoas da família, por isso cada um tem seu próprio código).</p>` +
-        `<p>Escola Makários — Igreja Emaús</p>`,
-      text:
-        `Olá, ${parsed.data.fullName}!\n\nSua conta foi criada com sucesso. Para os próximos acessos, use ` +
-        `o código: ${formatAccessCode(accessCode)}\n\nGuarde este código — ele é pessoal e substitui o e-mail como login.\n\n` +
-        `Escola Makários — Igreja Emaús`,
-    });
+    if (useAccessCode) {
+      await sendMail({
+        to: contactEmail,
+        subject: "Sua conta na Escola Makários está pronta — guarde seu código de acesso",
+        html:
+          `<p>Olá, ${parsed.data.fullName}!</p>` +
+          `<p>Sua conta foi criada com sucesso. Para os próximos acessos, use:</p>` +
+          `<p style="font-size:20px;font-weight:700;letter-spacing:1px;">${formatAccessCode(accessCode!)}</p>` +
+          `<p>Guarde este código — ele é pessoal e substitui o e-mail como login (o e-mail de contato ` +
+          `pode ser o mesmo de outras pessoas da família, por isso cada um tem seu próprio código).</p>` +
+          `<p>Escola Makários — Igreja Emaús</p>`,
+        text:
+          `Olá, ${parsed.data.fullName}!\n\nSua conta foi criada com sucesso. Para os próximos acessos, use ` +
+          `o código: ${formatAccessCode(accessCode!)}\n\nGuarde este código — ele é pessoal e substitui o e-mail como login.\n\n` +
+          `Escola Makários — Igreja Emaús`,
+      });
+    } else {
+      await sendMail({
+        to: contactEmail,
+        subject: "Sua conta na Escola Makários está pronta",
+        html:
+          `<p>Olá, ${parsed.data.fullName}!</p>` +
+          `<p>Sua conta foi criada com sucesso. Para os próximos acessos, entre com seu e-mail ` +
+          `(${contactEmail}) e a senha que você acabou de criar.</p>` +
+          `<p>Escola Makários — Igreja Emaús</p>`,
+        text:
+          `Olá, ${parsed.data.fullName}!\n\nSua conta foi criada com sucesso. Para os próximos acessos, ` +
+          `entre com seu e-mail (${contactEmail}) e a senha que você acabou de criar.\n\n` +
+          `Escola Makários — Igreja Emaús`,
+      });
+    }
   } catch (error) {
-    console.error("Falha ao enviar e-mail de confirmação com o código de acesso:", error);
+    console.error("Falha ao enviar e-mail de confirmação do primeiro acesso do aluno:", error);
   }
 
-  return { result: { accessCode: formatAccessCode(accessCode) } };
+  return useAccessCode
+    ? { result: { mode: "access_code", accessCode: formatAccessCode(accessCode!) } }
+    : { result: { mode: "email" } };
 }
