@@ -123,8 +123,9 @@ export async function bulkReviewEnrollmentRequests(
   let warning: string | undefined;
   if (failedEmails.length > 0) {
     warning =
-      `Aprovadas, mas o e-mail de acesso não pôde ser enviado para: ${failedEmails.join(", ")}. ` +
-      "Confira o e-mail cadastrado e gere o acesso manualmente para essas pessoas.";
+      `Aprovadas, mas o e-mail de acesso não pôde ser enviado agora para: ${failedEmails.join(", ")} ` +
+      "(provavelmente limite diário do provedor de e-mail). O convite já existe e será reenviado " +
+      "automaticamente no próximo lembrete diário — não precisa reenviar manualmente.";
   }
 
   revalidatePath("/coordenacao/inscricoes");

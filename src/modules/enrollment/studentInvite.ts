@@ -244,21 +244,25 @@ export async function createStudentOnboardingInvitation(
     await admin.from("invitations").update({ use_access_code: true }).in("id", toFlip);
   }
 
-  const { error: insertError } = await supabase.from("invitations").insert({
-    email: request.email,
-    intended_role_id: studentRole.id,
-    invited_by: invitedBy,
-    channel: "email",
-    purpose: "student_onboarding",
-    intended_full_name: request.full_name,
-    class_ids: classIds,
-    enrollment_request_id: request.id,
-    token_hash: tokenHash,
-    token_expires_at: expiresAt.toISOString(),
-    use_access_code: useAccessCode,
-  });
+  const { data: insertedInvite, error: insertError } = await supabase
+    .from("invitations")
+    .insert({
+      email: request.email,
+      intended_role_id: studentRole.id,
+      invited_by: invitedBy,
+      channel: "email",
+      purpose: "student_onboarding",
+      intended_full_name: request.full_name,
+      class_ids: classIds,
+      enrollment_request_id: request.id,
+      token_hash: tokenHash,
+      token_expires_at: expiresAt.toISOString(),
+      use_access_code: useAccessCode,
+    })
+    .select("id")
+    .single();
 
-  if (insertError) {
+  if (insertError || !insertedInvite) {
     return { ok: false, error: "Não foi possível gerar o convite de acesso." };
   }
 
@@ -270,8 +274,16 @@ export async function createStudentOnboardingInvitation(
     await sendMail({ to: request.email, subject, html, text });
   } catch (error) {
     console.error("Falha ao enviar e-mail de primeiro acesso do aluno:", error);
-    return { ok: false, error: "Convite gerado, mas o e-mail não pôde ser enviado." };
+    // O convite já existe com um token válido — o cron diário de lembrete
+    // também cobre "e-mail inicial nunca entregue" com prioridade máxima,
+    // então isto se resolve sozinho sem precisar de reenvio manual.
+    return {
+      ok: false,
+      error: "Convite gerado, mas o e-mail não pôde ser enviado agora — será reenviado automaticamente.",
+    };
   }
+
+  await admin.from("invitations").update({ initial_email_sent_at: new Date().toISOString() }).eq("id", insertedInvite.id);
 
   return { ok: true };
 }

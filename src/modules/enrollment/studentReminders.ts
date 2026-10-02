@@ -23,6 +23,7 @@ interface PendingInvite {
   invited_at: string;
   reminder_stage: string;
   class_ids: string[] | null;
+  initial_email_sent_at: string | null;
 }
 
 function daysBetween(a: Date, b: Date): number {
@@ -89,6 +90,7 @@ function buildReminderEmail(
 interface DueReminder {
   invite: PendingInvite & { token_hash: string };
   isFinal: boolean;
+  neverDelivered: boolean;
   firstMeetingDate: string | null;
   daysUntilClass: number | null;
   daysSinceInvited: number;
@@ -101,17 +103,17 @@ export async function sendDueStudentOnboardingReminders(): Promise<{ sent: numbe
 
   const { data: invites } = await admin
     .from("invitations")
-    .select("id, email, intended_full_name, invited_at, reminder_stage, class_ids, token_hash")
+    .select("id, email, intended_full_name, invited_at, reminder_stage, class_ids, token_hash, initial_email_sent_at")
     .eq("channel", "email")
     .eq("purpose", "student_onboarding")
     .is("consumed_at", null)
     .is("revoked_at", null)
     .gt("token_expires_at", now.toISOString())
-    .neq("reminder_stage", "final_sent");
+    .or("reminder_stage.neq.final_sent,initial_email_sent_at.is.null");
 
-  // Primeiro só calcula quem está devendo lembrete (leituras baratas no
-  // banco) — o envio de e-mail em si, bem mais lento, só acontece depois,
-  // já limitado a MAX_SENDS_PER_RUN.
+  // Primeiro só calcula quem está devendo e-mail (leituras baratas no
+  // banco) — o envio em si, bem mais lento, só acontece depois, já
+  // limitado a MAX_SENDS_PER_RUN.
   const due: DueReminder[] = [];
   for (const invite of (invites ?? []) as (PendingInvite & { token_hash: string })[]) {
     const daysSinceInvited = daysBetween(now, new Date(invite.invited_at));
@@ -122,6 +124,21 @@ export async function sendDueStudentOnboardingReminders(): Promise<{ sent: numbe
 
     const classAlreadyStarted = daysUntilClass !== null && daysUntilClass < 0;
     if (classAlreadyStarted) continue; // não insiste depois que a aula já começou
+
+    // O e-mail de aprovação nunca chegou a sair (ex.: limite diário do
+    // provedor) — isto tem prioridade sobre qualquer lembrete, porque a
+    // pessoa não tem absolutamente nenhum link funcionando ainda.
+    if (!invite.initial_email_sent_at) {
+      due.push({
+        invite,
+        isFinal: daysUntilClass !== null && daysUntilClass <= FINAL_REMINDER_WITHIN_DAYS,
+        neverDelivered: true,
+        firstMeetingDate,
+        daysUntilClass,
+        daysSinceInvited,
+      });
+      continue;
+    }
 
     let shouldSendFinal = false;
     let shouldSendFirst = false;
@@ -140,15 +157,16 @@ export async function sendDueStudentOnboardingReminders(): Promise<{ sent: numbe
     }
 
     if (!shouldSendFirst && !shouldSendFinal) continue;
-    due.push({ invite, isFinal: shouldSendFinal, firstMeetingDate, daysUntilClass, daysSinceInvited });
+    due.push({ invite, isFinal: shouldSendFinal, neverDelivered: false, firstMeetingDate, daysUntilClass, daysSinceInvited });
   }
 
-  // Prioriza quem está mais perto da própria aula (lembrete final, do mais
-  // urgente pro menos) e só depois os lembretes "ainda dá tempo" (do mais
-  // atrasado pro mais recente) — se sobrar mais devendo do que o teto por
-  // chamada, quem mais precisa é atendido primeiro; o resto fica pro
-  // próximo disparo do cron.
+  // Prioriza, nesta ordem: 1) quem nunca recebeu absolutamente nenhum
+  // e-mail (sem isso, a pessoa nem sabe que foi aprovada); 2) quem está
+  // mais perto da própria aula (lembrete final); 3) lembretes "ainda dá
+  // tempo", do mais atrasado pro mais recente. Se sobrar mais devendo do
+  // que o teto por chamada, o resto fica pro próximo disparo do cron.
   due.sort((a, b) => {
+    if (a.neverDelivered !== b.neverDelivered) return a.neverDelivered ? -1 : 1;
     if (a.isFinal !== b.isFinal) return a.isFinal ? -1 : 1;
     if (a.isFinal) return (a.daysUntilClass ?? Infinity) - (b.daysUntilClass ?? Infinity);
     return b.daysSinceInvited - a.daysSinceInvited;
@@ -157,7 +175,7 @@ export async function sendDueStudentOnboardingReminders(): Promise<{ sent: numbe
   let sent = 0;
   let failed = 0;
 
-  for (const { invite, isFinal, firstMeetingDate } of due.slice(0, MAX_SENDS_PER_RUN)) {
+  for (const { invite, isFinal, neverDelivered, firstMeetingDate } of due.slice(0, MAX_SENDS_PER_RUN)) {
     // O token bruto nunca é persistido (só o hash) — então um lembrete não
     // pode reusar o link original. Em vez disso, troca para um novo token
     // de MESMA validade/estado (não reseta expiração nem conta de
@@ -190,16 +208,28 @@ export async function sendDueStudentOnboardingReminders(): Promise<{ sent: numbe
         .update({
           reminder_stage: isFinal ? "final_sent" : "first_sent",
           last_sent_at: now.toISOString(),
+          ...(neverDelivered ? { initial_email_sent_at: now.toISOString() } : {}),
         })
         .eq("id", invite.id);
       sent += 1;
     } catch (error) {
       console.error("Falha ao enviar lembrete de primeiro acesso do aluno:", error);
       failed += 1;
+      // Cota diária do provedor estourou (confirmado: SMTP 550 "daily email
+      // sending quota") — o resto do lote vai falhar pelo mesmo motivo, sem
+      // sentido insistir agora. Cada convite aqui manteve seu estado
+      // anterior (nunca marcado como enviado), então o próximo disparo do
+      // cron pega de onde parou, sem duplicar nem perder ninguém.
+      if (isQuotaExceededError(error)) break;
     }
   }
 
   return { sent, failed };
+}
+
+function isQuotaExceededError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /quota/i.test(message);
 }
 
 /**

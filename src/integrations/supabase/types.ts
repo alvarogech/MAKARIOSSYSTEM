@@ -1452,6 +1452,7 @@ export type Database = {
           email: string
           enrollment_request_id: string | null
           id: string
+          initial_email_sent_at: string | null
           intended_full_name: string | null
           intended_role_id: string
           invited_at: string
@@ -1476,6 +1477,7 @@ export type Database = {
           email: string
           enrollment_request_id?: string | null
           id?: string
+          initial_email_sent_at?: string | null
           intended_full_name?: string | null
           intended_role_id: string
           invited_at?: string
@@ -1500,6 +1502,7 @@ export type Database = {
           email?: string
           enrollment_request_id?: string | null
           id?: string
+          initial_email_sent_at?: string | null
           intended_full_name?: string | null
           intended_role_id?: string
           invited_at?: string
