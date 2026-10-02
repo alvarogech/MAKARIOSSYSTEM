@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-// Uma folha A4 por volume, na identidade da Makários (creme, azul da marca,
+// Uma folha A4 por volume, na identidade da Makarios (creme, azul da marca,
 // moldura de linha fina, lema "filhos bem-aventurados").
 const PRINT_CSS = `
 @page { size: A4; margin: 0; }
@@ -90,12 +90,12 @@ export default async function ImprimirQrPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/brand/logo-makarios-oficial-azul.png"
-                  alt="Makários"
+                  alt="Makarios"
                   className="h-[16mm] w-auto"
                 />
 
                 <p className="mt-[10mm] text-[11pt] font-medium tracking-[0.35em] text-brand-blue uppercase">
-                  Chamada · Escola Makários
+                  Chamada · Escola Makarios
                 </p>
                 <h1 className="mt-[3mm] text-[46pt] leading-tight font-semibold text-brand-blue-dark">
                   {card.name}
@@ -156,7 +156,7 @@ export default async function ImprimirQrPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src="/brand/logo-makarios-oficial-azul.png"
-                        alt="Makários"
+                        alt="Makarios"
                         className="h-[6mm] w-auto"
                       />
                       <p className="text-[15pt] leading-none font-semibold text-brand-blue-dark">
@@ -176,7 +176,7 @@ export default async function ImprimirQrPage() {
                       Na chegada e de novo na volta do intervalo
                     </p>
                     <p className="mt-auto text-[7pt] tracking-[0.25em] text-brand-blue uppercase">
-                      Escola Makários · Igreja Emaús
+                      Escola Makarios · Igreja Emaús
                     </p>
                   </div>
                 </div>
