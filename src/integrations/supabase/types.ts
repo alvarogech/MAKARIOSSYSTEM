@@ -1775,6 +1775,7 @@ export type Database = {
           created_at: string
           difficulty: string
           explanation: string | null
+          external_ref: string | null
           id: string
           lesson_id: string | null
           module_id: string | null
@@ -1792,6 +1793,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           explanation?: string | null
+          external_ref?: string | null
           id?: string
           lesson_id?: string | null
           module_id?: string | null
@@ -1809,6 +1811,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           explanation?: string | null
+          external_ref?: string | null
           id?: string
           lesson_id?: string | null
           module_id?: string | null
