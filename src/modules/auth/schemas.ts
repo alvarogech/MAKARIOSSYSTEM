@@ -8,7 +8,7 @@ import { isValidBrazilianPhone } from "@/services/phone";
  */
 
 // "identifier" aceita e-mail (professor, coordenação, admin, alunos
-// antigos) OU código de acesso (alunos novos, formato MKS-XXXXXX — ver
+// antigos) OU código de acesso (alunos novos, formato 999-123-456 — ver
 // src/modules/auth/accessCode.ts). A própria ação decide qual é qual pelo
 // formato (contém "@" ou não) — aqui só valida que não veio vazio.
 export const loginSchema = z.object({

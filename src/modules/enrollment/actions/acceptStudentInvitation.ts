@@ -6,7 +6,7 @@ import { acceptStudentInvitationSchema } from "../schemas";
 import { hashInviteToken } from "@/modules/auth/inviteTokens";
 import { checkRateLimit, getClientIp } from "@/modules/auth/rateLimit";
 import { normalizeEmail } from "@/modules/auth/lookupTeacherCandidate";
-import { generateUniqueAccessCode } from "@/modules/auth/accessCode";
+import { formatAccessCode, generateUniqueAccessCode } from "@/modules/auth/accessCode";
 import { sendMail } from "@/modules/notifications/mailer";
 
 export interface AcceptStudentInvitationState {
@@ -198,18 +198,18 @@ export async function acceptStudentInvitation(
       html:
         `<p>Olá, ${parsed.data.fullName}!</p>` +
         `<p>Sua conta foi criada com sucesso. Para os próximos acessos, use:</p>` +
-        `<p style="font-size:20px;font-weight:700;letter-spacing:1px;">${accessCode}</p>` +
+        `<p style="font-size:20px;font-weight:700;letter-spacing:1px;">${formatAccessCode(accessCode)}</p>` +
         `<p>Guarde este código — ele é pessoal e substitui o e-mail como login (o e-mail de contato ` +
         `pode ser o mesmo de outras pessoas da família, por isso cada um tem seu próprio código).</p>` +
         `<p>Escola Makários — Igreja Emaús</p>`,
       text:
         `Olá, ${parsed.data.fullName}!\n\nSua conta foi criada com sucesso. Para os próximos acessos, use ` +
-        `o código: ${accessCode}\n\nGuarde este código — ele é pessoal e substitui o e-mail como login.\n\n` +
+        `o código: ${formatAccessCode(accessCode)}\n\nGuarde este código — ele é pessoal e substitui o e-mail como login.\n\n` +
         `Escola Makários — Igreja Emaús`,
     });
   } catch (error) {
     console.error("Falha ao enviar e-mail de confirmação com o código de acesso:", error);
   }
 
-  return { result: { accessCode } };
+  return { result: { accessCode: formatAccessCode(accessCode) } };
 }

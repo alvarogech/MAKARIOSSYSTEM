@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loginSchema } from "../schemas";
+import { normalizeAccessCode } from "../accessCode";
 
 export interface SignInState {
   error?: string;
@@ -23,11 +24,13 @@ export async function signIn(
 
   const supabase = await createSupabaseServerClient();
   // E-mail (professor/coordenação/admin/aluno antigo) tem "@"; código de
-  // acesso (aluno novo, formato MKS-XXXXXX) não tem — nunca os dois ao
+  // acesso (aluno novo, formato 999-123-456) não tem — nunca os dois ao
   // mesmo tempo, então o formato já diz qual credencial o Supabase espera.
+  // O código aceita "-" ou espaços na digitação; normalizeAccessCode tira
+  // tudo que não é dígito antes de comparar com auth.users.phone.
   const credential = parsed.data.identifier.includes("@")
     ? { email: parsed.data.identifier.trim().toLowerCase() }
-    : { phone: parsed.data.identifier.trim().toUpperCase() };
+    : { phone: normalizeAccessCode(parsed.data.identifier) };
 
   const { error } = await supabase.auth.signInWithPassword({
     ...credential,
