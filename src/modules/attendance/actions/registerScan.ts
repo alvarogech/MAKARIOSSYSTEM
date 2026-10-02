@@ -144,7 +144,10 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     .select("name, latitude, longitude, attendance_radius_meters")
     .not("latitude", "is", null);
   let locationStatus: "dentro" | "impreciso" | "sem_local_cadastrado" = "sem_local_cadastrado";
-  if (places && places.length > 0) {
+  // Chave só para ambiente de teste: um segundo servidor local roda com ela
+  // para simular a chamada de longe. Nunca configurar em produção.
+  const skipLocation = process.env.PRESENCA_SEM_LOCALIZACAO === "1";
+  if (places && places.length > 0 && !skipLocation) {
     if (input.lat == null || input.lng == null || input.accuracy == null) {
       return fail("Para marcar presença, permita que a página veja a sua localização.", "precisa_localizacao");
     }
