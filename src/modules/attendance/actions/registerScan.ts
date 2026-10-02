@@ -95,10 +95,6 @@ function formatTime(iso: string): string {
 export async function registerScan(input: ScanInput): Promise<ScanResult> {
   const supabase = createSupabaseAdminClient();
 
-  const ip = await getClientIp();
-  if (!(await checkRateLimit(supabase, `presenca:${ip}`, 30, 600))) {
-    return fail("Muitas tentativas seguidas. Espere alguns minutos e tente de novo.");
-  }
 
   // 1. O QR Code (um permanente por volume).
   const { data: qr } = await supabase
@@ -224,6 +220,12 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     identifiedBy = "cpf";
     const cpf = (input.cpf ?? "").replace(/\D/g, "");
     if (cpf.length !== 11) return fail("Digite o seu CPF para marcar presença.", "precisa_cpf");
+    // Limite só para quem digita CPF, e alto: no Wi-Fi do local todos os
+    // celulares saem pelo mesmo IP, e a turma inteira chega ao mesmo tempo.
+    const ip = await getClientIp();
+    if (!(await checkRateLimit(supabase, `presenca-cpf:${ip}`, 300, 600))) {
+      return fail("Muitas tentativas seguidas. Espere alguns minutos e tente de novo.");
+    }
     const { data } = await supabase
       .from("enrollment_requests")
       .select(requestColumns)
