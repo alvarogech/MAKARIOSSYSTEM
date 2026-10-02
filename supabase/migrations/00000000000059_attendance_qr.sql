@@ -91,3 +91,11 @@ revoke all on public.attendance_qr_codes, public.attendance_scans from anon;
 grant select, insert, update, delete on public.attendance_qr_codes to authenticated;
 grant select on public.attendance_scans to authenticated;
 grant all on public.attendance_qr_codes, public.attendance_scans to service_role;
+
+-- 5. Coordenadas dos dois locais das aulas (informadas pela coordenacao em
+--    02/10/2026). So preenche onde ainda nao ha coordenada.
+update public.locations set latitude = -16.6973877, longitude = -49.2767771
+  where name ilike '%uneed%' and latitude is null;
+insert into public.locations (name, address, latitude, longitude)
+select E'Igreja Emaús', E'Goiânia - GO', -16.695639, -49.2485452
+where not exists (select 1 from public.locations where name ilike '%ema%s%');
