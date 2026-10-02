@@ -24,15 +24,17 @@ export interface MaterialsBundle {
 
 /**
  * Materiais publicados de um volume — opcionalmente restritos a um módulo
- * (a "aula" específica). RLS de `contents` já garante que só professor/
- * coordenação/admin veem `classification = exclusivo_professor`; aqui só
- * separamos por classification para a UI (Apostilas vs. Slides).
+ * (`moduleId`, a "aula" específica) ou a um conjunto deles (`moduleIds`,
+ * quando o professor dá mais de um tema na mesma turma). RLS de `contents`
+ * já garante que só professor/coordenação/admin veem
+ * `classification = exclusivo_professor`; aqui só separamos por
+ * classification para a UI (Apostilas vs. Slides).
  */
 export async function loadMaterials(
   supabase: SupabaseClient<Database>,
-  params: { volumeId: string; moduleId?: string },
+  params: { volumeId: string; moduleId?: string; moduleIds?: string[] },
 ): Promise<MaterialsBundle> {
-  let query = supabase
+  const query = supabase
     .from("contents")
     .select("id, title, type, classification, body, order_index, lesson:lessons(name, module:modules(id, name, order_index))")
     .eq("volume_id", params.volumeId)
@@ -40,8 +42,11 @@ export async function loadMaterials(
 
   const { data: contentsData } = await query;
 
-  const filtered = params.moduleId
-    ? (contentsData ?? []).filter((c) => c.lesson?.module?.id === params.moduleId)
+  const allowedModuleIds = params.moduleIds ?? (params.moduleId ? [params.moduleId] : null);
+  const filtered = allowedModuleIds
+    ? (contentsData ?? []).filter(
+        (c) => c.lesson?.module?.id && allowedModuleIds.includes(c.lesson.module.id),
+      )
     : (contentsData ?? []);
 
   const contentIds = filtered.map((c) => c.id);

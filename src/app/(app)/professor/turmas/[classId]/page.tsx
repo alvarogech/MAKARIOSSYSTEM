@@ -110,9 +110,26 @@ export default async function ProfessorTurmaDetailPage({
     ? await supabase.from("volumes").select("name").eq("id", offering.volume_id).maybeSingle()
     : { data: null };
 
-  const materials = offering
-    ? await loadMaterials(supabase, { volumeId: offering.volume_id })
-    : { apostilas: [], slides: [] };
+  // Só os módulos que ELE dá nesta turma — nunca a biblioteca inteira do
+  // volume. Uma turma pode ter vários professores, cada um numa matéria
+  // diferente; mostrar tudo fazia parecer que ele era responsável por
+  // temas que não são dele.
+  const myModuleIds = [
+    ...new Set(
+      (blocks ?? [])
+        .filter((b) => b.teacher_id === authContext.userId && b.module_id)
+        .map((b) => b.module_id as string),
+    ),
+  ];
+  const materials =
+    offering && myModuleIds.length > 0
+      ? await loadMaterials(supabase, { volumeId: offering.volume_id, moduleIds: myModuleIds })
+      : { apostilas: [], slides: [] };
+
+  const myMeetingCount = new Set(
+    (blocks ?? []).filter((b) => b.teacher_id === authContext.userId).map((b) => b.class_meeting_id),
+  ).size;
+  const totalMeetingCount = (meetings ?? []).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -140,6 +157,12 @@ export default async function ProfessorTurmaDetailPage({
 
       <Card>
         <h2 className="font-semibold text-neutral-900">Encontros</h2>
+        {totalMeetingCount > 0 ? (
+          <p className="mt-1 text-sm text-neutral-500">
+            Você está escalado(a) em {myMeetingCount} de {totalMeetingCount} encontros desta turma.
+            Os demais aparecem abaixo só como contexto — cada um mostra o professor responsável.
+          </p>
+        ) : null}
         <ul className="mt-3 flex flex-col divide-y divide-neutral-100 text-sm">
           {(meetings ?? []).map((meeting) => {
             const meetingBlocks = blocksByMeeting.get(meeting.id) ?? [];
@@ -204,11 +227,18 @@ export default async function ProfessorTurmaDetailPage({
       </Card>
 
       <Card>
-        <h2 className="font-semibold text-neutral-900">Materiais do módulo</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Biblioteca completa do volume desta turma. Para os materiais de uma aula específica, abra
-          &ldquo;Preparar aula&rdquo; a partir do encontro correspondente.
-        </p>
+        <h2 className="font-semibold text-neutral-900">Materiais das suas aulas nesta turma</h2>
+        {myModuleIds.length > 0 ? (
+          <p className="mt-1 text-sm text-neutral-500">
+            Só os temas que você ministra aqui. Para o material completo de uma aula específica, abra
+            &ldquo;Preparar aula&rdquo; a partir do encontro correspondente.
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-neutral-500">
+            Você ainda não tem nenhuma aula definida nesta turma — assim que a coordenação te escalar
+            em um encontro, os materiais aparecem aqui.
+          </p>
+        )}
         <MaterialsSection materials={materials} showModuleName />
       </Card>
     </div>
