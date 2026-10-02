@@ -181,7 +181,7 @@ export default async function ProfessorTurmaDetailPage({
                     ) : null}
                     {meeting.room ? <span className="ml-2 text-xs text-neutral-400">· {meeting.room}</span> : null}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Link
                       href={`/professor/turmas/${classId}/encontros/${meeting.id}/relatorio`}
                       className={buttonVariants({ variant: "ghost", size: "sm" })}

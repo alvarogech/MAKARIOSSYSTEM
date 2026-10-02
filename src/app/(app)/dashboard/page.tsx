@@ -153,7 +153,7 @@ export default async function DashboardPage() {
                 <p className="text-sm text-neutral-400">Nenhuma matrícula encontrada ainda.</p>
               ) : null}
             </div>
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/meus-volumes" className={buttonVariants({ variant: "primary", size: "sm" })}>
                 Meus volumes
               </Link>
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
       {canAccessTeacherArea ? (
         <Card>
           <h2 className="text-lg font-semibold text-neutral-900">Área do professor</h2>
-          <div className="mt-3 flex gap-3">
+          <div className="mt-3 flex flex-wrap gap-3">
             <Link href="/professor" className={buttonVariants({ variant: "primary" })}>
               Minhas turmas e agenda
             </Link>
@@ -182,7 +182,7 @@ export default async function DashboardPage() {
           <p className="mt-1 text-sm text-neutral-500">
             Temporadas, ofertas de volume, turmas, matrículas e importação de alunos.
           </p>
-          <div className="mt-3 flex gap-3">
+          <div className="mt-3 flex flex-wrap gap-3">
             <Link href="/coordenacao" className={buttonVariants({ variant: "primary" })}>
               Área da coordenação
             </Link>
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
       {canManageContent ? (
         <Card>
           <h2 className="text-lg font-semibold text-neutral-900">Conteúdo</h2>
-          <div className="mt-3 flex gap-3">
+          <div className="mt-3 flex flex-wrap gap-3">
             <Link href="/conteudo" className={buttonVariants({ variant: "primary" })}>
               Estúdio de conteúdo
             </Link>
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
       {canAccessAdmin ? (
         <Card>
           <h2 className="text-lg font-semibold text-neutral-900">Administração</h2>
-          <div className="mt-3 flex gap-3">
+          <div className="mt-3 flex flex-wrap gap-3">
             <Link href="/administracao" className={buttonVariants({ variant: "primary" })}>
               Área administrativa
             </Link>

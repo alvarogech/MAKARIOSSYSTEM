@@ -102,7 +102,7 @@ export default async function AvaliacoesPage() {
                     {a.answer_key_released_at ? ", gabarito liberado" : ""})
                   </span>
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {canPublish && a.status === "draft" ? (
                     <PublishAssessmentButton assessmentId={a.id} />
                   ) : null}

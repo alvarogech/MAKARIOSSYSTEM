@@ -86,7 +86,7 @@ export default async function ConteudoAreaPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-neutral-900">Estúdio de conteúdo</h1>
           <p className="mt-1 text-sm text-neutral-500">
@@ -94,7 +94,7 @@ export default async function ConteudoAreaPage() {
             liberação e exercícios (banco de questões em página separada).
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
             Banco de questões e exercícios
           </Link>

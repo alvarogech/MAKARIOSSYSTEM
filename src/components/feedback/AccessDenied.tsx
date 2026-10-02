@@ -14,7 +14,7 @@ export function AccessDenied({
       <ShieldAlert className="size-12 text-brand-blue" aria-hidden="true" />
       <h1 className="text-xl font-semibold text-neutral-900">{title}</h1>
       <p className="max-w-sm text-sm text-neutral-500">{description}</p>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap justify-center gap-3">
         <Link href="/dashboard" className={buttonVariants({ variant: "secondary" })}>
           Voltar ao início
         </Link>
