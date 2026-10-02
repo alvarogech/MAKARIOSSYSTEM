@@ -12,10 +12,16 @@ import { checkEnrollmentDataQuality } from "../dataQuality";
 import { grNetworkLabel, scheduleLabel, volumeLabel } from "../labels";
 import { markEnrollmentRequestViewed } from "../actions/markEnrollmentRequestViewed";
 import { reviewEnrollmentRequest, type ReviewEnrollmentRequestState } from "../actions/reviewEnrollmentRequest";
+import {
+  changeEnrollmentSchedule,
+  type ChangeEnrollmentScheduleState,
+} from "../actions/changeEnrollmentSchedule";
 import { ENROLLMENT_STATUS_LABELS, type EnrollmentRequestRow, type StudentEnrollmentForTransfer } from "../types";
 import { EnrollmentStatusBadge } from "./EnrollmentStatusBadge";
 import { EnrollmentRowActions } from "@/modules/academic/components/EnrollmentRowActions";
 import { ENROLLMENT_STATUS_LABELS as MATRICULA_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
+import { ENROLLMENT_SCHEDULES } from "@/config/enrollment";
+import { FormError } from "@/components/ui/FormError";
 
 const initialState: ReviewEnrollmentRequestState = {};
 
@@ -56,8 +62,14 @@ export function EnrollmentDetailPanel({
   enrollments: StudentEnrollmentForTransfer[];
 }) {
   const [state, formAction, isPending] = useActionState(reviewEnrollmentRequest, initialState);
+  const [scheduleState, scheduleFormAction, schedulePending] = useActionState<
+    ChangeEnrollmentScheduleState,
+    FormData
+  >(changeEnrollmentSchedule, {});
   const dataQualityFlags = checkEnrollmentDataQuality({ email: row.email, phone: row.phone });
   const phoneIsValid = isValidBrazilianPhone(row.phone);
+  const otherSchedules = ENROLLMENT_SCHEDULES.filter((s) => s.slug !== row.primaryScheduleSlug);
+  const canChangeSchedule = row.status === "pending" || row.status === "approved";
 
   useEffect(() => {
     if (!row.viewedAt) {
@@ -180,6 +192,35 @@ export function EnrollmentDetailPanel({
             <p>
               <strong className="font-medium text-neutral-900">Principal:</strong>{" "}
               {volumeLabel(row.primaryVolumeSlug)} · {scheduleLabel(row.primaryScheduleSlug)}
+            </p>
+            {canChangeSchedule && otherSchedules.length > 0 ? (
+              <form action={scheduleFormAction} className="mt-2 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="enrollmentRequestId" value={row.id} />
+                <select
+                  name="scheduleSlug"
+                  defaultValue=""
+                  required
+                  className="h-9 rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-2 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                >
+                  <option value="" disabled>
+                    Mudar horário para…
+                  </option>
+                  {otherSchedules.map((s) => (
+                    <option key={s.slug} value={s.slug}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" size="sm" variant="secondary" isLoading={schedulePending}>
+                  Mudar horário
+                </Button>
+                {scheduleState.success ? <span className="text-xs text-success">Atualizado.</span> : null}
+                <FormError message={scheduleState.error} />
+              </form>
+            ) : null}
+            <p className="mt-1 text-xs text-neutral-400">
+              Muda o horário dentro do mesmo volume — antes ou depois de aprovar, mesmo sem a
+              pessoa ter aceitado o convite ainda. Pra trocar de volume, é uma inscrição nova.
             </p>
             {row.wantsSecondVolume ? (
               <p className="mt-1">
