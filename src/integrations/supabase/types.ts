@@ -1716,6 +1716,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          access_code: string | null
           birth_date: string | null
           created_at: string
           email: string | null
@@ -1729,6 +1730,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_code?: string | null
           birth_date?: string | null
           created_at?: string
           email?: string | null
@@ -1742,6 +1744,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_code?: string | null
           birth_date?: string | null
           created_at?: string
           email?: string | null

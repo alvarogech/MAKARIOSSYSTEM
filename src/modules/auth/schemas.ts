@@ -7,8 +7,12 @@ import { isValidBrazilianPhone } from "@/services/phone";
  * `src/authorization`). Ver PLANO_TECNICO.md seção 6/10.
  */
 
+// "identifier" aceita e-mail (professor, coordenação, admin, alunos
+// antigos) OU código de acesso (alunos novos, formato MKS-XXXXXX — ver
+// src/modules/auth/accessCode.ts). A própria ação decide qual é qual pelo
+// formato (contém "@" ou não) — aqui só valida que não veio vazio.
 export const loginSchema = z.object({
-  email: z.string().trim().min(1, "Informe o e-mail.").email("E-mail inválido."),
+  identifier: z.string().trim().min(1, "Informe seu e-mail ou código de acesso."),
   password: z.string().min(1, "Informe a senha."),
 });
 

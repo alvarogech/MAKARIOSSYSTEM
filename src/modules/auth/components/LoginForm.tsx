@@ -20,19 +20,19 @@ export function LoginForm() {
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900">Entrar</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Acesse com o e-mail e senha da sua conta na Plataforma Makários.
+          Professor ou coordenação: entre com e-mail e senha. Aluno: use o código de acesso que você
+          recebeu no primeiro acesso.
         </p>
       </div>
 
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
 
       <div>
-        <Label htmlFor="email">E-mail</Label>
+        <Label htmlFor="identifier">E-mail ou código de acesso</Label>
         <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
+          id="identifier"
+          name="identifier"
+          autoComplete="username"
           required
           hasError={Boolean(state.error)}
         />

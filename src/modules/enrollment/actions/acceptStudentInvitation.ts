@@ -1,15 +1,17 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { acceptStudentInvitationSchema } from "../schemas";
 import { hashInviteToken } from "@/modules/auth/inviteTokens";
 import { checkRateLimit, getClientIp } from "@/modules/auth/rateLimit";
 import { normalizeEmail } from "@/modules/auth/lookupTeacherCandidate";
+import { generateUniqueAccessCode } from "@/modules/auth/accessCode";
+import { sendMail } from "@/modules/notifications/mailer";
 
 export interface AcceptStudentInvitationState {
   error?: string;
+  result?: { accessCode: string };
 }
 
 /**
@@ -51,6 +53,16 @@ async function createEnrollments(
  * Consome o convite de primeiro acesso do aluno (enviado por e-mail) — só
  * é chamado por submit explícito, nunca por GET (ver página pública em
  * src/app/(public)/convite-aluno/[token]/page.tsx).
+ *
+ * Diferente da versão anterior: a leitura do convite NÃO é mais uma
+ * reivindicação atômica que já marca `consumed_at`. O convite só vira
+ * "usado" DEPOIS que a conta é criada com sucesso — se `admin.createUser`
+ * (ou qualquer passo depois) falhar, nada é marcado como consumido e o
+ * mesmo link continua válido para uma nova tentativa. O preço disso é uma
+ * janela de corrida rara (duplo clique bem cronometrado); o próprio
+ * `access_code` sendo UNIQUE em auth.users.phone barra uma conta
+ * duplicada de verdade — na pior das hipóteses, a segunda tentativa recebe
+ * um erro de "tente de novo" em vez de silenciosamente duplicar algo.
  */
 export async function acceptStudentInvitation(
   _prevState: AcceptStudentInvitationState,
@@ -68,7 +80,7 @@ export async function acceptStudentInvitation(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const submittedEmail = normalizeEmail(parsed.data.email);
+  const contactEmail = normalizeEmail(parsed.data.email);
   const admin = createSupabaseAdminClient();
 
   const ip = await getClientIp();
@@ -79,64 +91,76 @@ export async function acceptStudentInvitation(
 
   const tokenHash = hashInviteToken(parsed.data.token);
 
-  const { data: claimed, error: claimError } = await admin
+  const { data: invitation, error: fetchError } = await admin
     .from("invitations")
-    .update({ consumed_at: new Date().toISOString(), email: submittedEmail })
+    .select("id, class_ids, enrollment_request_id, consumed_at, revoked_at, token_expires_at")
     .eq("token_hash", tokenHash)
     .eq("channel", "email")
     .eq("purpose", "student_onboarding")
-    .is("consumed_at", null)
-    .is("revoked_at", null)
-    .gt("token_expires_at", new Date().toISOString())
-    .select("id, class_ids, enrollment_request_id")
     .maybeSingle();
 
-  if (claimError) {
+  if (fetchError) {
     return { error: "Não foi possível processar seu cadastro. Tente novamente." };
   }
-
-  if (!claimed) {
-    const { data: existing } = await admin
-      .from("invitations")
-      .select("revoked_at, consumed_at, token_expires_at")
-      .eq("token_hash", tokenHash)
-      .eq("channel", "email")
-      .maybeSingle();
-
-    if (!existing) {
-      return { error: "Link inválido. Peça um novo acesso à coordenação." };
-    }
-    if (existing.revoked_at) {
-      return { error: "Este link foi revogado. Peça um novo acesso à coordenação." };
-    }
-    if (existing.consumed_at) {
-      return { error: "Este link já foi utilizado. Se você já tem senha, faça login." };
-    }
+  if (!invitation) {
+    return { error: "Link inválido. Peça um novo acesso à coordenação." };
+  }
+  if (invitation.revoked_at) {
+    return { error: "Este link foi revogado. Peça um novo acesso à coordenação." };
+  }
+  if (invitation.consumed_at) {
+    return { error: "Este link já foi utilizado. Se você já tem senha, faça login." };
+  }
+  if (!invitation.token_expires_at || new Date(invitation.token_expires_at).getTime() < Date.now()) {
     return { error: "Este link expirou. Peça um novo acesso à coordenação." };
   }
 
+  const accessCode = await generateUniqueAccessCode(admin);
+
   const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
-    email: submittedEmail,
+    phone: accessCode,
     password: parsed.data.password,
-    email_confirm: true,
-    user_metadata: { full_name: parsed.data.fullName },
+    phone_confirm: true,
+    user_metadata: { full_name: parsed.data.fullName, contact_email: contactEmail },
   });
 
   if (createError || !createdUser.user) {
-    return {
-      error:
-        createError?.message.toLowerCase().includes("already")
-          ? "Já existe uma conta com este e-mail. Peça à coordenação para te orientar " +
-            "a fazer login ou recuperar a senha."
-          : "Não foi possível criar sua conta agora. Avise a coordenação.",
-    };
+    console.error("Falha ao criar conta no primeiro acesso do aluno:", createError);
+    return { error: "Não foi possível criar sua conta agora. Tente novamente em instantes." };
   }
 
   const studentId = createdUser.user.id;
+  const nowIso = new Date().toISOString();
+
+  // Só a partir daqui o convite é considerado usado — a conta já existe.
+  const { error: consumeError } = await admin
+    .from("invitations")
+    .update({ consumed_at: nowIso, status: "accepted", accepted_at: nowIso })
+    .eq("id", invitation.id)
+    .is("consumed_at", null);
+
+  if (consumeError) {
+    console.error("Falha ao marcar convite como consumido (conta já criada):", consumeError);
+  }
+
+  const { data: role } = await admin.from("roles").select("id").eq("slug", "student").single();
+  if (role) {
+    const { error: roleError } = await admin
+      .from("user_roles")
+      .insert({ user_id: studentId, role_id: role.id });
+    if (roleError && roleError.code !== "23505") {
+      console.error("Falha ao conceder papel de aluno:", roleError);
+    }
+  }
 
   const { error: profileError } = await admin
     .from("profiles")
-    .update({ full_name: parsed.data.fullName, onboarding_completed_at: new Date().toISOString() })
+    .update({
+      full_name: parsed.data.fullName,
+      email: contactEmail,
+      access_code: accessCode,
+      onboarding_completed_at: nowIso,
+    })
     .eq("id", studentId);
 
   if (profileError) {
@@ -144,28 +168,48 @@ export async function acceptStudentInvitation(
   }
 
   let authorizedBy = studentId;
-  let authorizedAt = new Date().toISOString();
-  if (claimed.enrollment_request_id) {
+  let authorizedAt = nowIso;
+  if (invitation.enrollment_request_id) {
     const { data: request } = await admin
       .from("enrollment_requests")
       .select("reviewed_by, reviewed_at")
-      .eq("id", claimed.enrollment_request_id)
+      .eq("id", invitation.enrollment_request_id)
       .maybeSingle();
     if (request?.reviewed_by) authorizedBy = request.reviewed_by;
     if (request?.reviewed_at) authorizedAt = request.reviewed_at;
   }
 
-  await createEnrollments(admin, studentId, claimed.class_ids ?? [], authorizedBy, authorizedAt);
+  await createEnrollments(admin, studentId, invitation.class_ids ?? [], authorizedBy, authorizedAt);
 
   const supabase = await createSupabaseServerClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: submittedEmail,
+    phone: accessCode,
     password: parsed.data.password,
   });
 
   if (signInError) {
-    redirect("/login");
+    console.error("Falha ao autenticar logo após criar a conta do aluno:", signInError);
   }
 
-  redirect("/meus-volumes");
+  try {
+    await sendMail({
+      to: contactEmail,
+      subject: "Sua conta na Escola Makários está pronta — guarde seu código de acesso",
+      html:
+        `<p>Olá, ${parsed.data.fullName}!</p>` +
+        `<p>Sua conta foi criada com sucesso. Para os próximos acessos, use:</p>` +
+        `<p style="font-size:20px;font-weight:700;letter-spacing:1px;">${accessCode}</p>` +
+        `<p>Guarde este código — ele é pessoal e substitui o e-mail como login (o e-mail de contato ` +
+        `pode ser o mesmo de outras pessoas da família, por isso cada um tem seu próprio código).</p>` +
+        `<p>Escola Makários — Igreja Emaús</p>`,
+      text:
+        `Olá, ${parsed.data.fullName}!\n\nSua conta foi criada com sucesso. Para os próximos acessos, use ` +
+        `o código: ${accessCode}\n\nGuarde este código — ele é pessoal e substitui o e-mail como login.\n\n` +
+        `Escola Makários — Igreja Emaús`,
+    });
+  } catch (error) {
+    console.error("Falha ao enviar e-mail de confirmação com o código de acesso:", error);
+  }
+
+  return { result: { accessCode } };
 }

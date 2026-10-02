@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import {
   acceptStudentInvitation,
   type AcceptStudentInvitationState,
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Alert } from "@/components/ui/Alert";
+import { CopyButton } from "@/components/ui/CopyButton";
 
 const initialState: AcceptStudentInvitationState = {};
 
@@ -23,6 +25,33 @@ export function StudentOnboardingForm({
   email: string;
 }) {
   const [state, formAction, isPending] = useActionState(acceptStudentInvitation, initialState);
+
+  if (state.result) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold text-neutral-900">Conta criada!</h1>
+        <Alert variant="success">
+          <div className="flex flex-col gap-2">
+            <p>
+              Seu e-mail de contato pode ser o mesmo de outra pessoa da família — por isso, para
+              entrar da próxima vez, use este <strong>código de acesso pessoal</strong>, junto com a
+              senha que você acabou de criar:
+            </p>
+            <p className="text-center text-2xl font-bold tracking-wide text-brand-blue-dark">
+              {state.result.accessCode}
+            </p>
+            <CopyButton value={state.result.accessCode} label="código" className="self-center" />
+            <p className="text-xs text-neutral-500">
+              Também enviamos este código por e-mail, caso você precise consultar depois.
+            </p>
+          </div>
+        </Alert>
+        <Link href="/meus-volumes" className="self-center text-sm font-medium text-brand-blue hover:underline">
+          Ir para minhas turmas →
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
@@ -40,10 +69,11 @@ export function StudentOnboardingForm({
       <input type="hidden" name="token" value={token} />
 
       <div>
-        <Label htmlFor="email">E-mail de acesso</Label>
+        <Label htmlFor="email">E-mail de contato</Label>
         <Input id="email" name="email" type="email" autoComplete="email" defaultValue={email} required />
         <p className="mt-1 text-xs text-neutral-500">
-          Confira se está certo — é o e-mail com o qual você vai entrar. Pode corrigir se não for o seu.
+          Usado só para a escola te avisar de coisas importantes — pode ser o mesmo e-mail de outra
+          pessoa da sua família. Seu login será um código próprio, mostrado no final deste cadastro.
         </p>
       </div>
 
@@ -66,7 +96,7 @@ export function StudentOnboardingForm({
       </div>
 
       <Button type="submit" isLoading={isPending} className="mt-2 w-full">
-        Concluir e acessar minha turma
+        Concluir cadastro
       </Button>
     </form>
   );
