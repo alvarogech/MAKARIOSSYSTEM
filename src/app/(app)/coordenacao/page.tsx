@@ -43,6 +43,11 @@ const SECTIONS = [
     description: "O que os professores reportaram após cada encontro.",
   },
   {
+    href: "/coordenacao/presenca",
+    title: "Presença por QR Code",
+    description: "QR Codes da semana para imprimir e quem marcou presença em cada encontro.",
+  },
+  {
     href: "/coordenacao/locais",
     title: "Locais",
     description: "Cadastro de espaços (endereço, sala, estacionamento, recursos) usado na área do professor.",

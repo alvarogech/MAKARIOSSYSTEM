@@ -29,3 +29,25 @@ export function protectCpf(cpf: string): {
   };
 }
 
+
+/** Mesmo hash gravado em `enrollment_requests.cpf_hash` (só dígitos). */
+export function hashCpf(cpf: string): string {
+  return createHmac("sha256", getKey()).update(cpf).digest("hex");
+}
+
+/**
+ * Assinatura do cookie que faz o celular lembrar o aluno na chamada por QR
+ * (evita digitar o CPF toda vez). Só o id da inscrição, assinado: não dá
+ * para trocar por outro id sem a chave do servidor.
+ */
+export function signAttendanceDevice(enrollmentRequestId: string): string {
+  const mac = createHmac("sha256", getKey()).update(`presenca:${enrollmentRequestId}`).digest("base64url");
+  return `${enrollmentRequestId}.${mac}`;
+}
+
+export function verifyAttendanceDevice(value: string | undefined): string | null {
+  if (!value) return null;
+  const [id, mac] = value.split(".");
+  if (!id || !mac) return null;
+  return signAttendanceDevice(id) === value ? id : null;
+}
