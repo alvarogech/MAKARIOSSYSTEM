@@ -71,6 +71,9 @@ const eslintConfig = [
       // Rota chamada pelo pg_cron (sem sessão) — precisa do segredo
       // compartilhado CRON_SECRET para autenticar a chamada.
       "src/app/api/cron/student-reminders/route.ts",
+      // Reenvio manual pontual de convite de aluno (mesmo segredo
+      // compartilhado, sem sessão de usuário).
+      "src/app/api/admin/resend-student-invite/route.ts",
     ],
     rules: {
       "no-restricted-imports": "off",
