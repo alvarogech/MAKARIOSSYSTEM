@@ -234,7 +234,17 @@ export function EnrollmentTable({
                   </td>
                   <td className="px-4 py-3 text-neutral-600">{scheduleLabel(row.primaryScheduleSlug)}</td>
                   <td className="px-4 py-3">
-                    <EnrollmentStatusBadge status={row.status} />
+                    <div className="flex flex-col items-start gap-1">
+                      <EnrollmentStatusBadge status={row.status} />
+                      {row.studentId ? (
+                        <span
+                          className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success"
+                          title="Já aceitou o convite e tem matrícula — clique para ver/mudar a turma"
+                        >
+                          Matriculado(a)
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-neutral-500">{formatSaoPauloDateTime(row.createdAt)}</td>
                   <td className="px-4 py-3">
@@ -294,8 +304,13 @@ export function EnrollmentTable({
                     <p className="truncate text-xs text-neutral-500">{formatBrazilianPhone(row.phone)}</p>
                   </div>
                 </div>
-                <div className="shrink-0">
+                <div className="flex shrink-0 flex-col items-end gap-1">
                   <EnrollmentStatusBadge status={row.status} />
+                  {row.studentId ? (
+                    <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
+                      Matriculado(a)
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
