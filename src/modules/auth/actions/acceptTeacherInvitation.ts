@@ -71,12 +71,8 @@ export async function acceptTeacherInvitation(
   const tokenHash = hashInviteToken(parsed.data.token);
 
   // Reivindicação atômica: só um submit concorrente consegue marcar
-  // consumed_at. status/accepted_at (legado) ficam intocados de propósito
-  // — handle_new_user ainda precisa encontrar esta linha como "pending"
-  // quando admin.createUser() disparar o trigger logo abaixo. O e-mail
-  // também é corrigido aqui, ANTES do createUser: a coordenação pode ter
-  // usado um e-mail provisório ao gerar o convite (ex.: sem saber o real
-  // ainda) — o trigger casa por e-mail, então precisa ver o valor final.
+  // consumed_at. O e-mail também é corrigido aqui, ANTES do createUser: a
+  // coordenação pode ter usado um e-mail provisório ao gerar o convite.
   const { data: claimed, error: claimError } = await admin
     .from("invitations")
     .update({ consumed_at: new Date().toISOString(), email: submittedEmail })
@@ -86,7 +82,7 @@ export async function acceptTeacherInvitation(
     .is("consumed_at", null)
     .is("revoked_at", null)
     .gt("token_expires_at", new Date().toISOString())
-    .select("id, class_ids, meeting_block_ids")
+    .select("id, class_ids, meeting_block_ids, intended_role_id")
     .maybeSingle();
 
   if (claimError) {
@@ -150,6 +146,21 @@ export async function acceptTeacherInvitation(
   if (profileError) {
     console.error("Falha ao finalizar profile no primeiro acesso do professor:", profileError);
   }
+
+  // O papel é concedido aqui, explicitamente — nunca delegado ao trigger
+  // handle_new_user, que casa convite só por e-mail e pode pegar OUTRO
+  // convite pendente da mesma pessoa (ex.: a mesma pessoa também é aluno).
+  const { error: roleError } = await admin
+    .from("user_roles")
+    .insert({ user_id: teacherId, role_id: claimed.intended_role_id });
+  if (roleError && roleError.code !== "23505") {
+    console.error("Falha ao conceder papel de professor no primeiro acesso:", roleError);
+  }
+
+  await admin
+    .from("invitations")
+    .update({ status: "accepted", accepted_at: new Date().toISOString() })
+    .eq("id", claimed.id);
 
   await linkPendingClasses(admin, teacherId, claimed.class_ids ?? []);
   await linkSpecificMeetingBlocks(admin, teacherId, claimed.meeting_block_ids ?? []);
