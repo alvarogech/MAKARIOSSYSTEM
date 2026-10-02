@@ -164,11 +164,12 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
 
   // 4. Quem está escaneando: login, celular já lembrado ou CPF.
   const requestColumns =
-    "id, full_name, student_id, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug";
+    "id, full_name, student_id, cpf_hash, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug";
   type RequestRow = {
     id: string;
     full_name: string;
     student_id: string | null;
+    cpf_hash: string | null;
     primary_volume_slug: string;
     primary_schedule_slug: string;
     secondary_volume_slug: string | null;
@@ -243,9 +244,21 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     studentId = studentId ?? request.student_id;
   }
 
+  // 4b. Quem tem mais de uma inscrição (uma por volume) precisa cair na
+  //     inscrição deste volume, e não na mais recente.
+  const volumeSlug = qr.volumes.slug;
+  const coversVolume = (r: RequestRow) =>
+    r.primary_volume_slug === volumeSlug || r.secondary_volume_slug === volumeSlug;
+  if (request && !coversVolume(request)) {
+    const siblings = request.cpf_hash
+      ? await supabase.from("enrollment_requests").select(requestColumns).eq("cpf_hash", request.cpf_hash).eq("status", "approved")
+      : { data: [] };
+    const match = ((siblings.data ?? []) as RequestRow[]).find(coversVolume);
+    if (match) request = match;
+  }
+
   // 5. Em qual turma deste volume a pessoa está: a matrícula manda (pode
   //    ter mudado de turma); sem matrícula, vale o horário da inscrição.
-  const volumeSlug = qr.volumes.slug;
   let ownSchedule: string | null = null;
   let ownClassId: string | null = null;
   if (studentId) {
