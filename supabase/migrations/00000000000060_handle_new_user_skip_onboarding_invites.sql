@@ -31,7 +31,7 @@ begin
     from public.invitations
     where email = new.email
       and status = 'pending'
-      and purpose not in ('student_onboarding', 'teacher_onboarding', 'password_reset')
+      and coalesce(purpose, '') not in ('student_onboarding', 'teacher_onboarding', 'password_reset')
     order by invited_at desc
     limit 1;
 
