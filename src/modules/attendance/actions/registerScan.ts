@@ -137,22 +137,31 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     .from("locations")
     .select("name, latitude, longitude, attendance_radius_meters")
     .not("latitude", "is", null);
-  let locationStatus: "dentro" | "impreciso" | "sem_local_cadastrado" = "sem_local_cadastrado";
+  // Chave da coordenação. Se a leitura falhar (ex.: tabela ainda não criada),
+  // vale o padrão: localização obrigatória.
+  const { data: settings } = await supabase.from("attendance_settings").select("require_location").maybeSingle();
+  const requireLocation = settings?.require_location ?? true;
+  let locationStatus: "dentro" | "impreciso" | "sem_local_cadastrado" | "sem_localizacao" | "longe" =
+    "sem_local_cadastrado";
   // Chave só para ambiente de teste: um segundo servidor local roda com ela
   // para simular a chamada de longe. Nunca configurar em produção.
   const skipLocation = process.env.PRESENCA_SEM_LOCALIZACAO === "1";
   if (places && places.length > 0 && !skipLocation) {
     if (input.lat == null || input.lng == null || input.accuracy == null) {
-      return fail("Para marcar presença, permita que a página veja a sua localização.", "precisa_localizacao");
+      if (requireLocation) {
+        return fail("Para marcar presença, permita que a página veja a sua localização.", "precisa_localizacao");
+      }
+      locationStatus = "sem_localizacao";
+    } else {
+      const verdict = locationVerdict(
+        { lat: input.lat, lng: input.lng, accuracy: input.accuracy },
+        places.map((p) => ({ lat: p.latitude!, lng: p.longitude!, radius: p.attendance_radius_meters })),
+      );
+      if (verdict === "longe" && requireLocation) {
+        return fail("Você precisa estar no local da aula para marcar presença.");
+      }
+      locationStatus = verdict;
     }
-    const verdict = locationVerdict(
-      { lat: input.lat, lng: input.lng, accuracy: input.accuracy },
-      places.map((p) => ({ lat: p.latitude!, lng: p.longitude!, radius: p.attendance_radius_meters })),
-    );
-    if (verdict === "longe") {
-      return fail("Você precisa estar no local da aula para marcar presença.");
-    }
-    locationStatus = verdict;
   }
   let placeLabel: string | null = null;
   if (places && places.length > 0 && input.lat != null && input.lng != null) {

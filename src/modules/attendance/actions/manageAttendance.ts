@@ -64,3 +64,20 @@ export async function updateLocationCoordinates(_prev: SimpleState, formData: Fo
   revalidatePath("/coordenacao/locais");
   return { success: true };
 }
+
+/** Liga ou desliga a obrigação de localização na chamada. */
+export async function setRequireLocation(requireLocation: boolean): Promise<SimpleState> {
+  const auth = await getAuthContext();
+  if (!auth || !can(auth, { resource: "attendance", action: "correct" })) {
+    return { error: "Você não tem permissão para mudar esta configuração." };
+  }
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("attendance_settings")
+    .update({ require_location: requireLocation, updated_by: auth.userId, updated_at: new Date().toISOString() })
+    .eq("id", true)
+    .select("id");
+  if (error || !data?.length) return { error: "Não foi possível salvar. Confira se a atualização do banco (060) foi aplicada." };
+  revalidatePath("/coordenacao/presenca");
+  return { success: true };
+}

@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_settings: {
+        Row: { id: boolean; require_location: boolean; updated_by: string | null; updated_at: string }
+        Insert: { id?: boolean; require_location?: boolean; updated_by?: string | null; updated_at?: string }
+        Update: { id?: boolean; require_location?: boolean; updated_by?: string | null; updated_at?: string }
+        Relationships: []
+      }
       attendance_qr_codes: {
         Row: {
           created_at: string

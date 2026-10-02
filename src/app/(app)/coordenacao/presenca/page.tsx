@@ -5,12 +5,20 @@ import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
-import { GenerateQrCodesForm } from "@/modules/attendance/components/AttendanceForms";
+import { CopyButton } from "@/components/ui/CopyButton";
+import { getPublicEnv } from "@/lib/env";
+import { GenerateQrCodesForm, RequireLocationSwitch } from "@/modules/attendance/components/AttendanceForms";
 
 export const metadata: Metadata = { title: "Presença por QR Code" };
 
 const SCHEDULE: Record<string, string> = { terca_quinta: "Terça/quinta", sabado: "Sábado" };
-const LOCATION: Record<string, string> = { dentro: "", impreciso: "GPS impreciso", sem_local_cadastrado: "" };
+const LOCATION: Record<string, string> = {
+  dentro: "",
+  impreciso: "GPS impreciso",
+  sem_local_cadastrado: "",
+  sem_localizacao: "sem localização",
+  longe: "longe do local",
+};
 
 function time(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(
@@ -30,7 +38,7 @@ export default async function PresencaCoordenacaoPage({ searchParams }: { search
   const supabase = await createSupabaseServerClient();
 
   const [{ data: codes }, { data: volumes }, { data: meetings }] = await Promise.all([
-    supabase.from("attendance_qr_codes").select("volume_id"),
+    supabase.from("attendance_qr_codes").select("volume_id, token, volumes(name)").order("created_at"),
     supabase.from("volumes").select("id"),
     supabase
       .from("class_meetings")
@@ -40,6 +48,8 @@ export default async function PresencaCoordenacaoPage({ searchParams }: { search
       .eq("meeting_date", day)
       .order("start_time"),
   ]);
+  const { data: settings } = await supabase.from("attendance_settings").select("require_location").maybeSingle();
+  const base = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   const missingCodes = (volumes?.length ?? 0) > (codes?.length ?? 0);
 
   const meetingIds = (meetings ?? []).map((m) => m.id);
@@ -85,6 +95,23 @@ export default async function PresencaCoordenacaoPage({ searchParams }: { search
             Abrir para imprimir
           </Link>
         ) : null}
+        {(codes ?? []).length > 0 ? (
+          <ul className="flex flex-col divide-y divide-neutral-100 rounded-[var(--radius-sm)] border border-neutral-100 text-sm">
+            {(codes ?? []).map((code) => {
+              const url = `${base}/presenca/${code.token}`;
+              return (
+                <li key={code.token} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-neutral-800">{code.volumes?.name}</p>
+                    <p className="truncate text-xs text-neutral-500">{url}</p>
+                  </div>
+                  <CopyButton value={url} label="link" />
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        <RequireLocationSwitch initial={settings?.require_location ?? true} />
         <p className="text-xs text-neutral-500">
           A checagem de localização usa as coordenadas cadastradas em{" "}
           <Link href="/coordenacao/locais" className="underline">
