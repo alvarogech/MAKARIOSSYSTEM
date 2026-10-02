@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_manual_entries: {
+        Row: { id: string; meeting_id: string; enrollment_request_id: string | null; student_id: string | null; lessons: number[]; note: string | null; created_by: string | null; created_at: string }
+        Insert: { id?: string; meeting_id: string; enrollment_request_id?: string | null; student_id?: string | null; lessons: number[]; note?: string | null; created_by?: string | null; created_at?: string }
+        Update: { id?: string; meeting_id?: string; enrollment_request_id?: string | null; student_id?: string | null; lessons?: number[]; note?: string | null; created_by?: string | null; created_at?: string }
+        Relationships: []
+      }
       attendance_settings: {
         Row: { id: boolean; require_location: boolean; updated_by: string | null; updated_at: string }
         Insert: { id?: boolean; require_location?: boolean; updated_by?: string | null; updated_at?: string }

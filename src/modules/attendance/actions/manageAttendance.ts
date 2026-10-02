@@ -81,3 +81,52 @@ export async function setRequireLocation(requireLocation: boolean): Promise<Simp
   revalidatePath("/coordenacao/presenca");
   return { success: true };
 }
+
+/**
+ * Presença lançada à mão (lista de papel): substitui o lançamento anterior
+ * da mesma pessoa no mesmo encontro.
+ */
+export async function addManualAttendance(_prev: SimpleState, formData: FormData): Promise<SimpleState> {
+  const auth = await getAuthContext();
+  if (!auth || !can(auth, { resource: "attendance", action: "correct" })) {
+    return { error: "Você não tem permissão para lançar presença." };
+  }
+  const person = String(formData.get("person") ?? "");
+  const meetingId = String(formData.get("meeting") ?? "");
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const lessons = [...new Set(formData.getAll("lessons").map((v) => Number(v)))].filter((n) => Number.isInteger(n) && n > 0);
+  const match = /^(r|s):([0-9a-f-]{36})$/.exec(person);
+  if (!match) return { error: "Escolha o aluno." };
+  if (!meetingId) return { error: "Escolha o encontro." };
+  if (lessons.length === 0) return { error: "Marque pelo menos uma aula." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data: meeting } = await supabase.from("class_meetings").select("academic_minutes").eq("id", meetingId).maybeSingle();
+  if (!meeting) return { error: "Encontro não encontrado." };
+  const maxLesson = Math.round(meeting.academic_minutes / 30);
+  if (lessons.some((n) => n > maxLesson)) return { error: "Aula fora do encontro." };
+
+  const who = match[1] === "r" ? { enrollment_request_id: match[2]!, student_id: null } : { enrollment_request_id: null, student_id: match[2]! };
+  const existing = supabase.from("attendance_manual_entries").delete().eq("meeting_id", meetingId);
+  await (who.enrollment_request_id
+    ? existing.eq("enrollment_request_id", who.enrollment_request_id)
+    : existing.eq("student_id", who.student_id!).is("enrollment_request_id", null));
+
+  const { data, error } = await supabase
+    .from("attendance_manual_entries")
+    .insert({ meeting_id: meetingId, ...who, lessons: lessons.sort((a, b) => a - b), note, created_by: auth.userId })
+    .select("id");
+  if (error || !data?.length) {
+    return { error: "Não foi possível salvar. Confira se a atualização do banco (061) foi aplicada." };
+  }
+  revalidatePath("/coordenacao/presenca");
+  return { success: true };
+}
+
+export async function deleteManualAttendance(formData: FormData): Promise<void> {
+  const auth = await getAuthContext();
+  if (!auth || !can(auth, { resource: "attendance", action: "correct" })) return;
+  const supabase = await createSupabaseServerClient();
+  await supabase.from("attendance_manual_entries").delete().eq("id", String(formData.get("id") ?? ""));
+  revalidatePath("/coordenacao/presenca");
+}

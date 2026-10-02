@@ -14,6 +14,7 @@ export interface MeetingRow {
   start: string;
   end: string;
   minutes: number;
+  breakMinutes: number;
   started: boolean;
   past: boolean;
 }
@@ -29,6 +30,14 @@ export interface ClassInfo {
 export interface Person {
   key: string;
   name: string;
+  cpfLast4: string | null;
+}
+
+export interface ManualRow {
+  id: string;
+  meetingId: string;
+  personKey: string;
+  lessons: number[];
 }
 
 export interface ScanRow {
@@ -60,7 +69,7 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
  * se a pessoa já tem matrícula naquele volume, da matrícula, que vence.
  */
 export async function loadAttendanceData(supabase: DB, today: string, nowMinute: number, seasonId: string) {
-  const [classes, meetings, requests, enrollments, scans] = await Promise.all([
+  const [classes, meetings, requests, enrollments, scans, manual] = await Promise.all([
     fetchAll((a, b) =>
       supabase
         .from("classes")
@@ -72,7 +81,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
     fetchAll((a, b) =>
       supabase
         .from("class_meetings")
-        .select("id, class_id, sequence, meeting_date, start_time, end_time, academic_minutes")
+        .select("id, class_id, sequence, meeting_date, start_time, end_time, break_minutes, academic_minutes")
         .neq("status", "canceled")
         .order("meeting_date")
         .range(a, b),
@@ -80,7 +89,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
     fetchAll((a, b) =>
       supabase
         .from("enrollment_requests")
-        .select("id, full_name, student_id, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug")
+        .select("id, full_name, cpf_last4, student_id, primary_volume_slug, primary_schedule_slug, secondary_volume_slug, secondary_schedule_slug")
         .eq("status", "approved")
         .eq("season_id", seasonId)
         .order("full_name")
@@ -95,6 +104,10 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
         )
         .order("scanned_at")
         .range(a, b),
+    ),
+    // Antes da migration 061 a tabela não existe: a leitura falha e volta vazia.
+    fetchAll((a, b) =>
+      supabase.from("attendance_manual_entries").select("id, meeting_id, enrollment_request_id, student_id, lessons").range(a, b),
     ),
   ]);
 
@@ -121,6 +134,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
       start: m.start_time.slice(0, 5),
       end: m.end_time.slice(0, 5),
       minutes: m.academic_minutes,
+      breakMinutes: m.break_minutes,
       started,
       past,
     });
@@ -135,7 +149,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
   const names = new Map<string, string>();
   const linkedStudents = new Set<string>();
   for (const r of requests) {
-    const person = { key: `r:${r.id}`, name: r.full_name };
+    const person = { key: `r:${r.id}`, name: r.full_name, cpfLast4: r.cpf_last4 };
     names.set(person.key, r.full_name);
     if (r.student_id) linkedStudents.add(r.student_id);
     const pairs = [[r.primary_volume_slug, r.primary_schedule_slug]];
@@ -152,7 +166,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
   if (orphanIds.length > 0) {
     const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", orphanIds);
     for (const p of profiles ?? []) {
-      const person = { key: `s:${p.id}`, name: p.full_name };
+      const person = { key: `s:${p.id}`, name: p.full_name, cpfLast4: null };
       names.set(person.key, p.full_name);
       for (const classId of enrollmentByStudent.get(p.id) ?? []) classById.get(classId)?.roster.push(person);
     }
@@ -175,5 +189,17 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
     `${a.volumeName}${a.schedule}`.localeCompare(`${b.volumeName}${b.schedule}`),
   );
   for (const c of allClasses) c.roster.sort((a, b) => a.name.localeCompare(b.name));
-  return { classes: allClasses, scans: scanRows, names };
+  const manualRows: ManualRow[] = manual.map((m) => ({
+    id: m.id,
+    meetingId: m.meeting_id,
+    personKey: m.enrollment_request_id ? `r:${m.enrollment_request_id}` : `s:${m.student_id}`,
+    lessons: [...m.lessons].sort((x, y) => x - y),
+  }));
+  return { classes: allClasses, scans: scanRows, manual: manualRows, names };
+}
+
+/** Números das aulas do encontro que um escaneamento reconhece (bloco 2 continua a numeração). */
+export function scanLessons(s: Pick<ScanRow, "block" | "lessonsCredited" | "lessonsTotal">): number[] {
+  const offset = s.block === 2 ? s.lessonsTotal : 0;
+  return Array.from({ length: s.lessonsCredited }, (_, i) => s.lessonsTotal - s.lessonsCredited + 1 + i + offset);
 }

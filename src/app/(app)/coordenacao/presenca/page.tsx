@@ -7,9 +7,12 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { getPublicEnv } from "@/lib/env";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
+import { deleteManualAttendance } from "@/modules/attendance/actions/manageAttendance";
 import { GenerateQrCodesForm, RequireLocationSwitch } from "@/modules/attendance/components/AttendanceForms";
+import { ManualAttendanceForm, type ManualClassOption } from "@/modules/attendance/components/ManualAttendanceForm";
 import { computeProgress, formatHours, type Situation } from "@/modules/attendance/progress";
-import { loadAttendanceData, type ScanRow } from "@/modules/attendance/report";
+import { loadAttendanceData, scanLessons, type ScanRow } from "@/modules/attendance/report";
+import { LESSON_MINUTES, meetingBlocks } from "@/modules/attendance/rules";
 
 export const metadata: Metadata = { title: "Presença por QR Code" };
 
@@ -47,9 +50,15 @@ function nowMinuteSaoPaulo() {
   return get("hour") * 60 + get("minute");
 }
 
+function lessonList(numbers: number[]) {
+  if (numbers.length === 0) return "nenhuma aula";
+  if (numbers.length === 1) return `aula ${numbers[0]}`;
+  return `aulas ${numbers.slice(0, -1).join(", ")} e ${numbers[numbers.length - 1]}`;
+}
+
 function scanDetail(s: ScanRow) {
   const extra = LOCATION[s.locationStatus] ? `, ${LOCATION[s.locationStatus]}` : "";
-  return `${s.block === 1 ? "Antes do intervalo" : "Depois do intervalo"} às ${time(s.scannedAt)}, ${s.lessonsCredited}/${s.lessonsTotal} aulas${extra}`;
+  return `QR ${s.block === 1 ? "antes do intervalo" : "depois do intervalo"} às ${time(s.scannedAt)}: ${lessonList(scanLessons(s))}${extra}`;
 }
 
 export default async function PresencaCoordenacaoPage({
@@ -67,6 +76,7 @@ export default async function PresencaCoordenacaoPage({
   const today = getSaoPauloDateKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : today;
   const general = aba === "geral";
+  const manualTab = aba === "manual";
   const supabase = await createSupabaseServerClient();
   // Uma turma por semestre: o relatório mostra uma temporada por vez, a mais
   // recente por padrão.
@@ -133,15 +143,18 @@ export default async function PresencaCoordenacaoPage({
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-5 text-sm">
-            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(!general)}>
+            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(!general && !manualTab)}>
               Relatório do dia
             </Link>
             <Link href={`?aba=geral&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(general)}>
               Relatório geral
             </Link>
+            <Link href={`?aba=manual&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(manualTab)}>
+              Presença manual
+            </Link>
           </div>
           <form method="get" className="flex items-center gap-2 text-sm text-neutral-600">
-            <input type="hidden" name="aba" value={general ? "geral" : "dia"} />
+            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : "dia"} />
             <input type="hidden" name="dia" value={day} />
             <label htmlFor="temporada">Temporada</label>
             <select
@@ -162,7 +175,40 @@ export default async function PresencaCoordenacaoPage({
           </form>
         </div>
 
-        {!general ? (
+        {manualTab ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-neutral-500">
+              Para quem não conseguiu escanear e assinou a lista de papel. Marque só as aulas em que a pessoa esteve: quem chegou
+              atrasado ou saiu mais cedo perde as aulas que não assistiu. Lançar de novo no mesmo encontro substitui o anterior.
+            </p>
+            <ManualAttendanceForm
+              classes={data.classes.map(
+                (c): ManualClassOption => ({
+                  id: c.id,
+                  label: `${c.volumeName}, ${SCHEDULE[c.schedule] ?? c.schedule}`,
+                  roster: c.roster,
+                  meetings: c.meetings.map((m) => {
+                    const blocks = meetingBlocks({ startTime: m.start, endTime: m.end, breakMinutes: m.breakMinutes });
+                    const hhmm = (x: number) => `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+                    let n = 0;
+                    return {
+                      id: m.id,
+                      label: `Encontro ${m.sequence}, ${br(m.date)} (${m.start} às ${m.end})`,
+                      lessons: blocks.flatMap((b) =>
+                        Array.from({ length: b.lessons }, (_, i) => ({
+                          number: ++n,
+                          start: hhmm(b.start + i * LESSON_MINUTES),
+                          end: hhmm(b.start + (i + 1) * LESSON_MINUTES),
+                          block: b.block,
+                        })),
+                      ),
+                    };
+                  }),
+                }),
+              )}
+            />
+          </div>
+        ) : !general ? (
           <>
             <form className="flex flex-wrap items-end gap-2" method="get">
               <input type="hidden" name="aba" value="dia" />
@@ -193,6 +239,8 @@ export default async function PresencaCoordenacaoPage({
                   const rosterKeys = new Set(c.roster.map((p) => p.key));
                   const byPerson = new Map<string, ScanRow[]>();
                   for (const s of scans) byPerson.set(s.personKey, [...(byPerson.get(s.personKey) ?? []), s]);
+                  const manual = new Map(data.manual.filter((e) => e.meetingId === m.id).map((e) => [e.personKey, e]));
+                  for (const k of manual.keys()) if (!byPerson.has(k)) byPerson.set(k, []);
                   const came = [...byPerson.entries()].filter(([k, list]) => rosterKeys.has(k) && !list.some((s) => s.makeupFor));
                   const makeup = [...byPerson.entries()].filter(([k, list]) => !rosterKeys.has(k) || list.some((s) => s.makeupFor));
                   const missing = m.started ? c.roster.filter((p) => !byPerson.has(p.key)) : [];
@@ -210,12 +258,26 @@ export default async function PresencaCoordenacaoPage({
                         <p className="text-xs font-semibold tracking-wide text-green-700 uppercase">Vieram</p>
                         {came.length === 0 ? <p className="text-sm text-neutral-400">Ninguém.</p> : null}
                         <ul className="divide-y divide-neutral-100 text-sm">
-                          {came.map(([k, list]) => (
-                            <li key={k} className="py-1.5">
-                              <span className="font-medium text-neutral-800">{nameOf(k)}</span>
-                              <span className="block text-xs text-neutral-500">{list.map(scanDetail).join(" · ")}</span>
-                            </li>
-                          ))}
+                          {came.map(([k, list]) => {
+                            const entry = manual.get(k);
+                            return (
+                              <li key={k} className="py-1.5">
+                                <span className="font-medium text-neutral-800">{nameOf(k)}</span>
+                                {list.length > 0 ? (
+                                  <span className="block text-xs text-neutral-500">{list.map(scanDetail).join(" · ")}</span>
+                                ) : null}
+                                {entry ? (
+                                  <form action={deleteManualAttendance} className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                                    <input type="hidden" name="id" value={entry.id} />
+                                    Lançado à mão: {lessonList(entry.lessons)}
+                                    <button type="submit" className="text-red-700 hover:underline">
+                                      apagar
+                                    </button>
+                                  </form>
+                                ) : null}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
 
@@ -259,15 +321,23 @@ export default async function PresencaCoordenacaoPage({
             </p>
             {data.classes.map((c) => {
               const meetings = c.meetings.map((m) => ({ id: m.id, minutes: m.minutes, past: m.past }));
-              const rows = c.roster.map((p) => ({
-                person: p,
-                progress: computeProgress(
-                  meetings,
-                  data.scans
-                    .filter((s) => s.personKey === p.key)
-                    .map((s) => ({ meetingId: s.meetingId, makeupForMeetingId: s.makeupFor, minutes: s.minutes })),
-                ),
-              }));
+              const rows = c.roster.map((p) => {
+                // Na turma da pessoa: aulas do QR e da lista de papel somadas sem
+                // contar duas vezes. Reposição em outra turma entra em minutos.
+                const own = new Map<string, Set<number>>();
+                const credits = [];
+                for (const s of data.scans.filter((x) => x.personKey === p.key)) {
+                  if (s.makeupFor) credits.push({ meetingId: s.meetingId, makeupForMeetingId: s.makeupFor, minutes: s.minutes });
+                  else own.set(s.meetingId, new Set([...(own.get(s.meetingId) ?? []), ...scanLessons(s)]));
+                }
+                for (const e of data.manual.filter((x) => x.personKey === p.key)) {
+                  own.set(e.meetingId, new Set([...(own.get(e.meetingId) ?? []), ...e.lessons]));
+                }
+                for (const [meetingId, set] of own) {
+                  credits.push({ meetingId, makeupForMeetingId: null, minutes: set.size * LESSON_MINUTES });
+                }
+                return { person: p, progress: computeProgress(meetings, credits) };
+              });
               const failing = rows.filter((r) => r.progress.situation === "reprovado").length;
               const done = c.meetings.filter((m) => m.past).length;
               return (
