@@ -44,12 +44,16 @@ begin
     insert into auth.users (
       instance_id, id, aud, role, email, encrypted_password,
       email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-      is_super_admin, created_at, updated_at
+      is_super_admin, created_at, updated_at,
+      -- O GoTrue le estas colunas como texto e quebra o login com
+      -- "Database error querying schema" quando elas sao NULL.
+      confirmation_token, recovery_token, email_change, email_change_token_new
     ) values (
       v_instance_id, v_user.id, 'authenticated', 'authenticated', v_user.email, v_password,
       now(), '{"provider":"email","providers":["email"]}'::jsonb,
       jsonb_build_object('full_name', v_user.full_name),
-      false, now(), now()
+      false, now(), now(),
+      '', '', '', ''
     )
     on conflict (id) do nothing;
 
@@ -489,7 +493,7 @@ begin
   join public.seasons s on s.id = o.season_id
   where o.volume_id = v_essencia_id and s.name = '2026.2';
 
-  select id into v_lesson1_id from public.lessons l
+  select l.id into v_lesson1_id from public.lessons l
   join public.modules m on m.id = l.module_id
   where m.volume_id = v_essencia_id and l.order_index = 1;
 

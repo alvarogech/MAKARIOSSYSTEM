@@ -4,6 +4,7 @@ import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateLocationForm } from "@/modules/academic/components/CreateLocationForm";
+import { LocationCoordinatesForm } from "@/modules/attendance/components/AttendanceForms";
 
 export const metadata: Metadata = { title: "Locais" };
 
@@ -18,7 +19,7 @@ export default async function LocaisPage() {
   const supabase = await createSupabaseServerClient();
   const { data: locations } = await supabase
     .from("locations")
-    .select("id, name, address, entry_instructions, parking_instructions, arrival_minutes_before, coordination_contact")
+    .select("id, name, address, entry_instructions, parking_instructions, arrival_minutes_before, coordination_contact, latitude, longitude")
     .order("name");
 
   return (
@@ -43,6 +44,13 @@ export default async function LocaisPage() {
                 {location.arrival_minutes_before ? `Chegar ${location.arrival_minutes_before} min antes · ` : ""}
                 {location.coordination_contact ? `Contato: ${location.coordination_contact}` : ""}
               </div>
+              <div className="mt-2 text-xs text-neutral-500">
+                Coordenadas para a chamada por QR Code (no Google Maps, clique com o botão direito no prédio e copie os números):
+              </div>
+              <LocationCoordinatesForm
+                id={location.id}
+                current={location.latitude != null ? `${location.latitude}, ${location.longitude}` : ""}
+              />
             </li>
           ))}
           {(locations ?? []).length === 0 ? <li className="py-2 text-neutral-400">Nenhum local cadastrado ainda.</li> : null}

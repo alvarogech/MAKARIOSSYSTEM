@@ -14,6 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_qr_codes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          token: string
+          volume_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          token: string
+          volume_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          token?: string
+          volume_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_qr_codes_volume_id_fkey"
+            columns: ["volume_id"]
+            isOneToOne: false
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_scans: {
+        Row: {
+          block: number
+          created_at: string
+          enrollment_request_id: string | null
+          id: string
+          identified_by: string
+          lessons_credited: number
+          lessons_total: number
+          location_status: string
+          makeup_for_meeting_id: string | null
+          meeting_id: string
+          qr_code_id: string
+          recognized_minutes: number
+          scanned_at: string
+          student_id: string | null
+        }
+        Insert: {
+          block: number
+          created_at?: string
+          enrollment_request_id?: string | null
+          id?: string
+          identified_by: string
+          lessons_credited: number
+          lessons_total: number
+          location_status: string
+          makeup_for_meeting_id?: string | null
+          meeting_id: string
+          qr_code_id: string
+          recognized_minutes: number
+          scanned_at?: string
+          student_id?: string | null
+        }
+        Update: {
+          block?: number
+          created_at?: string
+          enrollment_request_id?: string | null
+          id?: string
+          identified_by?: string
+          lessons_credited?: number
+          lessons_total?: number
+          location_status?: string
+          makeup_for_meeting_id?: string | null
+          meeting_id?: string
+          qr_code_id?: string
+          recognized_minutes?: number
+          scanned_at?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_scans_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scans_makeup_for_meeting_id_fkey"
+            columns: ["makeup_for_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scans_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scans_qr_code_id_fkey"
+            columns: ["qr_code_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_qr_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activities: {
         Row: {
           blocks_progress: boolean
@@ -1581,10 +1693,13 @@ export type Database = {
         Row: {
           address: string | null
           arrival_minutes_before: number | null
+          attendance_radius_meters: number
           coordination_contact: string | null
           created_at: string
           entry_instructions: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           parking_instructions: string | null
           resources: string[]
@@ -1593,10 +1708,13 @@ export type Database = {
         Insert: {
           address?: string | null
           arrival_minutes_before?: number | null
+          attendance_radius_meters?: number
           coordination_contact?: string | null
           created_at?: string
           entry_instructions?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           parking_instructions?: string | null
           resources?: string[]
@@ -1605,10 +1723,13 @@ export type Database = {
         Update: {
           address?: string | null
           arrival_minutes_before?: number | null
+          attendance_radius_meters?: number
           coordination_contact?: string | null
           created_at?: string
           entry_instructions?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           parking_instructions?: string | null
           resources?: string[]
