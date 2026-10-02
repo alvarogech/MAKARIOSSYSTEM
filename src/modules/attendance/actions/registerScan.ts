@@ -38,6 +38,8 @@ export type ScanResult =
       block: 1 | 2;
       date: string;
       time: string;
+      /** Hora deste escaneamento (difere de `time` quando a presença já existia). */
+      scannedNowTime: string;
       /** Números das aulas do encontro que valeram (1 a 4 na terça/quinta, 1 a 8 no sábado). */
       lessonNumbers: number[];
       lessonsCredited: number;
@@ -382,6 +384,7 @@ export async function registerScan(input: ScanInput): Promise<ScanResult> {
     block: evaluation.block,
     date: formatDate(registeredAt),
     time: formatTime(registeredAt),
+    scannedNowTime: formatTime(scannedAt),
     lessonNumbers: Array.from(
       { length: credited },
       (_, i) => evaluation.lessonsTotal - credited + 1 + i + (evaluation.block === 2 ? evaluation.lessonsTotal : 0),

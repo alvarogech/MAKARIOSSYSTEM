@@ -94,6 +94,11 @@ export function ScanAttendance({ token }: { token: string }) {
           <br />
           Dia {result.date}, às {result.time} (horário de Brasília)
         </p>
+        {result.alreadyRegistered ? (
+          <p className="text-sm text-neutral-500">
+            Você escaneou de novo às {result.scannedNowTime}. Vale o primeiro escaneamento deste bloco, às {result.time}.
+          </p>
+        ) : null}
         <div className="rounded-[var(--radius-sm)] bg-neutral-50 px-3 py-3 text-left text-sm text-neutral-700">
           <p className="font-medium text-neutral-900">
             Encontro {result.sequence}, {result.block === 1 ? "antes do intervalo" : "depois do intervalo"}: {result.blockStart} às{" "}
