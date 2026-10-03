@@ -14,134 +14,11 @@ export type Database = {
   }
   public: {
     Tables: {
-      attendance_manual_entries: {
-        Row: { id: string; meeting_id: string; enrollment_request_id: string | null; student_id: string | null; lessons: number[]; note: string | null; created_by: string | null; created_at: string }
-        Insert: { id?: string; meeting_id: string; enrollment_request_id?: string | null; student_id?: string | null; lessons: number[]; note?: string | null; created_by?: string | null; created_at?: string }
-        Update: { id?: string; meeting_id?: string; enrollment_request_id?: string | null; student_id?: string | null; lessons?: number[]; note?: string | null; created_by?: string | null; created_at?: string }
-        Relationships: []
-      }
-      attendance_settings: {
-        Row: { id: boolean; require_location: boolean; updated_by: string | null; updated_at: string }
-        Insert: { id?: boolean; require_location?: boolean; updated_by?: string | null; updated_at?: string }
-        Update: { id?: boolean; require_location?: boolean; updated_by?: string | null; updated_at?: string }
-        Relationships: []
-      }
-      attendance_qr_codes: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          token: string
-          volume_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          token: string
-          volume_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          token?: string
-          volume_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_qr_codes_volume_id_fkey"
-            columns: ["volume_id"]
-            isOneToOne: false
-            referencedRelation: "volumes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      attendance_scans: {
-        Row: {
-          block: number
-          created_at: string
-          enrollment_request_id: string | null
-          id: string
-          identified_by: string
-          lessons_credited: number
-          lessons_total: number
-          location_status: string
-          makeup_for_meeting_id: string | null
-          meeting_id: string
-          qr_code_id: string
-          recognized_minutes: number
-          scanned_at: string
-          student_id: string | null
-        }
-        Insert: {
-          block: number
-          created_at?: string
-          enrollment_request_id?: string | null
-          id?: string
-          identified_by: string
-          lessons_credited: number
-          lessons_total: number
-          location_status: string
-          makeup_for_meeting_id?: string | null
-          meeting_id: string
-          qr_code_id: string
-          recognized_minutes: number
-          scanned_at?: string
-          student_id?: string | null
-        }
-        Update: {
-          block?: number
-          created_at?: string
-          enrollment_request_id?: string | null
-          id?: string
-          identified_by?: string
-          lessons_credited?: number
-          lessons_total?: number
-          location_status?: string
-          makeup_for_meeting_id?: string | null
-          meeting_id?: string
-          qr_code_id?: string
-          recognized_minutes?: number
-          scanned_at?: string
-          student_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_scans_enrollment_request_id_fkey"
-            columns: ["enrollment_request_id"]
-            isOneToOne: false
-            referencedRelation: "enrollment_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_scans_makeup_for_meeting_id_fkey"
-            columns: ["makeup_for_meeting_id"]
-            isOneToOne: false
-            referencedRelation: "class_meetings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_scans_meeting_id_fkey"
-            columns: ["meeting_id"]
-            isOneToOne: false
-            referencedRelation: "class_meetings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_scans_qr_code_id_fkey"
-            columns: ["qr_code_id"]
-            isOneToOne: false
-            referencedRelation: "attendance_qr_codes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       activities: {
         Row: {
           blocks_progress: boolean
           created_at: string
+          external_ref: string | null
           id: string
           instructions: string | null
           lesson_id: string
@@ -154,6 +31,7 @@ export type Database = {
         Insert: {
           blocks_progress?: boolean
           created_at?: string
+          external_ref?: string | null
           id?: string
           instructions?: string | null
           lesson_id: string
@@ -166,6 +44,7 @@ export type Database = {
         Update: {
           blocks_progress?: boolean
           created_at?: string
+          external_ref?: string | null
           id?: string
           instructions?: string | null
           lesson_id?: string
@@ -775,6 +654,86 @@ export type Database = {
           },
         ]
       }
+      attendance_manual_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          enrollment_request_id: string | null
+          id: string
+          lessons: number[]
+          meeting_id: string
+          note: string | null
+          student_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          enrollment_request_id?: string | null
+          id?: string
+          lessons: number[]
+          meeting_id: string
+          note?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          enrollment_request_id?: string | null
+          id?: string
+          lessons?: number[]
+          meeting_id?: string
+          note?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_manual_entries_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_manual_entries_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_qr_codes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          token: string
+          volume_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          token: string
+          volume_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          token?: string
+          volume_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_qr_codes_volume_id_fkey"
+            columns: ["volume_id"]
+            isOneToOne: true
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           enrollment_id: string
@@ -828,6 +787,107 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      attendance_scans: {
+        Row: {
+          block: number
+          created_at: string
+          enrollment_request_id: string | null
+          id: string
+          identified_by: string
+          lessons_credited: number
+          lessons_total: number
+          location_status: string
+          makeup_for_meeting_id: string | null
+          meeting_id: string
+          qr_code_id: string
+          recognized_minutes: number
+          scanned_at: string
+          student_id: string | null
+        }
+        Insert: {
+          block: number
+          created_at?: string
+          enrollment_request_id?: string | null
+          id?: string
+          identified_by: string
+          lessons_credited: number
+          lessons_total: number
+          location_status: string
+          makeup_for_meeting_id?: string | null
+          meeting_id: string
+          qr_code_id: string
+          recognized_minutes: number
+          scanned_at?: string
+          student_id?: string | null
+        }
+        Update: {
+          block?: number
+          created_at?: string
+          enrollment_request_id?: string | null
+          id?: string
+          identified_by?: string
+          lessons_credited?: number
+          lessons_total?: number
+          location_status?: string
+          makeup_for_meeting_id?: string | null
+          meeting_id?: string
+          qr_code_id?: string
+          recognized_minutes?: number
+          scanned_at?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_scans_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scans_makeup_for_meeting_id_fkey"
+            columns: ["makeup_for_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scans_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scans_qr_code_id_fkey"
+            columns: ["qr_code_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_qr_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_settings: {
+        Row: {
+          id: boolean
+          require_location: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          require_location?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          require_location?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       class_meeting_blocks: {
         Row: {
@@ -1811,6 +1871,56 @@ export type Database = {
         }
         Relationships: []
       }
+      practice_challenges: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          author_id: string | null
+          created_at: string
+          external_ref: string | null
+          id: string
+          lesson_id: string
+          prompt: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          author_id?: string | null
+          created_at?: string
+          external_ref?: string | null
+          id?: string
+          lesson_id: string
+          prompt: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          author_id?: string | null
+          created_at?: string
+          external_ref?: string | null
+          id?: string
+          lesson_id?: string
+          prompt?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_challenges_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prerequisite_exceptions: {
         Row: {
           authorized_by: string
@@ -1903,6 +2013,8 @@ export type Database = {
       }
       question_bank: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           author_id: string | null
           bible_reference: string | null
           created_at: string
@@ -1918,9 +2030,12 @@ export type Database = {
           topic: string | null
           type: Database["public"]["Enums"]["question_type"]
           updated_at: string
+          version: number
           volume_id: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           author_id?: string | null
           bible_reference?: string | null
           created_at?: string
@@ -1936,9 +2051,12 @@ export type Database = {
           topic?: string | null
           type: Database["public"]["Enums"]["question_type"]
           updated_at?: string
+          version?: number
           volume_id?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           author_id?: string | null
           bible_reference?: string | null
           created_at?: string
@@ -1954,6 +2072,7 @@ export type Database = {
           topic?: string | null
           type?: Database["public"]["Enums"]["question_type"]
           updated_at?: string
+          version?: number
           volume_id?: string | null
         }
         Relationships: [

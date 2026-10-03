@@ -203,6 +203,9 @@ export default async function DashboardPage() {
             <Link href="/conteudo/avaliacoes" className={buttonVariants({ variant: "secondary" })}>
               Avaliações
             </Link>
+            <Link href="/conteudo/revisao" className={buttonVariants({ variant: "secondary" })}>
+              Revisão de questões
+            </Link>
           </div>
         </Card>
       ) : null}

@@ -52,7 +52,9 @@ export type PermissionCheck =
   | { resource: "enrollment_requests"; action: "manage" }
   | { resource: "content"; action: "manage" }
   | { resource: "question_bank"; action: "manage" }
+  | { resource: "question_bank"; action: "approve" }
   | { resource: "activities"; action: "manage" }
+  | { resource: "activities"; action: "publish" }
   | { resource: "release_rules"; action: "manage" }
   | { resource: "attendance"; action: "record" }
   | { resource: "attendance"; action: "correct" }

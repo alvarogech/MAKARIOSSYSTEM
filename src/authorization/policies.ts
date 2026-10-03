@@ -49,7 +49,11 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "enrollment_requests:manage": ["coordinator", "admin"],
   "content:manage": ["coordinator", "admin", "content_editor"],
   "question_bank:manage": ["coordinator", "admin", "content_editor"],
+  // Aprovar/publicar conteúdo pedagógico é decisão humana de coordenação/admin;
+  // o editor prepara e envia para revisão, nunca aprova o próprio trabalho.
+  "question_bank:approve": ["coordinator", "admin"],
   "activities:manage": ["coordinator", "admin", "content_editor"],
+  "activities:publish": ["coordinator", "admin"],
   "release_rules:manage": ["coordinator", "admin", "content_editor"],
   // Escopo por turma (professor só na própria) é responsabilidade da RLS
   // (is_teacher_assigned_to_class) — esta checagem só resolve "o perfil
