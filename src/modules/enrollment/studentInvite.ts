@@ -1,10 +1,12 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getPublicEnv } from "@/lib/env";
 import { formatSaoPauloLongDate, formatSaoPauloTimeRange } from "@/lib/saoPauloDate";
-import { generateInviteToken, hashInviteToken } from "@/modules/auth/inviteTokens";
+import { deriveStudentInviteToken, hashInviteToken } from "@/modules/auth/inviteTokens";
 import { sendMail } from "@/modules/notifications/mailer";
 import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 
@@ -200,7 +202,8 @@ export async function createStudentOnboardingInvitation(
     }
   }
 
-  const rawToken = generateInviteToken();
+  const invitationId = randomUUID();
+  const rawToken = deriveStudentInviteToken(invitationId);
   const tokenHash = hashInviteToken(rawToken);
   const expiresAt = new Date(Date.now() + STUDENT_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 
@@ -247,6 +250,7 @@ export async function createStudentOnboardingInvitation(
   const { data: insertedInvite, error: insertError } = await supabase
     .from("invitations")
     .insert({
+      id: invitationId,
       email: request.email,
       intended_role_id: studentRole.id,
       invited_by: invitedBy,

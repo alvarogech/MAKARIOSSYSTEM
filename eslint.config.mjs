@@ -64,6 +64,10 @@ const eslintConfig = [
       // Único lugar que monta o transporte SMTP — precisa das credenciais
       // server-only (SMTP_*) de @/lib/serverEnv.
       "src/modules/notifications/mailer.ts",
+      // Deriva o token estável do convite de aluno (HMAC com o segredo do
+      // servidor) — o link do e-mail inicial, dos lembretes e dos reenvios
+      // é sempre o mesmo.
+      "src/modules/auth/inviteTokens.ts",
       // Lembrete de primeiro acesso do aluno é disparado por uma rota de
       // cron sem sessão de usuário — precisa do client administrativo
       // para ler/escrever `invitations` de qualquer um.

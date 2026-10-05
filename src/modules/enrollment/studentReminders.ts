@@ -3,7 +3,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { getPublicEnv } from "@/lib/env";
 import { formatSaoPauloLongDate } from "@/lib/saoPauloDate";
-import { generateInviteToken, hashInviteToken } from "@/modules/auth/inviteTokens";
+import { deriveStudentInviteToken, hashInviteToken } from "@/modules/auth/inviteTokens";
 import { sendMail } from "@/modules/notifications/mailer";
 
 const FIRST_REMINDER_AFTER_DAYS = 3;
@@ -176,21 +176,22 @@ export async function sendDueStudentOnboardingReminders(): Promise<{ sent: numbe
   let failed = 0;
 
   for (const { invite, isFinal, neverDelivered, firstMeetingDate } of due.slice(0, MAX_SENDS_PER_RUN)) {
-    // O token bruto nunca é persistido (só o hash) — então um lembrete não
-    // pode reusar o link original. Em vez disso, troca para um novo token
-    // de MESMA validade/estado (não reseta expiração nem conta de
-    // tentativa), só pra ter algo a colocar no e-mail.
-    const rawToken = generateInviteToken();
+    // O token é derivado do id do convite (ver deriveStudentInviteToken):
+    // o lembrete leva o mesmo link do e-mail inicial, então nenhum e-mail
+    // anterior perde a validade. Só grava o hash se ainda não for o estável
+    // (convites antigos tinham token aleatório).
+    const rawToken = deriveStudentInviteToken(invite.id);
     const tokenHash = hashInviteToken(rawToken);
 
-    const { error: rotateError } = await admin
-      .from("invitations")
-      .update({ token_hash: tokenHash })
-      .eq("id", invite.id)
-      .eq("token_hash", invite.token_hash);
-    if (rotateError) {
-      failed += 1;
-      continue;
+    if (invite.token_hash !== tokenHash) {
+      const { error: rotateError } = await admin
+        .from("invitations")
+        .update({ token_hash: tokenHash })
+        .eq("id", invite.id);
+      if (rotateError) {
+        failed += 1;
+        continue;
+      }
     }
 
     const link = `${appUrl}/convite-aluno/${rawToken}`;
@@ -271,14 +272,14 @@ export async function resendStudentOnboardingInvite(
     : null;
   const isFinal = daysUntilClass !== null && daysUntilClass <= FINAL_REMINDER_WITHIN_DAYS;
 
-  const rawToken = generateInviteToken();
+  const rawToken = deriveStudentInviteToken(invite.id);
   const tokenHash = hashInviteToken(rawToken);
 
+  // Mesmo link de sempre (estável); só renova a validade para mais 14 dias.
   const { error: rotateError } = await admin
     .from("invitations")
     .update({ token_hash: tokenHash, token_expires_at: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString() })
-    .eq("id", invite.id)
-    .eq("token_hash", invite.token_hash ?? "");
+    .eq("id", invite.id);
   if (rotateError) {
     return { ok: false, error: "Não foi possível gerar um novo link." };
   }
