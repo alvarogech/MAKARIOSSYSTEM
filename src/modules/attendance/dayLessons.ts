@@ -1,23 +1,26 @@
-import { LESSON_MINUTES, meetingBlocks, toMinutes, type MeetingTimes } from "./rules";
+import { LESSON_MINUTES, meetingBlocks, type MeetingTimes } from "./rules";
 
-/** Antecedência com que uma aula já pode ser marcada (a pessoa chega e marca antes de começar). */
-export const MARK_OPENS_BEFORE_MINUTES = 30;
+/** Aula que o aluno enxerga: 1 hora (terça/quinta: 2 aulas; sábado: 4). */
+export const HOUR_MINUTES = 60;
+/** O banco e os relatórios contam em unidades de 30 min; cada aula de 1 hora = 2 unidades. */
+export const UNITS_PER_LESSON = HOUR_MINUTES / LESSON_MINUTES;
 
 export interface DayLessonInfo {
-  /** Numeração do encontro: 1 a 4 (terça/quinta) ou 1 a 8 (sábado); o bloco 2 continua a do bloco 1. */
+  /** Numeração do encontro: 1 a 2 (terça/quinta) ou 1 a 4 (sábado); o bloco 2 continua a do bloco 1. */
   number: number;
   block: 1 | 2;
   /** "HH:MM" */
   start: string;
   end: string;
-  startMinute: number;
   subject: string | null;
+  /** Unidades de 30 min que esta aula cobre (como o banco registra): aula 1 = [1, 2], aula 2 = [3, 4]... */
+  units: number[];
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 /**
- * As aulas de 30 min de um encontro, na ordem, cada uma com seu horário e a
+ * As aulas de 1 hora de um encontro, na ordem, cada uma com seu horário e a
  * matéria que está sendo dada naquele horário (quando a coordenação já montou
  * a escala do encontro).
  */
@@ -28,26 +31,34 @@ export function dayLessons(
   const lessons: DayLessonInfo[] = [];
   let number = 0;
   for (const block of meetingBlocks(meeting)) {
-    for (let i = 0; i < block.lessons; i++) {
+    const count = Math.round((block.end - block.start) / HOUR_MINUTES);
+    for (let i = 0; i < count; i++) {
       number += 1;
-      const start = block.start + i * LESSON_MINUTES;
-      const end = start + LESSON_MINUTES;
+      const start = block.start + i * HOUR_MINUTES;
       const subject = subjects.find((s) => s.start <= start && start < s.end)?.name ?? null;
-      lessons.push({ number, block: block.block, start: hhmm(start), end: hhmm(end), startMinute: start, subject });
+      lessons.push({
+        number,
+        block: block.block,
+        start: hhmm(start),
+        end: hhmm(start + HOUR_MINUTES),
+        subject,
+        units: Array.from({ length: UNITS_PER_LESSON }, (_, k) => (number - 1) * UNITS_PER_LESSON + k + 1),
+      });
     }
   }
   return lessons;
 }
 
-/** Já dá para marcar: a aula começa em até 30 min (ou já começou). */
-export function isLessonOpen(lesson: Pick<DayLessonInfo, "startMinute">, nowMinute: number): boolean {
-  return nowMinute >= lesson.startMinute - MARK_OPENS_BEFORE_MINUTES;
+/** Aulas de 1 hora inteiramente cobertas pelas unidades de 30 min registradas. */
+export function lessonsFromUnits(lessons: DayLessonInfo[], units: Iterable<number>): number[] {
+  const set = new Set(units);
+  return lessons.filter((l) => l.units.every((u) => set.has(u))).map((l) => l.number);
 }
 
 /**
- * Números das aulas que um registro de presença cobre. Registros novos
- * guardam exatamente o que o aluno marcou; os antigos (leitura do QR com
- * tolerância de horário) deduzem: as ÚLTIMAS aulas do bloco.
+ * Números (em unidades de 30 min) que um registro de presença cobre. Registros
+ * novos guardam exatamente o que o aluno marcou; os antigos (leitura do QR com
+ * tolerância de horário) deduzem: as ÚLTIMAS unidades do bloco.
  */
 export function lessonNumbersOfScan(row: {
   block: number;
@@ -61,9 +72,4 @@ export function lessonNumbersOfScan(row: {
     { length: row.lessons_credited },
     (_, i) => row.lessons_total - row.lessons_credited + 1 + i + offset,
   );
-}
-
-/** Usado só para conferir horários vindos do banco ("HH:MM:SS"). */
-export function minutesOf(time: string): number {
-  return toMinutes(time);
 }

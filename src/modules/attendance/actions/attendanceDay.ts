@@ -15,7 +15,7 @@ import {
   toMinutes,
   type ScheduleSlug,
 } from "../rules";
-import { dayLessons, isLessonOpen, lessonNumbersOfScan } from "../dayLessons";
+import { dayLessons, lessonNumbersOfScan, lessonsFromUnits } from "../dayLessons";
 
 const DEVICE_COOKIE = "makarios_presenca";
 
@@ -33,8 +33,6 @@ export interface DayLesson {
   start: string;
   end: string;
   subject: string | null;
-  /** Já dá para marcar (a aula começou ou começa em até 30 min). */
-  open: boolean;
   selected: boolean;
 }
 
@@ -61,17 +59,6 @@ export type SaveResult =
 
 function fail(message: string, code: "precisa_cpf" | "precisa_localizacao" | "erro" = "erro") {
   return { ok: false as const, code, message };
-}
-
-function saoPauloMinuteNow(now: Date): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Sao_Paulo",
-    hourCycle: "h23",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(now);
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
-  return get("hour") * 60 + get("minute");
 }
 
 const SCHEDULE_LABELS: Record<string, string> = { terca_quinta: "Terça e quinta", sabado: "Sábado" };
@@ -278,7 +265,6 @@ async function resolveContext(supabase: Admin, input: DayInput) {
     supabase,
     qr: { id: qr.id, volumeId: qr.volume_id, volumeName: qr.volumes.name },
     now,
-    nowMinute: saoPauloMinuteNow(now),
     today,
     meeting,
     attendedSchedule,
@@ -373,7 +359,7 @@ export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
 
   const lessons = await loadLessons(ctx);
   const rows = await existingRows(ctx);
-  const marked = new Set(rows.flatMap((r) => lessonNumbersOfScan(r)));
+  const markedLessons = new Set(lessonsFromUnits(lessons, rows.flatMap((r) => lessonNumbersOfScan(r))));
 
   rememberDevice(ctx);
 
@@ -395,9 +381,12 @@ export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
     dateLabel,
     scheduleLabel: SCHEDULE_LABELS[ctx.attendedSchedule] ?? ctx.attendedSchedule,
     lessons: lessons.map((l) => ({
-      ...l,
-      open: isLessonOpen(l, ctx.nowMinute),
-      selected: marked.has(l.number),
+      number: l.number,
+      block: l.block,
+      start: l.start,
+      end: l.end,
+      subject: l.subject,
+      selected: markedLessons.has(l.number),
     })),
     hasRecord: rows.length > 0,
     placeLabel: ctx.placeLabel,
@@ -406,9 +395,8 @@ export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
 }
 
 /**
- * Passo 2: grava as aulas que a pessoa marcou. Pode ser refeito no mesmo dia
- * (substitui a marcação anterior). Aulas que ainda não começaram não podem ser
- * marcadas — a presença é conferida pelo relógio do servidor, não do celular.
+ * Passo 2: grava as aulas que a pessoa marcou (uma vez no dia basta). Pode ser
+ * refeito no mesmo dia: a nova marcação substitui a anterior.
  */
 export async function saveAttendanceDay(input: DayInput & { lessons: number[] }): Promise<SaveResult> {
   const ctx = await resolveContext(createSupabaseAdminClient(), input);
@@ -418,13 +406,7 @@ export async function saveAttendanceDay(input: DayInput & { lessons: number[] })
   const byNumber = new Map(lessons.map((l) => [l.number, l]));
   const chosen = [...new Set(input.lessons)].filter((n) => Number.isInteger(n)).sort((a, b) => a - b);
 
-  for (const n of chosen) {
-    const lesson = byNumber.get(n);
-    if (!lesson) return fail("Aula inválida. Atualize a página e marque de novo.");
-    if (!isLessonOpen(lesson, ctx.nowMinute)) {
-      return fail(`A aula ${n} (${lesson.start}) ainda não começou — marque só as aulas em que você já está presente.`);
-    }
-  }
+  if (chosen.some((n) => !byNumber.has(n))) return fail("Aula inválida. Atualize a página e marque de novo.");
 
   const rows = await existingRows(ctx);
   const scannedAt = ctx.now.toISOString();
@@ -435,7 +417,8 @@ export async function saveAttendanceDay(input: DayInput & { lessons: number[] })
   });
 
   for (const block of [1, 2] as const) {
-    const numbers = chosen.filter((n) => byNumber.get(n)?.block === block);
+    // O banco conta em unidades de 30 min: cada aula de 1 hora vale 2 unidades.
+    const numbers = chosen.flatMap((n) => (byNumber.get(n)?.block === block ? byNumber.get(n)!.units : []));
     const existing = rows.find((r) => r.block === block);
 
     if (numbers.length === 0) {

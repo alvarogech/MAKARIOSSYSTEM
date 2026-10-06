@@ -159,7 +159,7 @@ export function ScanAttendance({ token }: { token: string }) {
           <p className="text-sm text-neutral-500">Contou como reposição do encontro {result.makeupForSequence} da sua turma.</p>
         ) : null}
         <p className="text-sm text-neutral-500">
-          Esqueceu alguma aula? Escaneie o QR de novo e marque as que faltam — dá para ajustar até o fim do dia.
+          Pronto: você só precisa fazer isso uma vez no dia. Se precisar corrigir, leia o QR de novo — dá para ajustar até o fim do dia.
         </p>
         <Button type="button" variant="secondary" className="w-full" onClick={() => setSaved(null)}>
           Alterar as aulas marcadas
@@ -171,14 +171,13 @@ export function ScanAttendance({ token }: { token: string }) {
   if (result?.ok) {
     const day = result;
     const blocks = [1, 2] as const;
-    const firstOpenUnchecked = day.lessons.filter((l) => l.open);
-    const allOpenSelected = firstOpenUnchecked.length > 0 && firstOpenUnchecked.every((l) => selected.has(l.number));
+    const allSelected = day.lessons.length > 0 && day.lessons.every((l) => selected.has(l.number));
 
     return (
       <Card className="flex flex-col gap-4 py-6">
         <div>
           <h1 className="text-lg font-semibold text-neutral-900">
-            Olá, {day.firstName}! Marque as aulas em que você está
+            Olá, {day.firstName}! Marque as aulas de hoje
           </h1>
           <p className="mt-1 text-sm text-neutral-600">
             {day.volumeName} · encontro {day.sequence} · {day.dateLabel}
@@ -203,18 +202,12 @@ export function ScanAttendance({ token }: { token: string }) {
               {lessons.map((lesson) => (
                 <label
                   key={lesson.number}
-                  className={
-                    "flex items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-sm " +
-                    (lesson.open
-                      ? "cursor-pointer border-neutral-200 hover:border-brand-blue"
-                      : "cursor-not-allowed border-neutral-100 bg-neutral-50 text-neutral-400")
-                  }
+                  className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-sm)] border border-neutral-200 p-3 text-sm hover:border-brand-blue"
                 >
                   <input
                     type="checkbox"
                     className="mt-0.5 size-5 shrink-0 accent-brand-blue"
                     checked={selected.has(lesson.number)}
-                    disabled={!lesson.open}
                     onChange={() => toggle(lesson.number)}
                   />
                   <span>
@@ -222,7 +215,6 @@ export function ScanAttendance({ token }: { token: string }) {
                       Aula {lesson.number} · {lesson.start} às {lesson.end}
                     </span>
                     {lesson.subject ? <span className="block text-neutral-600">{lesson.subject}</span> : null}
-                    {!lesson.open ? <span className="block text-xs">Ainda não começou</span> : null}
                   </span>
                 </label>
               ))}
@@ -233,11 +225,9 @@ export function ScanAttendance({ token }: { token: string }) {
         <button
           type="button"
           className="self-start text-sm font-medium text-brand-blue hover:underline"
-          onClick={() =>
-            setSelected(allOpenSelected ? new Set() : new Set(firstOpenUnchecked.map((l) => l.number)))
-          }
+          onClick={() => setSelected(allSelected ? new Set() : new Set(day.lessons.map((l) => l.number)))}
         >
-          {allOpenSelected ? "Desmarcar todas" : "Marcar todas as aulas disponíveis"}
+          {allSelected ? "Desmarcar todas" : "Marcar todas as aulas"}
         </button>
 
         {saveError ? <Alert variant="danger">{saveError}</Alert> : null}
