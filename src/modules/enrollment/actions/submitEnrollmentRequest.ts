@@ -25,6 +25,23 @@ function boolField(formData: FormData, name: string): boolean | undefined {
   return undefined;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  fullName: "Nome completo",
+  cpf: "CPF",
+  email: "E-mail",
+  phone: "WhatsApp",
+  primaryVolume: "Volume",
+  primarySchedule: "Turma preferida",
+  secondaryVolume: "Segundo volume",
+  secondarySchedule: "Turma do segundo volume",
+  prerequisiteDeclaration: "Já cursou algum volume antes?",
+  isOtherChurchMember: "Faz parte de outra igreja?",
+  isEmausMember: "Faz parte da Igreja Emaús?",
+  hasGr: "Tem GR?",
+  grNetwork: "Rede do GR",
+  privacyConsent: "Autorização de uso dos dados",
+};
+
 function createProtocol(): string {
   return `MK-${new Date().getUTCFullYear()}-${randomBytes(4).toString("hex").toUpperCase()}`;
 }
@@ -55,9 +72,16 @@ export async function submitEnrollmentRequest(
   });
 
   if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors as Record<string, string[] | undefined>;
+    const labels = Object.keys(fieldErrors)
+      .filter((key) => fieldErrors[key]?.length)
+      .map((key) => FIELD_LABELS[key] ?? key);
     return {
-      error: "Revise os campos indicados e tente novamente.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      error:
+        labels.length > 0
+          ? `Ainda falta preencher ou corrigir: ${labels.join(", ")}. Os campos estão marcados abaixo — o que você já preencheu foi mantido.`
+          : "Revise os campos e tente novamente.",
+      fieldErrors,
     };
   }
 

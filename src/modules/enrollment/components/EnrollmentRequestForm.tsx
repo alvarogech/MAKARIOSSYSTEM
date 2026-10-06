@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -84,12 +84,18 @@ export function EnrollmentRequestForm() {
     initialState,
   );
   const [primaryVolume, setPrimaryVolume] = useState("essencia");
+  const [primarySchedule, setPrimarySchedule] = useState<string>(ENROLLMENT_SCHEDULES[0].slug);
   const [wantsSecondVolume, setWantsSecondVolume] = useState(false);
   const needsDeclaration = primaryVolume !== "essencia" || wantsSecondVolume;
   const [isOtherChurchMember, setIsOtherChurchMember] = useState<boolean | undefined>(undefined);
   const [isEmausMember, setIsEmausMember] = useState<boolean | undefined>(undefined);
   const [hasGr, setHasGr] = useState<boolean | undefined>(undefined);
   const errorAlertRef = useRef<HTMLDivElement>(null);
+  // Antes de o JavaScript carregar (celular lento, navegador de app), um envio
+  // cairia no GET nativo do navegador e jogaria CPF, e-mail e telefone na
+  // barra de endereço. O botão só liga depois da hidratação.
+  const [isReady, setIsReady] = useState(false);
+  useEffect(() => setIsReady(true), []);
 
   // Sem isso, um erro de validação (ex.: esqueceu de responder a seção
   // "Vínculo com a igreja") só aparecia no topo do formulário — em um
@@ -127,7 +133,18 @@ export function EnrollmentRequestForm() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-7" noValidate>
+    <form
+      // Enviado por onSubmit (e não pelo atributo `action`) de propósito: o React 19
+      // zera todos os campos do formulário depois de uma `action`, e um erro de
+      // validação apagava tudo que a pessoa já tinha digitado — e desmarcava o aceite.
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className="flex flex-col gap-7"
+      noValidate
+    >
       {state.error ? (
         <div ref={errorAlertRef}>
           <Alert variant="danger">{state.error}</Alert>
@@ -206,7 +223,14 @@ export function EnrollmentRequestForm() {
           </div>
           <div>
             <Label htmlFor="primarySchedule">Turma preferida</Label>
-            <select id="primarySchedule" name="primarySchedule" className={fieldClass} required>
+            <select
+              id="primarySchedule"
+              name="primarySchedule"
+              className={fieldClass}
+              value={primarySchedule}
+              onChange={(event) => setPrimarySchedule(event.target.value)}
+              required
+            >
               {ENROLLMENT_SCHEDULES.map((schedule) => (
                 <option key={schedule.slug} value={schedule.slug}>
                   {schedule.label} · {schedule.time}
@@ -246,12 +270,13 @@ export function EnrollmentRequestForm() {
               <Label htmlFor="secondarySchedule">Turma do segundo volume</Label>
               <select id="secondarySchedule" name="secondarySchedule" className={fieldClass} required>
                 <option value="">Selecione</option>
-                {ENROLLMENT_SCHEDULES.map((schedule) => (
+                {ENROLLMENT_SCHEDULES.filter((schedule) => schedule.slug !== primarySchedule).map((schedule) => (
                   <option key={schedule.slug} value={schedule.slug}>
                     {schedule.label} · {schedule.time}
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-neutral-500">Os dois volumes precisam ser em horários diferentes.</p>
               <FieldError errors={state.fieldErrors?.secondarySchedule} />
             </div>
           </div>
@@ -372,7 +397,7 @@ export function EnrollmentRequestForm() {
         <FieldError errors={state.fieldErrors?.privacyConsent} />
       </div>
 
-      <Button type="submit" size="lg" isLoading={isPending} className="w-full sm:w-auto sm:self-end">
+      <Button type="submit" size="lg" isLoading={isPending} disabled={!isReady} className="w-full sm:w-auto sm:self-end">
         Confirmar inscrição
       </Button>
     </form>

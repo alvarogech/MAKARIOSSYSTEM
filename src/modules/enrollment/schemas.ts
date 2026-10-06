@@ -14,13 +14,27 @@ const grNetworkSchema = z.enum([
 
 export const enrollmentRequestSchema = z
   .object({
-    fullName: z.string().trim().min(3, "Informe seu nome completo.").max(150),
-    cpf: z.string().transform(normalizeCpf).refine(isValidCpf, "Informe um CPF válido."),
-    email: z.string().trim().toLowerCase().email("Informe um e-mail válido.").max(254),
+    fullName: z.string().trim().min(3, "Preencha seu nome completo.").max(150),
+    cpf: z
+      .string()
+      .transform(normalizeCpf)
+      .refine((value) => value.length > 0, "Preencha o CPF.")
+      .refine((value) => value.length === 0 || isValidCpf(value), "CPF inválido — confira os 11 números."),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(1, "Preencha o e-mail.")
+      .email("E-mail inválido — confira se tem @ e o final (ex.: nome@gmail.com).")
+      .max(254),
     phone: z
       .string()
       .transform((value) => value.replace(/\D/g, ""))
-      .refine((value) => value.length >= 10 && value.length <= 11, "Informe um WhatsApp válido."),
+      .refine((value) => value.length > 0, "Preencha o WhatsApp.")
+      .refine(
+        (value) => value.length === 0 || (value.length >= 10 && value.length <= 11),
+        "WhatsApp incompleto — informe com DDD, ex.: (62) 99999-9999.",
+      ),
     primaryVolume: volumeSchema,
     primarySchedule: scheduleSchema,
     wantsSecondVolume: z.boolean(),
@@ -28,12 +42,12 @@ export const enrollmentRequestSchema = z
     secondarySchedule: z.union([scheduleSchema, z.literal("")]).optional(),
     prerequisiteDeclaration: z.string().trim().max(2000).optional(),
     notes: z.string().trim().max(2000).optional(),
-    isOtherChurchMember: z.boolean({ error: "Informe se você faz parte de outra igreja." }),
+    isOtherChurchMember: z.boolean({ error: "Responda se você faz parte de outra igreja (Sim ou Não)." }),
     otherChurchName: z.string().trim().max(150).optional(),
-    isEmausMember: z.boolean({ error: "Informe se você faz parte da Igreja Emaús." }),
+    isEmausMember: z.boolean({ error: "Responda se você faz parte da Igreja Emaús (Sim ou Não)." }),
     hasGr: z.boolean().optional(),
     grNetwork: z.union([grNetworkSchema, z.literal("")]).optional(),
-    privacyConsent: z.literal(true, { error: "Você precisa autorizar o tratamento dos dados." }),
+    privacyConsent: z.literal(true, { error: "Marque a caixa de autorização dos dados para enviar a inscrição." }),
     website: z.string().max(200).optional(),
   })
   .superRefine((data, context) => {
@@ -66,7 +80,7 @@ export const enrollmentRequestSchema = z
         context.addIssue({
           code: "custom",
           path: ["hasGr"],
-          message: "Informe se você participa de um GR.",
+          message: "Responda se você tem GR (Sim ou Não).",
         });
       } else if (data.hasGr && !data.grNetwork) {
         context.addIssue({
