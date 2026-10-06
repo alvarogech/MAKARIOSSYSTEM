@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, startTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore, startTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -94,8 +94,11 @@ export function EnrollmentRequestForm() {
   // Antes de o JavaScript carregar (celular lento, navegador de app), um envio
   // cairia no GET nativo do navegador e jogaria CPF, e-mail e telefone na
   // barra de endereço. O botão só liga depois da hidratação.
-  const [isReady, setIsReady] = useState(false);
-  useEffect(() => setIsReady(true), []);
+  const isReady = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   // Sem isso, um erro de validação (ex.: esqueceu de responder a seção
   // "Vínculo com a igreja") só aparecia no topo do formulário — em um
