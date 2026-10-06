@@ -52,7 +52,7 @@ export async function acceptAssistedPasswordReset(
     .is("consumed_at", null)
     .is("revoked_at", null)
     .gt("token_expires_at", new Date().toISOString())
-    .select("id, email")
+    .select("id, email, invited_by")
     .maybeSingle();
 
   if (claimError) {
@@ -66,11 +66,21 @@ export async function acceptAssistedPasswordReset(
     };
   }
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id, status")
-    .ilike("email", escapeIlike(claimed.email))
-    .maybeSingle();
+  // Link pedido pela própria pessoa (autoatendimento): `invited_by` é a conta dela,
+  // o que resolve e-mails compartilhados por mais de um perfil. Nos links gerados
+  // pela coordenação, `invited_by` é quem gerou — aí vale a busca pelo e-mail.
+  const { data: ownProfile } = claimed.invited_by
+    ? await admin
+        .from("profiles")
+        .select("id, status")
+        .eq("id", claimed.invited_by)
+        .ilike("email", escapeIlike(claimed.email))
+        .maybeSingle()
+    : { data: null };
+
+  const profile =
+    ownProfile ??
+    (await admin.from("profiles").select("id, status").ilike("email", escapeIlike(claimed.email)).maybeSingle()).data;
 
   if (!profile) {
     return { error: "Conta não encontrada. Avise a coordenação." };
