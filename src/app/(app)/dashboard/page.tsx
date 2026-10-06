@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Calendar, MapPin } from "lucide-react";
+import { ArrowRight, Calendar, MapPin, MessageCircle } from "lucide-react";
 import { can, canAccessArea, getAuthContext } from "@/authorization";
 import { ROLE_LABELS } from "@/lib/roleLabels";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
@@ -153,6 +153,27 @@ export default async function DashboardPage() {
                 <p className="text-sm text-neutral-400">Nenhuma matrícula encontrada ainda.</p>
               ) : null}
             </div>
+            {studentSummary.volumes.some((v) => v.whatsappGroupUrl) ? (
+              <div className="mt-4 rounded-[var(--radius-sm)] border border-success/30 bg-success/5 p-3">
+                <p className="text-sm font-medium text-neutral-900">Grupo de WhatsApp da sua turma</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {studentSummary.volumes
+                    .filter((v) => v.whatsappGroupUrl)
+                    .map((v) => (
+                      <a
+                        key={v.enrollmentId}
+                        href={v.whatsappGroupUrl!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={buttonVariants({ variant: "secondary", size: "sm" })}
+                      >
+                        <MessageCircle className="size-4" aria-hidden="true" />
+                        Entrar no grupo — {v.volumeName}
+                      </a>
+                    ))}
+                </div>
+              </div>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/meus-volumes" className={buttonVariants({ variant: "primary", size: "sm" })}>
                 Meus volumes

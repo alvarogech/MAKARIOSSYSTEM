@@ -3,6 +3,8 @@ import Link from "next/link";
 import { canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
+import { MessageCircle } from "lucide-react";
+import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
 
@@ -41,6 +43,11 @@ export default async function MeusVolumesPage() {
     ? await supabase.from("seasons").select("id, name").in("id", seasonIds)
     : { data: [] };
 
+  const { data: whatsappGroups } = volumeIds.length
+    ? await supabase.from("volume_whatsapp_groups").select("volume_id, invite_url").in("volume_id", volumeIds)
+    : { data: [] };
+  const whatsappUrlByVolumeId = new Map((whatsappGroups ?? []).map((g) => [g.volume_id, g.invite_url]));
+
   const offeringsById = new Map((offerings ?? []).map((o) => [o.id, o]));
   const volumesById = new Map((volumes ?? []).map((v) => [v.id, v]));
   const seasonsById = new Map((seasons ?? []).map((s) => [s.id, s]));
@@ -76,6 +83,29 @@ export default async function MeusVolumesPage() {
           <p className="text-sm text-neutral-400">Nenhuma matrícula encontrada ainda.</p>
         ) : null}
       </div>
+
+      {[...new Set(volumeIds)].some((id) => whatsappUrlByVolumeId.has(id)) ? (
+        <Card>
+          <h2 className="font-semibold text-neutral-900">Grupos de WhatsApp</h2>
+          <p className="mt-1 text-sm text-neutral-500">Entre no grupo do volume que você está cursando.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[...new Set(volumeIds)]
+              .filter((id) => whatsappUrlByVolumeId.has(id))
+              .map((id) => (
+                <a
+                  key={id}
+                  href={whatsappUrlByVolumeId.get(id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonVariants({ variant: "secondary", size: "sm" })}
+                >
+                  <MessageCircle className="size-4" aria-hidden="true" />
+                  Entrar no grupo — {volumesById.get(id)?.name ?? "Volume"}
+                </a>
+              ))}
+          </div>
+        </Card>
+      ) : null}
     </div>
   );
 }

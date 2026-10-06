@@ -29,6 +29,8 @@ export interface StudentVolumeCard {
   volumeName: string;
   seasonName: string;
   status: string;
+  /** Convite do grupo de WhatsApp do volume — só chega para quem está matriculado nele (RLS). */
+  whatsappGroupUrl: string | null;
 }
 
 export interface StudentHomeSummary {
@@ -75,7 +77,7 @@ export async function loadStudentHomeSummary(
 
   const volumeIds = [...new Set((offerings ?? []).map((o) => o.volume_id))];
   const seasonIds = [...new Set((offerings ?? []).map((o) => o.season_id))];
-  const [{ data: volumes }, { data: seasons }, { data: openAssessments }] = await Promise.all([
+  const [{ data: volumes }, { data: seasons }, { data: openAssessments }, { data: whatsappGroups }] = await Promise.all([
     supabase.from("volumes").select("id, name").in("id", volumeIds),
     supabase.from("seasons").select("id, name").in("id", seasonIds),
     supabase
@@ -83,8 +85,10 @@ export async function loadStudentHomeSummary(
       .select("id, title, season_volume_offering_id")
       .in("season_volume_offering_id", offeringIds)
       .eq("status", "open"),
+    supabase.from("volume_whatsapp_groups").select("volume_id, invite_url").in("volume_id", volumeIds),
   ]);
 
+  const whatsappUrlByVolumeId = new Map((whatsappGroups ?? []).map((g) => [g.volume_id, g.invite_url]));
   const classById = new Map((classes ?? []).map((c) => [c.id, c]));
   const offeringById = new Map((offerings ?? []).map((o) => [o.id, o]));
   const volumeNameById = new Map((volumes ?? []).map((v) => [v.id, v.name]));
@@ -156,6 +160,7 @@ export async function loadStudentHomeSummary(
       volumeName: offering ? (volumeNameById.get(offering.volume_id) ?? "Volume") : "Volume",
       seasonName: offering ? (seasonNameById.get(offering.season_id) ?? "Temporada") : "Temporada",
       status: enrollment.status,
+      whatsappGroupUrl: offering ? (whatsappUrlByVolumeId.get(offering.volume_id) ?? null) : null,
     };
   });
 

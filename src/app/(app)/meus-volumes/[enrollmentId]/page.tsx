@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, Link2, Lock, CheckCircle2, PlayCircle } from "lucide-react";
+import { FileText, Link2, Lock, CheckCircle2, MessageCircle, PlayCircle } from "lucide-react";
 import { canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
+import { buttonVariants } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loadVolumeOutline, type OutlineContent } from "@/modules/learning/loadVolumeOutline";
@@ -92,6 +93,12 @@ export default async function VolumeOutlinePage({
     .eq("id", offering.volume_id)
     .single();
 
+  const { data: whatsappGroup } = await supabase
+    .from("volume_whatsapp_groups")
+    .select("invite_url")
+    .eq("volume_id", offering.volume_id)
+    .maybeSingle();
+
   const modules = await loadVolumeOutline(supabase, enrollment.id, offering.volume_id);
 
   const { data: assessments } = await supabase
@@ -103,6 +110,20 @@ export default async function VolumeOutlinePage({
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold text-neutral-900">{volume?.name ?? "Volume"}</h1>
+
+      {whatsappGroup ? (
+        <div>
+          <a
+            href={whatsappGroup.invite_url}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
+          >
+            <MessageCircle className="size-4" aria-hidden="true" />
+            Entrar no grupo de WhatsApp do volume
+          </a>
+        </div>
+      ) : null}
 
       {(assessments ?? []).length > 0 ? (
         <Card>

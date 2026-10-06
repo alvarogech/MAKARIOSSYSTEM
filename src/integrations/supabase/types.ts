@@ -2538,6 +2538,32 @@ export type Database = {
           },
         ]
       }
+      volume_whatsapp_groups: {
+        Row: {
+          invite_url: string
+          updated_at: string
+          volume_id: string
+        }
+        Insert: {
+          invite_url: string
+          updated_at?: string
+          volume_id: string
+        }
+        Update: {
+          invite_url?: string
+          updated_at?: string
+          volume_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volume_whatsapp_groups_volume_id_fkey"
+            columns: ["volume_id"]
+            isOneToOne: true
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       volumes: {
         Row: {
           active: boolean
