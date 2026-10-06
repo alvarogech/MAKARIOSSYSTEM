@@ -51,6 +51,8 @@ export interface ScanRow {
   minutes: number;
   makeupFor: string | null;
   locationStatus: string;
+  /** Aulas exatas que o aluno marcou; nulo nos registros antigos (deduzidas pelo horário). */
+  lessonNumbers: number[] | null;
 }
 
 /** O PostgREST devolve no máximo 1000 linhas por consulta: pagina até o fim. */
@@ -100,7 +102,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
       supabase
         .from("attendance_scans")
         .select(
-          "id, meeting_id, enrollment_request_id, student_id, block, scanned_at, lessons_credited, lessons_total, recognized_minutes, makeup_for_meeting_id, location_status",
+          "id, meeting_id, enrollment_request_id, student_id, block, scanned_at, lessons_credited, lessons_total, recognized_minutes, makeup_for_meeting_id, location_status, lesson_numbers",
         )
         .order("scanned_at")
         .range(a, b),
@@ -183,6 +185,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
     minutes: s.recognized_minutes,
     makeupFor: s.makeup_for_meeting_id,
     locationStatus: s.location_status,
+    lessonNumbers: s.lesson_numbers,
   }));
 
   const allClasses = [...classById.values()].sort((a, b) =>
@@ -199,7 +202,8 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
 }
 
 /** Números das aulas do encontro que um escaneamento reconhece (bloco 2 continua a numeração). */
-export function scanLessons(s: Pick<ScanRow, "block" | "lessonsCredited" | "lessonsTotal">): number[] {
+export function scanLessons(s: Pick<ScanRow, "block" | "lessonsCredited" | "lessonsTotal"> & { lessonNumbers?: number[] | null }): number[] {
+  if (s.lessonNumbers && s.lessonNumbers.length > 0) return [...s.lessonNumbers].sort((a, b) => a - b);
   const offset = s.block === 2 ? s.lessonsTotal : 0;
   return Array.from({ length: s.lessonsCredited }, (_, i) => s.lessonsTotal - s.lessonsCredited + 1 + i + offset);
 }

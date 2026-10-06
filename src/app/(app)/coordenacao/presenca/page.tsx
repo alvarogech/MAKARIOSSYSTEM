@@ -58,6 +58,9 @@ function lessonList(numbers: number[]) {
 
 function scanDetail(s: ScanRow) {
   const extra = LOCATION[s.locationStatus] ? `, ${LOCATION[s.locationStatus]}` : "";
+  if (s.lessonNumbers && s.lessonNumbers.length > 0) {
+    return `Marcou pelo QR às ${time(s.scannedAt)}: ${lessonList(scanLessons(s))}${extra}`;
+  }
   return `QR ${s.block === 1 ? "antes do intervalo" : "depois do intervalo"} às ${time(s.scannedAt)}: ${lessonList(scanLessons(s))}${extra}`;
 }
 

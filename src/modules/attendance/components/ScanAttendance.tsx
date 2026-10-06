@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { registerScan, type ScanResult } from "../actions/registerScan";
+import { loadAttendanceDay, saveAttendanceDay, type DayResult } from "../actions/attendanceDay";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -15,7 +15,7 @@ function tryPosition(highAccuracy: boolean, ms: number): Promise<Position> {
   return new Promise((resolve) => {
     // O `timeout` do navegador só começa a contar depois que a pessoa
     // responde à pergunta de permissão; sem este limite próprio, a tela
-    // ficaria presa em "Registrando..." enquanto a pergunta estiver aberta.
+    // ficaria presa em "Carregando..." enquanto a pergunta estiver aberta.
     const fallback = setTimeout(() => resolve(null), ms + 10000);
     navigator.geolocation.getCurrentPosition(
       (p) => {
@@ -41,98 +41,213 @@ async function readPosition(): Promise<Position> {
   return (await tryPosition(true, 8000)) ?? (await tryPosition(false, 8000));
 }
 
+type Day = Extract<DayResult, { ok: true }>;
+
 export function ScanAttendance({ token }: { token: string }) {
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const [result, setResult] = useState<DayResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [cpf, setCpf] = useState("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [saved, setSaved] = useState<number[] | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const perform = useCallback(
-    async (cpfValue?: string) => {
-      const position = await readPosition();
-      return registerScan({
-        token,
-        cpf: cpfValue,
-        lat: position?.lat,
-        lng: position?.lng,
-        accuracy: position?.accuracy,
-      });
-    },
-    [token],
-  );
+  const locate = useCallback(async () => {
+    const position = await readPosition();
+    return { lat: position?.lat, lng: position?.lng, accuracy: position?.accuracy };
+  }, []);
 
-  const apply = (response: ScanResult) => {
+  const apply = (response: DayResult) => {
     setResult(response);
     setLoading(false);
+    if (response.ok) {
+      setSelected(new Set(response.lessons.filter((l) => l.selected).map((l) => l.number)));
+      setSaved(null);
+      setSaveError(null);
+    }
   };
+
+  const load = useCallback(
+    async (cpfValue?: string) => {
+      const where = await locate();
+      return loadAttendanceDay({ token, cpf: cpfValue, ...where });
+    },
+    [token, locate],
+  );
 
   useEffect(() => {
     let alive = true;
-    void perform().then((response) => {
+    void load().then((response) => {
       if (alive) apply(response);
     });
     return () => {
       alive = false;
     };
-  }, [perform]);
+  }, [load]);
 
-  const submit = (cpfValue?: string) => {
+  const retry = (cpfValue?: string) => {
     setLoading(true);
-    void perform(cpfValue).then(apply);
+    void load(cpfValue).then(apply);
+  };
+
+  const toggle = (n: number) =>
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      return next;
+    });
+
+  const save = async (day: Day) => {
+    setSaving(true);
+    setSaveError(null);
+    const where = await locate();
+    const response = await saveAttendanceDay({
+      token,
+      cpf: cpf || undefined,
+      lessons: [...selected].sort((a, b) => a - b),
+      ...where,
+    });
+    setSaving(false);
+    if (response.ok) {
+      setSaved(response.lessonNumbers);
+      // Reflete na lista o que ficou gravado (para o "Alterar" começar dele).
+      setResult({ ...day, hasRecord: response.lessonNumbers.length > 0, lessons: day.lessons.map((l) => ({ ...l, selected: response.lessonNumbers.includes(l.number) })) });
+    } else {
+      setSaveError(response.message);
+    }
   };
 
   if (loading) {
     return (
       <Card className="flex flex-col items-center gap-3 py-10 text-center">
         <Spinner />
-        <p className="text-sm text-neutral-500">Registrando a sua presença...</p>
+        <p className="text-sm text-neutral-500">Carregando as aulas de hoje...</p>
       </Card>
     );
   }
 
-  if (result?.ok) {
+  if (result?.ok && saved) {
+    const chosen = result.lessons.filter((l) => saved.includes(l.number));
     return (
       <Card className="flex flex-col gap-3 py-8 text-center">
         <p className="text-4xl" aria-hidden>
           ✅
         </p>
         <h1 className="text-xl font-semibold text-neutral-900">
-          {result.alreadyRegistered ? "Presença já registrada" : "Presença registrada"}
+          {saved.length > 0 ? "Presença registrada" : "Presença removida"}
         </h1>
         <p className="text-neutral-700">
-          {result.firstName}, {result.volumeName}
+          {result.firstName}, {result.volumeName} · encontro {result.sequence}
           <br />
-          Dia {result.date}, às {result.time} (horário de Brasília)
+          {result.dateLabel}
         </p>
-        {result.alreadyRegistered ? (
-          <p className="text-sm text-neutral-500">
-            Você escaneou de novo às {result.scannedNowTime}. Vale o primeiro escaneamento deste bloco, às {result.time}.
-          </p>
+        {chosen.length > 0 ? (
+          <div className="rounded-[var(--radius-sm)] bg-neutral-50 px-3 py-3 text-left text-sm text-neutral-700">
+            <p className="font-medium text-neutral-900">Aulas marcadas</p>
+            <ul className="mt-2 flex flex-col gap-1">
+              {chosen.map((l) => (
+                <li key={l.number}>
+                  ✓ Aula {l.number}: {l.start} às {l.end}
+                  {l.subject ? ` — ${l.subject}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
-        <div className="rounded-[var(--radius-sm)] bg-neutral-50 px-3 py-3 text-left text-sm text-neutral-700">
-          <p className="font-medium text-neutral-900">
-            Encontro {result.sequence}, {result.block === 1 ? "antes do intervalo" : "depois do intervalo"}: {result.blockStart} às{" "}
-            {result.blockEnd}
-          </p>
-          {result.subjects.length > 0 ? <p className="mt-1">Matéria: {result.subjects.join("; ")}</p> : null}
-          <ul className="mt-2 flex flex-col gap-1">
-            {result.lessons.map((lesson) => (
-              <li key={lesson.number} className={lesson.counted ? "text-neutral-800" : "text-neutral-400 line-through"}>
-                {lesson.counted ? "✓" : "✗"} Aula {lesson.number}: {lesson.start} às {lesson.end}
-              </li>
-            ))}
-          </ul>
-          {result.lessonNumbers.length === 0 ? (
-            <p className="mt-2">Você chegou depois da tolerância de 15 minutos, então nenhuma aula deste bloco foi contada.</p>
-          ) : result.lessonsCredited < result.lessonsTotal ? (
-            <p className="mt-2">As aulas riscadas não contaram, por causa do horário de chegada (tolerância de 15 minutos).</p>
-          ) : null}
-          {result.placeLabel ? <p className="mt-2 text-neutral-500">Localização: {result.placeLabel}</p> : null}
-        </div>
         {result.makeupForSequence ? (
           <p className="text-sm text-neutral-500">Contou como reposição do encontro {result.makeupForSequence} da sua turma.</p>
         ) : null}
-        {result.block === 1 ? (
-          <p className="text-sm font-medium text-neutral-700">Na volta do intervalo, escaneie de novo.</p>
+        <p className="text-sm text-neutral-500">
+          Esqueceu alguma aula? Escaneie o QR de novo e marque as que faltam — dá para ajustar até o fim do dia.
+        </p>
+        <Button type="button" variant="secondary" className="w-full" onClick={() => setSaved(null)}>
+          Alterar as aulas marcadas
+        </Button>
+      </Card>
+    );
+  }
+
+  if (result?.ok) {
+    const day = result;
+    const blocks = [1, 2] as const;
+    const firstOpenUnchecked = day.lessons.filter((l) => l.open);
+    const allOpenSelected = firstOpenUnchecked.length > 0 && firstOpenUnchecked.every((l) => selected.has(l.number));
+
+    return (
+      <Card className="flex flex-col gap-4 py-6">
+        <div>
+          <h1 className="text-lg font-semibold text-neutral-900">
+            Olá, {day.firstName}! Marque as aulas em que você está
+          </h1>
+          <p className="mt-1 text-sm text-neutral-600">
+            {day.volumeName} · encontro {day.sequence} · {day.dateLabel}
+            <br />
+            Turma: {day.scheduleLabel}
+          </p>
+          {day.makeupForSequence ? (
+            <p className="mt-1 text-sm text-neutral-500">
+              Esta turma não é a sua: vai contar como reposição do encontro {day.makeupForSequence} da sua turma.
+            </p>
+          ) : null}
+        </div>
+
+        {blocks.map((block) => {
+          const lessons = day.lessons.filter((l) => l.block === block);
+          if (lessons.length === 0) return null;
+          return (
+            <fieldset key={block} className="flex flex-col gap-2">
+              <legend className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                {block === 1 ? "Antes do intervalo" : "Depois do intervalo"}
+              </legend>
+              {lessons.map((lesson) => (
+                <label
+                  key={lesson.number}
+                  className={
+                    "flex items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-sm " +
+                    (lesson.open
+                      ? "cursor-pointer border-neutral-200 hover:border-brand-blue"
+                      : "cursor-not-allowed border-neutral-100 bg-neutral-50 text-neutral-400")
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-5 shrink-0 accent-brand-blue"
+                    checked={selected.has(lesson.number)}
+                    disabled={!lesson.open}
+                    onChange={() => toggle(lesson.number)}
+                  />
+                  <span>
+                    <span className="font-medium text-neutral-900">
+                      Aula {lesson.number} · {lesson.start} às {lesson.end}
+                    </span>
+                    {lesson.subject ? <span className="block text-neutral-600">{lesson.subject}</span> : null}
+                    {!lesson.open ? <span className="block text-xs">Ainda não começou</span> : null}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          );
+        })}
+
+        <button
+          type="button"
+          className="self-start text-sm font-medium text-brand-blue hover:underline"
+          onClick={() =>
+            setSelected(allOpenSelected ? new Set() : new Set(firstOpenUnchecked.map((l) => l.number)))
+          }
+        >
+          {allOpenSelected ? "Desmarcar todas" : "Marcar todas as aulas disponíveis"}
+        </button>
+
+        {saveError ? <Alert variant="danger">{saveError}</Alert> : null}
+        {day.placeLabel ? <p className="text-xs text-neutral-400">Localização: {day.placeLabel}</p> : null}
+
+        <Button type="button" className="w-full" isLoading={saving} onClick={() => void save(day)}>
+          {selected.size > 0 ? `Confirmar presença (${selected.size} aula${selected.size > 1 ? "s" : ""})` : day.hasRecord ? "Remover minha presença de hoje" : "Confirmar presença"}
+        </Button>
+        {selected.size === 0 && !day.hasRecord ? (
+          <p className="text-xs text-neutral-400">Marque pelo menos uma aula para registrar a presença.</p>
         ) : null}
       </Card>
     );
@@ -141,21 +256,21 @@ export function ScanAttendance({ token }: { token: string }) {
   return (
     <Card className="flex flex-col gap-4 py-6">
       <h1 className="text-lg font-semibold text-neutral-900">Marcar presença</h1>
-      {result && result.code !== "precisa_cpf" ? <Alert variant="danger">{result.message}</Alert> : null}
+      {result && !result.ok && result.code !== "precisa_cpf" ? <Alert variant="danger">{result.message}</Alert> : null}
 
-      {result?.code === "precisa_localizacao" ? (
+      {result && !result.ok && result.code === "precisa_localizacao" ? (
         <p className="text-sm text-neutral-600">
           No iPhone: Ajustes, Privacidade, Serviços de Localização, Safari, &quot;Ao Usar o App&quot;. No Android: toque no
           cadeado ao lado do endereço e permita a localização. Depois toque em Tentar de novo.
         </p>
       ) : null}
 
-      {result?.code === "precisa_cpf" ? (
+      {result && !result.ok && result.code === "precisa_cpf" ? (
         <form
           className="flex flex-col gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            submit(cpf);
+            retry(cpf);
           }}
         >
           <p className="text-sm text-neutral-600">{result.message}</p>
@@ -171,12 +286,12 @@ export function ScanAttendance({ token }: { token: string }) {
             />
           </div>
           <Button type="submit" className="w-full">
-            Marcar presença
+            Continuar
           </Button>
           <p className="text-xs text-neutral-400">Só na primeira vez. Depois este celular lembra de você.</p>
         </form>
       ) : (
-        <Button type="button" className="w-full" onClick={() => submit()}>
+        <Button type="button" className="w-full" onClick={() => retry()}>
           Tentar de novo
         </Button>
       )}

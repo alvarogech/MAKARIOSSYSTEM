@@ -795,6 +795,7 @@ export type Database = {
           enrollment_request_id: string | null
           id: string
           identified_by: string
+          lesson_numbers: number[] | null
           lessons_credited: number
           lessons_total: number
           location_status: string
@@ -803,6 +804,7 @@ export type Database = {
           qr_code_id: string
           recognized_minutes: number
           scanned_at: string
+          self_declared: boolean
           student_id: string | null
         }
         Insert: {
@@ -811,6 +813,7 @@ export type Database = {
           enrollment_request_id?: string | null
           id?: string
           identified_by: string
+          lesson_numbers?: number[] | null
           lessons_credited: number
           lessons_total: number
           location_status: string
@@ -819,6 +822,7 @@ export type Database = {
           qr_code_id: string
           recognized_minutes: number
           scanned_at?: string
+          self_declared?: boolean
           student_id?: string | null
         }
         Update: {
@@ -827,6 +831,7 @@ export type Database = {
           enrollment_request_id?: string | null
           id?: string
           identified_by?: string
+          lesson_numbers?: number[] | null
           lessons_credited?: number
           lessons_total?: number
           location_status?: string
@@ -835,6 +840,7 @@ export type Database = {
           qr_code_id?: string
           recognized_minutes?: number
           scanned_at?: string
+          self_declared?: boolean
           student_id?: string | null
         }
         Relationships: [
@@ -2531,6 +2537,35 @@ export type Database = {
           },
           {
             foreignKeyName: "volume_prerequisites_volume_id_fkey"
+            columns: ["volume_id"]
+            isOneToOne: false
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      volume_whatsapp_group_emails: {
+        Row: {
+          email: string
+          sent_at: string
+          student_id: string
+          volume_id: string
+        }
+        Insert: {
+          email: string
+          sent_at?: string
+          student_id: string
+          volume_id: string
+        }
+        Update: {
+          email?: string
+          sent_at?: string
+          student_id?: string
+          volume_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volume_whatsapp_group_emails_volume_id_fkey"
             columns: ["volume_id"]
             isOneToOne: false
             referencedRelation: "volumes"
