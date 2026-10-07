@@ -39,11 +39,19 @@ export default async function DashboardPage() {
   let studentSummary: StudentHomeSummary | null = null;
   let frequency: VolumeFrequency[] = [];
   let declarationPrompts: DeclarationPrompt[] = [];
+  let studentAnnouncements: { id: string; title: string; body: string; published_at: string }[] = [];
   if (authContext.activeRole === "student") {
     const supabase = await createSupabaseServerClient();
     studentSummary = await loadStudentHomeSummary(supabase, authContext.userId);
     frequency = await loadStudentFrequency(supabase, authContext.userId);
     declarationPrompts = await loadDeclarationPrompts(supabase, authContext.userId);
+    // A política do banco já entrega só o que é para este aluno (geral, da turma ou do módulo dele).
+    const { data: announcementRows } = await supabase
+      .from("announcements")
+      .select("id, title, body, published_at")
+      .order("published_at", { ascending: false })
+      .limit(4);
+    studentAnnouncements = announcementRows ?? [];
   }
 
   // Home da coordenação/administração = "Hoje": só o que pede ação.
@@ -138,6 +146,23 @@ export default async function DashboardPage() {
                   Continuar <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>
               ) : null}
+            </Card>
+          ) : null}
+
+          {studentAnnouncements.length > 0 ? (
+            <Card>
+              <h2 className="font-semibold text-neutral-900">Avisos da escola</h2>
+              <ul className="mt-2 flex flex-col divide-y divide-neutral-100">
+                {studentAnnouncements.map((a) => (
+                  <li key={a.id} className="py-2 first:pt-0 last:pb-0">
+                    <p className="text-sm font-medium text-neutral-900">{a.title}</p>
+                    <p className="whitespace-pre-line text-sm text-neutral-600">{a.body}</p>
+                    <p className="mt-0.5 text-xs text-neutral-400">
+                      {new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short" }).format(new Date(a.published_at))}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             </Card>
           ) : null}
 

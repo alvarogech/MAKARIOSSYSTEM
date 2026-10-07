@@ -201,6 +201,7 @@ export type Database = {
       }
       announcements: {
         Row: {
+          audience: string
           body: string
           class_id: string | null
           created_at: string
@@ -211,6 +212,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          audience?: string
           body: string
           class_id?: string | null
           created_at?: string
@@ -221,6 +223,7 @@ export type Database = {
           title: string
         }
         Update: {
+          audience?: string
           body?: string
           class_id?: string | null
           created_at?: string

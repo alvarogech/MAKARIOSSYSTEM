@@ -24,6 +24,7 @@ export async function createAnnouncement(
     body: formData.get("body"),
     classId: formData.get("classId") || "",
     moduleId: formData.get("moduleId") || "",
+    audience: formData.get("audience") || "teachers",
   });
 
   if (!parsed.success) {
@@ -36,6 +37,7 @@ export async function createAnnouncement(
     body: parsed.data.body,
     class_id: parsed.data.classId || null,
     module_id: parsed.data.moduleId || null,
+    audience: parsed.data.audience,
     created_by: authContext.userId,
   });
 
@@ -44,5 +46,6 @@ export async function createAnnouncement(
   }
 
   revalidatePath("/coordenacao/avisos");
+  revalidatePath("/dashboard");
   return { success: true };
 }

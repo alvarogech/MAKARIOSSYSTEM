@@ -19,7 +19,7 @@ export default async function AvisosPage() {
   const supabase = await createSupabaseServerClient();
 
   const [{ data: announcements }, { data: classes }, { data: modules }] = await Promise.all([
-    supabase.from("announcements").select("id, title, body, class_id, module_id, published_at").order("published_at", { ascending: false }),
+    supabase.from("announcements").select("id, title, body, class_id, module_id, published_at, audience").order("published_at", { ascending: false }),
     supabase.from("classes").select("id, name").order("name"),
     supabase.from("modules").select("id, name").order("name"),
   ]);
@@ -32,7 +32,8 @@ export default async function AvisosPage() {
       <div>
         <h1 className="text-lg font-semibold text-neutral-900">Avisos</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Avisos aparecem na home dos professores vinculados à turma/módulo (ou de todos, se geral).
+          Cada aviso vai para professores, alunos ou os dois. Se for de uma turma ou módulo, só quem é daquela turma/módulo vê; sem
+          turma nem módulo, vale para todos do público escolhido.
         </p>
       </div>
 
@@ -45,6 +46,7 @@ export default async function AvisosPage() {
               <p className="text-neutral-600">{announcement.body}</p>
               <p className="text-xs text-neutral-400">
                 {formatSaoPauloLongDate(announcement.published_at.slice(0, 10), { capitalize: true })} ·{" "}
+                {announcement.audience === "students" ? "Alunos" : announcement.audience === "all" ? "Professores e alunos" : "Professores"} ·{" "}
                 {announcement.class_id
                   ? (classNameById.get(announcement.class_id) ?? "Turma")
                   : announcement.module_id

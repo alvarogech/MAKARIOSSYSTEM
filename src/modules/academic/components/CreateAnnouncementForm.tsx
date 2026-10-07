@@ -39,6 +39,20 @@ export function CreateAnnouncementForm({
         />
       </div>
 
+      <div>
+        <Label htmlFor="audience">Para quem</Label>
+        <select
+          id="audience"
+          name="audience"
+          defaultValue="teachers"
+          className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
+        >
+          <option value="teachers">Professores</option>
+          <option value="students">Alunos</option>
+          <option value="all">Professores e alunos</option>
+        </select>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="classId">Turma específica (opcional)</Label>

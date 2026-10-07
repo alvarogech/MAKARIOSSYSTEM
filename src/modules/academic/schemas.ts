@@ -110,6 +110,7 @@ export const createAnnouncementSchema = z.object({
   body: z.string().trim().min(1, "Informe o texto do aviso."),
   classId: z.string().uuid().optional().or(z.literal("")),
   moduleId: z.string().uuid().optional().or(z.literal("")),
+  audience: z.enum(["teachers", "students", "all"], { message: "Escolha para quem é o aviso." }),
 });
 
 export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;
