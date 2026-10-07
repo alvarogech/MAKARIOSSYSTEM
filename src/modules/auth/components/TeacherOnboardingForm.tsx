@@ -18,11 +18,14 @@ export function TeacherOnboardingForm({
   defaultFullName,
   defaultPhone,
   email,
+  hasAccount = false,
 }: {
   token: string;
   defaultFullName: string;
   defaultPhone: string;
   email: string;
+  /** Já existe conta com este e-mail (ex.: aluno): vale a senha atual, e o perfil de professor é adicionado. */
+  hasAccount?: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(
     acceptTeacherInvitation,
@@ -41,6 +44,14 @@ export function TeacherOnboardingForm({
       </div>
 
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
+
+      {hasAccount ? (
+        <Alert variant="warning">
+          Você já tem uma conta com este e-mail (por exemplo, de aluno). Não cria outra: digite a{" "}
+          <strong>senha atual dessa conta</strong> nos dois campos de senha e o perfil de professor é adicionado a ela.
+          Ao entrar, você escolhe qual painel quer ver.
+        </Alert>
+      ) : null}
 
       <input type="hidden" name="token" value={token} />
 

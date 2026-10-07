@@ -7,7 +7,7 @@ import { acceptTeacherInvitationSchema } from "../schemas";
 import { hashInviteToken } from "../inviteTokens";
 import { checkRateLimit, getClientIp } from "../rateLimit";
 import { linkSpecificMeetingBlocks } from "../manualInvite";
-import { normalizeEmail } from "../lookupTeacherCandidate";
+import { escapeIlike, normalizeEmail } from "../lookupTeacherCandidate";
 
 export interface AcceptTeacherInvitationState {
   error?: string;
@@ -70,6 +70,37 @@ export async function acceptTeacherInvitation(
 
   const tokenHash = hashInviteToken(parsed.data.token);
 
+  // Pessoa que já tem conta com este e-mail (ex.: já é aluna): o convite ADICIONA o perfil
+  // de professor à mesma conta — um login só, dois perfis. A dona da conta prova isso com a
+  // senha atual, e a checagem vem ANTES de consumir o link, para um erro de senha não gastá-lo.
+  const { data: sameEmail } = await admin
+    .from("profiles")
+    .select("id, email, status")
+    .ilike("email", escapeIlike(submittedEmail));
+  let existingAccountId: string | null = null;
+  if (sameEmail && sameEmail.length > 0) {
+    const account = sameEmail.length === 1 ? sameEmail[0] : null;
+    if (!account || !account.email) {
+      return { error: "Há mais de uma conta com este e-mail. Fale com a coordenação." };
+    }
+    if (account.status !== "active") {
+      return { error: "Esta conta está suspensa. Fale com a coordenação." };
+    }
+    const supabaseExisting = await createSupabaseServerClient();
+    const { error: existingSignInError } = await supabaseExisting.auth.signInWithPassword({
+      email: account.email.trim().toLowerCase(),
+      password: parsed.data.password,
+    });
+    if (existingSignInError) {
+      return {
+        error:
+          "Você já tem uma conta com este e-mail (por exemplo, de aluno). Digite a SUA SENHA ATUAL nos dois campos " +
+          "de senha para adicionar o perfil de professor a ela. Se não lembra, use “Esqueci minha senha” no login.",
+      };
+    }
+    existingAccountId = account.id;
+  }
+
   // Reivindicação atômica: só um submit concorrente consegue marcar
   // consumed_at. O e-mail também é corrigido aqui, ANTES do createUser: a
   // coordenação pode ter usado um e-mail provisório ao gerar o convite.
@@ -109,6 +140,22 @@ export async function acceptTeacherInvitation(
       return { error: "Este link já foi utilizado. Se você já tem senha, faça login." };
     }
     return { error: "Este link expirou. Peça um novo convite à coordenação." };
+  }
+
+  if (existingAccountId) {
+    const { error: roleError } = await admin
+      .from("user_roles")
+      .insert({ user_id: existingAccountId, role_id: claimed.intended_role_id });
+    if (roleError && roleError.code !== "23505") {
+      console.error("Falha ao conceder papel de professor à conta existente:", roleError);
+    }
+    await admin
+      .from("invitations")
+      .update({ status: "accepted", accepted_at: new Date().toISOString() })
+      .eq("id", claimed.id);
+    await linkPendingClasses(admin, existingAccountId, claimed.class_ids ?? []);
+    await linkSpecificMeetingBlocks(admin, existingAccountId, claimed.meeting_block_ids ?? []);
+    redirect("/dashboard");
   }
 
   const { data: createdUser, error: createError } = await admin.auth.admin.createUser({

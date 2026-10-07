@@ -1,11 +1,12 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { acceptStudentInvitationSchema } from "../schemas";
 import { hashInviteToken } from "@/modules/auth/inviteTokens";
 import { checkRateLimit, getClientIp } from "@/modules/auth/rateLimit";
-import { normalizeEmail } from "@/modules/auth/lookupTeacherCandidate";
+import { escapeIlike, normalizeEmail } from "@/modules/auth/lookupTeacherCandidate";
 import { formatAccessCode, generateUniqueAccessCode } from "@/modules/auth/accessCode";
 import { sendMail } from "@/modules/notifications/mailer";
 
@@ -47,6 +48,40 @@ async function createEnrollments(
       console.error("Falha ao criar matrícula no primeiro acesso do aluno:", error);
     }
   }
+}
+
+/**
+ * Liga a inscrição à conta e cria as matrículas das turmas do convite. Comum
+ * a quem cria a conta nova e a quem já tinha conta (professor, outro volume).
+ */
+async function finalizeStudentEnrollment(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  studentId: string,
+  invitation: { enrollment_request_id: string | null; class_ids: string[] | null },
+  nowIso: string,
+) {
+  let authorizedBy = studentId;
+  let authorizedAt = nowIso;
+  if (invitation.enrollment_request_id) {
+    const { data: request } = await admin
+      .from("enrollment_requests")
+      .select("reviewed_by, reviewed_at")
+      .eq("id", invitation.enrollment_request_id)
+      .maybeSingle();
+    if (request?.reviewed_by) authorizedBy = request.reviewed_by;
+    if (request?.reviewed_at) authorizedAt = request.reviewed_at;
+
+    // Liga a inscrição à conta recém-criada — é isso que permite ao
+    // Dashboard de Inscrições mostrar a turma atual e oferecer mover de
+    // turma direto por lá, sem precisar abrir Matrículas.
+    await admin
+      .from("enrollment_requests")
+      .update({ student_id: studentId })
+      .eq("id", invitation.enrollment_request_id);
+  }
+
+
+  await createEnrollments(admin, studentId, invitation.class_ids ?? [], authorizedBy, authorizedAt);
 }
 
 /**
@@ -184,27 +219,7 @@ export async function acceptStudentInvitation(
     console.error("Falha ao finalizar profile no primeiro acesso do aluno:", profileError);
   }
 
-  let authorizedBy = studentId;
-  let authorizedAt = nowIso;
-  if (invitation.enrollment_request_id) {
-    const { data: request } = await admin
-      .from("enrollment_requests")
-      .select("reviewed_by, reviewed_at")
-      .eq("id", invitation.enrollment_request_id)
-      .maybeSingle();
-    if (request?.reviewed_by) authorizedBy = request.reviewed_by;
-    if (request?.reviewed_at) authorizedAt = request.reviewed_at;
-
-    // Liga a inscrição à conta recém-criada — é isso que permite ao
-    // Dashboard de Inscrições mostrar a turma atual e oferecer mover de
-    // turma direto por lá, sem precisar abrir Matrículas.
-    await admin
-      .from("enrollment_requests")
-      .update({ student_id: studentId })
-      .eq("id", invitation.enrollment_request_id);
-  }
-
-  await createEnrollments(admin, studentId, invitation.class_ids ?? [], authorizedBy, authorizedAt);
+  await finalizeStudentEnrollment(admin, studentId, invitation, nowIso);
 
   const supabase = await createSupabaseServerClient();
   const { error: signInError } = await supabase.auth.signInWithPassword(
@@ -256,4 +271,93 @@ export async function acceptStudentInvitation(
   return useAccessCode
     ? { result: { mode: "access_code", accessCode: formatAccessCode(accessCode!) } }
     : { result: { mode: "email" } };
+}
+
+export interface LinkStudentInvitationState {
+  error?: string;
+}
+
+/**
+ * Quem já tem conta (ex.: é professor, ou já era aluno de outro volume) não
+ * cria outra: prova que é o dono da conta com a senha atual e o convite
+ * ADICIONA o perfil de aluno e as matrículas a essa mesma conta. O login
+ * continua um só; o app oferece a escolha de perfil (aluno / professor).
+ */
+export async function linkStudentInvitationToAccount(
+  _prevState: LinkStudentInvitationState,
+  formData: FormData,
+): Promise<LinkStudentInvitationState> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (!token) return { error: "Link inválido." };
+  if (!password) return { error: "Digite a senha da sua conta atual." };
+
+  const admin = createSupabaseAdminClient();
+
+  const ip = await getClientIp();
+  if (!(await checkRateLimit(admin, `link-student-invite:${ip}`, 10, 600))) {
+    return { error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." };
+  }
+
+  const { data: invitation } = await admin
+    .from("invitations")
+    .select("id, email, class_ids, enrollment_request_id, consumed_at, revoked_at, token_expires_at")
+    .eq("token_hash", hashInviteToken(token))
+    .eq("channel", "email")
+    .eq("purpose", "student_onboarding")
+    .maybeSingle();
+
+  if (!invitation) return { error: "Link inválido. Peça um novo acesso à coordenação." };
+  if (invitation.revoked_at) return { error: "Este link foi revogado. Peça um novo acesso à coordenação." };
+  if (invitation.consumed_at) return { error: "Este link já foi utilizado. Faça login normalmente." };
+  if (!invitation.token_expires_at || new Date(invitation.token_expires_at).getTime() < Date.now()) {
+    return { error: "Este link expirou. Peça um novo acesso à coordenação." };
+  }
+
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, email, status")
+    .ilike("email", escapeIlike(invitation.email));
+  const profile = profiles?.length === 1 ? profiles[0] : null;
+  if (!profile || !profile.email) {
+    return { error: "Não encontramos uma conta única com este e-mail. Fale com a coordenação." };
+  }
+  if (profile.status !== "active") {
+    return { error: "Esta conta está suspensa. Fale com a coordenação." };
+  }
+
+  // A senha prova que a pessoa é a dona da conta (e já deixa a sessão aberta).
+  const supabase = await createSupabaseServerClient();
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: profile.email.trim().toLowerCase(),
+    password,
+  });
+  if (signInError) {
+    return {
+      error:
+        "Senha incorreta. Use a senha da conta que você já tem — se não lembra, use “Esqueci minha senha” na tela de login.",
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const { data: claimed } = await admin
+    .from("invitations")
+    .update({ consumed_at: nowIso, status: "accepted", accepted_at: nowIso })
+    .eq("id", invitation.id)
+    .is("consumed_at", null)
+    .select("id")
+    .maybeSingle();
+  if (!claimed) return { error: "Este link já foi utilizado. Faça login normalmente." };
+
+  const { data: role } = await admin.from("roles").select("id").eq("slug", "student").single();
+  if (role) {
+    const { error: roleError } = await admin.from("user_roles").insert({ user_id: profile.id, role_id: role.id });
+    if (roleError && roleError.code !== "23505") {
+      console.error("Falha ao conceder papel de aluno à conta existente:", roleError);
+    }
+  }
+
+  await finalizeStudentEnrollment(admin, profile.id, invitation, nowIso);
+
+  redirect("/dashboard");
 }

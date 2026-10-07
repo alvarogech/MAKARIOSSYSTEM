@@ -2,6 +2,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { hashInviteToken } from "./inviteTokens";
+import { escapeIlike } from "./lookupTeacherCandidate";
 
 export type InviteTokenStatus =
   | "valid"
@@ -18,6 +19,8 @@ export interface InviteTokenInfo {
   fullName?: string;
   phone?: string;
   useAccessCode?: boolean;
+  /** Já existe uma conta ativa com este e-mail (ex.: professor que também é aluno). */
+  hasAccount?: boolean;
 }
 
 /**
@@ -62,8 +65,15 @@ export async function inspectInviteToken(
     return { status: "expired" };
   }
 
+  const { data: accounts } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("status", "active")
+    .ilike("email", escapeIlike(data.email));
+
   return {
     status: "valid",
+    hasAccount: accounts?.length === 1,
     invitationId: data.id,
     email: data.email,
     fullName: data.intended_full_name ?? "",

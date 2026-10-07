@@ -236,7 +236,25 @@ export async function createStudentOnboardingInvitation(
     .is("consumed_at", null)
     .is("revoked_at", null);
 
-  const useAccessCode = emailAlreadyRegistered || (otherPendingInvites?.length ?? 0) > 0;
+  // E-mail que já é de um professor/coordenador/admin é a MESMA pessoa se inscrevendo
+  // como aluna: nada de conta nova por código — no aceite ela entra com a senha atual e
+  // a conta ganha o perfil de aluno (um login só, dois perfis). Código de acesso fica
+  // para e-mail compartilhado com um familiar.
+  let ownedByStaff = false;
+  if (emailAlreadyRegistered) {
+    const { data: owners } = await admin.from("profiles").select("id").ilike("email", normalizedEmail);
+    const ownerIds = (owners ?? []).map((o) => o.id);
+    if (ownerIds.length > 0) {
+      const { data: staffRoles } = await admin
+        .from("user_roles")
+        .select("user_id, roles!inner(slug)")
+        .in("user_id", ownerIds)
+        .neq("roles.slug", "student");
+      ownedByStaff = (staffRoles?.length ?? 0) > 0;
+    }
+  }
+
+  const useAccessCode = (emailAlreadyRegistered && !ownedByStaff) || (otherPendingInvites?.length ?? 0) > 0;
 
   // Se um irmão ainda não cadastrado também está nessa lista e por acaso
   // ainda não foi marcado como exceção, atualiza ele também agora — melhor

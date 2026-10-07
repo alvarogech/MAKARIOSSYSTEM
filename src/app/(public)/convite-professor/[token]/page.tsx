@@ -42,6 +42,7 @@ export default async function ConviteProfessorPage({
       defaultFullName={info.fullName ?? ""}
       defaultPhone={info.phone ?? ""}
       email={info.email ?? ""}
+      hasAccount={info.hasAccount ?? false}
     />
   );
 }

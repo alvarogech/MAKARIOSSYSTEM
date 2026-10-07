@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { inspectInviteToken } from "@/modules/auth/inspectInviteToken";
+import { LinkExistingAccountForm } from "@/modules/enrollment/components/LinkExistingAccountForm";
 import { StudentOnboardingForm } from "@/modules/enrollment/components/StudentOnboardingForm";
 import { RequestStudentInviteLinkForm } from "@/modules/enrollment/components/RequestStudentInviteLinkForm";
 import { Alert } from "@/components/ui/Alert";
@@ -36,6 +37,12 @@ export default async function ConviteAlunoPage({
         </p>
       </div>
     );
+  }
+
+  // Já existe conta com este e-mail e o convite não é de "e-mail compartilhado com familiar"
+  // (código de acesso): é a mesma pessoa, com outro perfil — vincula à conta existente.
+  if (info.hasAccount && !info.useAccessCode) {
+    return <LinkExistingAccountForm token={token} email={info.email ?? ""} />;
   }
 
   return (
