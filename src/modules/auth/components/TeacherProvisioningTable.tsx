@@ -4,6 +4,7 @@ import { RevokeInvitationButton } from "./RevokeInvitationButton";
 import { RegenerateInvitationButton } from "./RegenerateInvitationButton";
 import { GenerateAssistedResetButton } from "./GenerateAssistedResetButton";
 import { EditPendingInvitationClassesForm } from "./EditPendingInvitationClassesForm";
+import { EditTeacherProfileForm } from "./EditTeacherProfileForm";
 
 const INVITE_STATUS_LABEL: Record<PendingInviteRow["inviteStatus"], string> = {
   pending: "Convite pendente",
@@ -26,9 +27,12 @@ function Badge({ label, className }: { label: string; className: string }) {
 export function TeacherProvisioningTable({
   rows,
   lessons,
+  canEdit = false,
 }: {
   rows: TeacherProvisioningRow[];
   lessons: AssignableLesson[];
+  /** Só o administrador edita nome e WhatsApp. */
+  canEdit?: boolean;
 }) {
   if (rows.length === 0) {
     return <p className="py-4 text-sm text-neutral-400">Nenhum professor cadastrado ainda.</p>;
@@ -93,9 +97,15 @@ export function TeacherProvisioningTable({
 
           <div className="mt-3 flex flex-wrap items-start gap-3">
             {row.kind === "active" ? (
-              <GenerateAssistedResetButton userId={row.userId} />
+              <>
+                {canEdit ? <EditTeacherProfileForm target="active" id={row.userId} fullName={row.fullName} phone={row.phone} /> : null}
+                <GenerateAssistedResetButton userId={row.userId} />
+              </>
             ) : (
               <>
+                {canEdit && row.inviteStatus !== "revoked" ? (
+                  <EditTeacherProfileForm target="pending" id={row.invitationId} fullName={row.fullName} phone={row.phone} />
+                ) : null}
                 {row.inviteStatus === "pending" ? (
                   <>
                     <EditPendingInvitationClassesForm

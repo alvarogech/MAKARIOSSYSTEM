@@ -47,7 +47,7 @@ export default async function ProfessoresPage() {
 
       <Card>
         <h2 className="font-semibold text-neutral-900">Professores e convites ({rows.length})</h2>
-        <TeacherProvisioningTable rows={rows} lessons={lessons} />
+        <TeacherProvisioningTable rows={rows} lessons={lessons} canEdit={can(authContext, { resource: "teacher_profile", action: "edit" })} />
       </Card>
     </div>
   );

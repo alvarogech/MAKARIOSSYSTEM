@@ -23,6 +23,8 @@ import type { AuthContext, PermissionCheck, RoleSlug } from "./types";
 const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "profile:read_any": ["coordinator", "admin"],
   "profile:suspend": ["admin"],
+  // Editar nome/WhatsApp de professores: só o administrador (o banco também recusa outro perfil).
+  "teacher_profile:edit": ["admin"],
   "user_roles:manage": ["admin"],
   "invitations:create": ["coordinator", "admin"],
   "invitations:read": ["coordinator", "admin"],
