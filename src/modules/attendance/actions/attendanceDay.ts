@@ -15,7 +15,7 @@ import {
   toMinutes,
   type ScheduleSlug,
 } from "../rules";
-import { dayLessons, lessonNumbersOfScan, lessonsFromUnits } from "../dayLessons";
+import { dayLessons, lessonNumbersOfScan } from "../dayLessons";
 
 const DEVICE_COOKIE = "makarios_presenca";
 
@@ -359,7 +359,7 @@ export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
 
   const lessons = await loadLessons(ctx);
   const rows = await existingRows(ctx);
-  const markedLessons = new Set(lessonsFromUnits(lessons, rows.flatMap((r) => lessonNumbersOfScan(r))));
+  const markedLessons = new Set(rows.flatMap((r) => lessonNumbersOfScan(r)));
 
   rememberDevice(ctx);
 
@@ -417,8 +417,7 @@ export async function saveAttendanceDay(input: DayInput & { lessons: number[] })
   });
 
   for (const block of [1, 2] as const) {
-    // O banco conta em unidades de 30 min: cada aula de 1 hora vale 2 unidades.
-    const numbers = chosen.flatMap((n) => (byNumber.get(n)?.block === block ? byNumber.get(n)!.units : []));
+    const numbers = chosen.filter((n) => byNumber.get(n)?.block === block);
     const existing = rows.find((r) => r.block === block);
 
     if (numbers.length === 0) {

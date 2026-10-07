@@ -1,29 +1,18 @@
 /**
  * Regras puras da chamada por QR Code (sem banco, testáveis isoladamente).
  *
- * Cada encontro tem dois blocos separados pelo intervalo, e cada bloco é
- * feito de aulas de 30 minutos (terça/quinta: 2 + 2; sábado: 4 + 4). O
- * aluno escaneia na entrada de cada bloco, e o escaneamento reconhece as
- * aulas daquele bloco que ainda não tinham passado da tolerância.
+ * Cada encontro tem dois blocos separados pelo intervalo, e cada bloco é feito
+ * de aulas de 1 hora: terça/quinta tem 2 aulas por encontro (1 + 1) e sábado
+ * tem 4 (2 + 2). O aluno lê o QR uma vez no dia e marca em quais aulas esteve.
  */
 
-export const LESSON_MINUTES = 30;
-export const TOLERANCE_MINUTES = 15;
-/** Quanto antes do início do encontro o QR já aceita a entrada. */
-export const OPENS_BEFORE_MINUTES = 30;
+export const LESSON_MINUTES = 60;
 
 export interface MeetingTimes {
   /** "HH:MM" ou "HH:MM:SS" */
   startTime: string;
   endTime: string;
   breakMinutes: number;
-}
-
-export interface ScanEvaluation {
-  block: 1 | 2;
-  lessonsTotal: number;
-  lessonsCredited: number;
-  recognizedMinutes: number;
 }
 
 export function toMinutes(time: string): number {
@@ -41,34 +30,6 @@ export function meetingBlocks(meeting: MeetingTimes) {
     { block: 1 as const, start, end: block1End, lessons: Math.round(half / LESSON_MINUTES) },
     { block: 2 as const, start: block2Start, end, lessons: Math.round(half / LESSON_MINUTES) },
   ] as const;
-}
-
-/**
- * Qual bloco um escaneamento feito em `scanMinute` (minutos desde a
- * meia-noite, horário de São Paulo) abre, e quantas aulas ele reconhece.
- * `null` quando o horário está fora do encontro.
- *
- * Janela do bloco 1: de 30 min antes do início até o começo do intervalo.
- * Janela do bloco 2: do começo do intervalo (quem volta antes) até o fim.
- * Uma aula conta se o aluno entrou até 15 min depois do início dela.
- */
-export function evaluateScan(meeting: MeetingTimes, scanMinute: number): ScanEvaluation | null {
-  const [b1, b2] = meetingBlocks(meeting);
-  let target;
-  if (scanMinute >= b1.start - OPENS_BEFORE_MINUTES && scanMinute < b1.end) target = b1;
-  else if (scanMinute >= b1.end && scanMinute < b2.end) target = b2;
-  else return null;
-
-  let credited = 0;
-  for (let i = 0; i < target.lessons; i++) {
-    if (scanMinute <= target.start + i * LESSON_MINUTES + TOLERANCE_MINUTES) credited++;
-  }
-  return {
-    block: target.block,
-    lessonsTotal: target.lessons,
-    lessonsCredited: credited,
-    recognizedMinutes: credited * LESSON_MINUTES,
-  };
 }
 
 export type ScheduleSlug = "terca_quinta" | "sabado";

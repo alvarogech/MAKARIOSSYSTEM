@@ -1,45 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
-  evaluateScan,
   locationVerdict,
+  meetingBlocks,
   makeupTargetSequence,
-  toMinutes,
   weekStartOf,
 } from "@/modules/attendance/rules";
 
 const tercaQuinta = { startTime: "19:30:00", endTime: "21:50:00", breakMinutes: 20 };
 const sabado = { startTime: "08:00:00", endTime: "12:30:00", breakMinutes: 30 };
-const at = (t: string) => toMinutes(t);
 
-describe("evaluateScan — terça/quinta", () => {
-  it("chegou cedo: aulas 1 e 2", () => {
-    expect(evaluateScan(tercaQuinta, at("19:20"))).toMatchObject({ block: 1, lessonsCredited: 2, recognizedMinutes: 60 });
+describe("meetingBlocks — aulas de 1 hora", () => {
+  it("terça/quinta: 1 aula por bloco (2 por encontro, 2 h)", () => {
+    const [b1, b2] = meetingBlocks(tercaQuinta);
+    expect([b1.lessons, b2.lessons]).toEqual([1, 1]);
+    expect([b1.start, b1.end, b2.start, b2.end]).toEqual([19 * 60 + 30, 20 * 60 + 30, 20 * 60 + 50, 21 * 60 + 50]);
   });
-  it("dentro da tolerância de 15 min: aulas 1 e 2", () => {
-    expect(evaluateScan(tercaQuinta, at("19:45"))?.lessonsCredited).toBe(2);
-  });
-  it("passou da tolerância da aula 1: só a aula 2", () => {
-    expect(evaluateScan(tercaQuinta, at("19:46"))?.lessonsCredited).toBe(1);
-    expect(evaluateScan(tercaQuinta, at("19:50"))?.lessonsCredited).toBe(1);
-  });
-  it("passou da tolerância das duas: nenhuma aula do bloco 1", () => {
-    expect(evaluateScan(tercaQuinta, at("20:16"))).toMatchObject({ block: 1, lessonsCredited: 0 });
-  });
-  it("na volta do intervalo abre o bloco 2", () => {
-    expect(evaluateScan(tercaQuinta, at("20:35"))).toMatchObject({ block: 2, lessonsTotal: 2, lessonsCredited: 2 });
-    expect(evaluateScan(tercaQuinta, at("21:20"))).toMatchObject({ block: 2, lessonsCredited: 1 });
-  });
-  it("fora do horário: nada", () => {
-    expect(evaluateScan(tercaQuinta, at("18:59"))).toBeNull();
-    expect(evaluateScan(tercaQuinta, at("21:50"))).toBeNull();
-  });
-});
-
-describe("evaluateScan — sábado", () => {
-  it("4 aulas por bloco", () => {
-    expect(evaluateScan(sabado, at("07:50"))).toMatchObject({ block: 1, lessonsTotal: 4, lessonsCredited: 4, recognizedMinutes: 120 });
-    expect(evaluateScan(sabado, at("08:50"))).toMatchObject({ block: 1, lessonsCredited: 2 });
-    expect(evaluateScan(sabado, at("10:30"))).toMatchObject({ block: 2, lessonsCredited: 4 });
+  it("sábado: 2 aulas por bloco (4 por encontro, 4 h)", () => {
+    const [b1, b2] = meetingBlocks(sabado);
+    expect([b1.lessons, b2.lessons]).toEqual([2, 2]);
+    expect([b1.start, b1.end, b2.start, b2.end]).toEqual([8 * 60, 10 * 60, 10 * 60 + 30, 12 * 60 + 30]);
   });
 });
 

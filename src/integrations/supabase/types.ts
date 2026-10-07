@@ -674,6 +674,7 @@ export type Database = {
           meeting_id: string
           note: string | null
           student_id: string | null
+          unit_minutes: number
         }
         Insert: {
           created_at?: string
@@ -685,6 +686,7 @@ export type Database = {
           meeting_id: string
           note?: string | null
           student_id?: string | null
+          unit_minutes?: number
         }
         Update: {
           created_at?: string
@@ -696,6 +698,7 @@ export type Database = {
           meeting_id?: string
           note?: string | null
           student_id?: string | null
+          unit_minutes?: number
         }
         Relationships: [
           {
@@ -818,6 +821,7 @@ export type Database = {
           scanned_at: string
           self_declared: boolean
           student_id: string | null
+          unit_minutes: number
         }
         Insert: {
           block: number
@@ -836,6 +840,7 @@ export type Database = {
           scanned_at?: string
           self_declared?: boolean
           student_id?: string | null
+          unit_minutes?: number
         }
         Update: {
           block?: number
@@ -854,6 +859,7 @@ export type Database = {
           scanned_at?: string
           self_declared?: boolean
           student_id?: string | null
+          unit_minutes?: number
         }
         Relationships: [
           {

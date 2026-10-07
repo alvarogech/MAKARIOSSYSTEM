@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayLessons, lessonNumbersOfScan, lessonsFromUnits } from "@/modules/attendance/dayLessons";
+import { dayLessons, lessonNumbersOfScan } from "@/modules/attendance/dayLessons";
 import { scanLessons } from "@/modules/attendance/report";
 
 const TUE_THU = { startTime: "19:30:00", endTime: "21:50:00", breakMinutes: 20 };
@@ -24,19 +24,6 @@ describe("dayLessons", () => {
     ]);
   });
 
-  it("cada aula cobre 2 unidades de 30 min, como o banco registra", () => {
-    expect(dayLessons(SATURDAY).map((l) => l.units)).toEqual([
-      [1, 2],
-      [3, 4],
-      [5, 6],
-      [7, 8],
-    ]);
-    expect(dayLessons(TUE_THU).map((l) => l.units)).toEqual([
-      [1, 2],
-      [3, 4],
-    ]);
-  });
-
   it("associa a matéria ao horário de cada aula", () => {
     const lessons = dayLessons(TUE_THU, [
       { start: 19 * 60 + 30, end: 20 * 60 + 30, name: "Antigo Testamento" },
@@ -50,15 +37,6 @@ describe("dayLessons", () => {
   });
 });
 
-describe("lessonsFromUnits", () => {
-  it("só conta a aula quando as duas unidades de 30 min estão registradas", () => {
-    const lessons = dayLessons(SATURDAY);
-    expect(lessonsFromUnits(lessons, [1, 2, 3, 4])).toEqual([1, 2]);
-    expect(lessonsFromUnits(lessons, [2, 3, 4])).toEqual([2]);
-    expect(lessonsFromUnits(lessons, [])).toEqual([]);
-  });
-});
-
 describe("lessonNumbersOfScan / scanLessons", () => {
   it("registro novo: usa exatamente o que o aluno marcou", () => {
     const row = { block: 1, lessons_credited: 2, lessons_total: 4, lesson_numbers: [4, 1] };
@@ -66,9 +44,8 @@ describe("lessonNumbersOfScan / scanLessons", () => {
     expect(scanLessons({ block: 1, lessonsCredited: 2, lessonsTotal: 4, lessonNumbers: [4, 1] })).toEqual([1, 4]);
   });
 
-  it("registro antigo: deduz as últimas unidades do bloco", () => {
+  it("registro sem a lista exata: deduz as últimas aulas do bloco", () => {
     expect(lessonNumbersOfScan({ block: 1, lessons_credited: 1, lessons_total: 2, lesson_numbers: null })).toEqual([2]);
-    expect(lessonNumbersOfScan({ block: 2, lessons_credited: 2, lessons_total: 2, lesson_numbers: null })).toEqual([3, 4]);
-    expect(scanLessons({ block: 2, lessonsCredited: 1, lessonsTotal: 4, lessonNumbers: null })).toEqual([8]);
+    expect(lessonNumbersOfScan({ block: 2, lessons_credited: 1, lessons_total: 2, lesson_numbers: null })).toEqual([4]);
   });
 });

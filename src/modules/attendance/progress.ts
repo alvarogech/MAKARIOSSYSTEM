@@ -4,7 +4,7 @@
  * Regra (doc 02 §9): 16 h presenciais por volume, mínimo de 75% (12 h).
  * Na prática: sábado (4 encontros de 4 h) admite 1 falta; terça/quinta
  * (8 encontros de 2 h) admite 2. Atraso conta proporcionalmente (aulas de
- * 30 min), e a reposição em outra turma devolve os minutos do encontro.
+ * 1 hora), e a reposição em outra turma devolve os minutos do encontro.
  */
 
 export const MIN_ATTENDANCE_RATIO = 0.75;

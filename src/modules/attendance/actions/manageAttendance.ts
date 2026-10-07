@@ -110,7 +110,7 @@ export async function addManualAttendance(_prev: SimpleState, formData: FormData
     const { data: target } = await supabase.from("class_meetings").select("id").eq("id", replaces).maybeSingle();
     if (!target) return { error: "Encontro substituído não encontrado." };
   }
-  const maxLesson = Math.round(meeting.academic_minutes / 30);
+  const maxLesson = Math.round(meeting.academic_minutes / 60);
   if (lessons.some((n) => n > maxLesson)) return { error: "Aula fora do encontro." };
 
   const who = match[1] === "r" ? { enrollment_request_id: match[2]!, student_id: null } : { enrollment_request_id: null, student_id: match[2]! };
