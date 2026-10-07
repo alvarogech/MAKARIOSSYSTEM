@@ -1114,6 +1114,7 @@ export type Database = {
       }
       class_meeting_reports: {
         Row: {
+          attention_student_ids: string[]
           content_completed: string | null
           id: string
           meeting_id: string
@@ -1128,6 +1129,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attention_student_ids?: string[]
           content_completed?: string | null
           id?: string
           meeting_id: string
@@ -1142,6 +1144,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attention_student_ids?: string[]
           content_completed?: string | null
           id?: string
           meeting_id?: string
@@ -2602,6 +2605,9 @@ export type Database = {
           ends_on: string | null
           id: string
           name: string
+          require_class_report: boolean
+          require_class_report_changed_at: string | null
+          require_class_report_changed_by: string | null
           starts_on: string | null
           status: string
           updated_at: string
@@ -2611,6 +2617,9 @@ export type Database = {
           ends_on?: string | null
           id?: string
           name: string
+          require_class_report?: boolean
+          require_class_report_changed_at?: string | null
+          require_class_report_changed_by?: string | null
           starts_on?: string | null
           status?: string
           updated_at?: string
@@ -2620,6 +2629,9 @@ export type Database = {
           ends_on?: string | null
           id?: string
           name?: string
+          require_class_report?: boolean
+          require_class_report_changed_at?: string | null
+          require_class_report_changed_by?: string | null
           starts_on?: string | null
           status?: string
           updated_at?: string
@@ -2889,6 +2901,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_write_class_report: {
+        Args: { p_meeting_id: string }
+        Returns: boolean
+      }
       cancel_attendance_request: {
         Args: { p_request_id: string }
         Returns: undefined

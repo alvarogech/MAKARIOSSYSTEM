@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getSaoPauloDateKey, addSaoPauloDays } from "@/lib/saoPauloDate";
+import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
 
 type DB = SupabaseClient<Database>;
 
@@ -46,6 +47,8 @@ export async function loadCoordinationAlerts(supabase: DB): Promise<Coordination
     supabase.rpc("data_quality_report"),
   ]);
 
+  // Semestre com o relatório desligado não gera pendência nenhuma.
+  const reportActiveByClass = await loadReportActiveByClass(supabase, [...new Set((meetings ?? []).map((m) => m.class_id))]);
   const withTeacher = new Set((blocks ?? []).filter((b) => b.teacher_id && b.status !== "canceled").map((b) => b.class_meeting_id));
   // Professor sem conta (só o nome na escala) conta como escalado, mas não pode enviar relatório.
   const scheduled = new Set((blocks ?? []).filter((b) => (b.teacher_id || b.teacher_label) && b.status !== "canceled").map((b) => b.class_meeting_id));
@@ -62,7 +65,9 @@ export async function loadCoordinationAlerts(supabase: DB): Promise<Coordination
       past: m.meeting_date! < today,
     }));
 
-  const reportsMissing = (meetings ?? []).filter((m) => m.meeting_date && m.meeting_date < today && withTeacher.has(m.id) && !reported.has(m.id)).length;
+  const reportsMissing = (meetings ?? []).filter(
+    (m) => m.meeting_date && m.meeting_date < today && reportActiveByClass.get(m.class_id) && withTeacher.has(m.id) && !reported.has(m.id),
+  ).length;
 
   const q = (quality ?? {}) as {
     duplicate_profiles?: unknown[];

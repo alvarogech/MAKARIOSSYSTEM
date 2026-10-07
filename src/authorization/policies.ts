@@ -35,6 +35,8 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "enrollments:manage": ["coordinator", "admin"],
   "volumes:manage": ["coordinator", "admin"],
   "seasons:manage": ["coordinator", "admin"],
+  // Exigir (ou não) o relatório pós-aula é decisão só do administrador (o banco também recusa outro perfil).
+  "seasons:set_report_requirement": ["admin"],
   "offerings:manage": ["coordinator", "admin"],
   "classes:manage": ["coordinator", "admin"],
   "class_meetings:manage": ["coordinator", "admin"],

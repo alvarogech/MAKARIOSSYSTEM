@@ -38,6 +38,7 @@ export type PermissionCheck =
   | { resource: "enrollments"; action: "manage" }
   | { resource: "volumes"; action: "manage" }
   | { resource: "seasons"; action: "manage" }
+  | { resource: "seasons"; action: "set_report_requirement" }
   | { resource: "offerings"; action: "manage" }
   | { resource: "classes"; action: "manage" }
   | { resource: "class_meetings"; action: "manage" }

@@ -1,3 +1,5 @@
+import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
+import { isMeetingOver } from "@/modules/teaching/reportSettings";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -72,6 +74,10 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
     .select("volume_id")
     .eq("id", klass.season_volume_offering_id)
     .maybeSingle();
+
+  // O relatório só aparece quando o semestre exige, para quem está escalado neste bloco e depois do término.
+  const reportActive = (await loadReportActiveByClass(supabase, [klass.id])).get(klass.id) ?? false;
+  const reportOpen = reportActive && block.teacher_id === authContext.userId && isMeetingOver(meeting.meeting_date, meeting.end_time, new Date());
 
   const [{ data: volume }, { data: moduleRow }, { data: teacherProfile }] = await Promise.all([
     offering ? supabase.from("volumes").select("name").eq("id", offering.volume_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -178,9 +184,11 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
               Exportação para o calendário fica disponível quando a coordenação confirmar data e horário.
             </span>
           )}
-          <Link href={`/professor/turmas/${klass.id}/encontros/${meeting.id}/relatorio`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-            Relatório
-          </Link>
+          {reportOpen ? (
+            <Link href={`/professor/turmas/${klass.id}/encontros/${meeting.id}/relatorio`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+              Relatório
+            </Link>
+          ) : null}
         </div>
         {canExportCalendar ? (
           <p className="mt-2 text-xs text-neutral-400">

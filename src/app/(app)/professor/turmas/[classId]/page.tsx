@@ -1,3 +1,5 @@
+import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
+import { isMeetingOver } from "@/modules/teaching/reportSettings";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -70,7 +72,7 @@ export default async function ProfessorTurmaDetailPage({
         .single(),
       supabase
         .from("class_meetings")
-        .select("id, sequence, meeting_date, academic_minutes, status, room")
+        .select("id, sequence, meeting_date, end_time, academic_minutes, status, room")
         .eq("class_id", classId)
         .order("sequence"),
       // Lista única da turma (matriculados + aprovados que ainda vão criar a conta) e as presenças
@@ -142,6 +144,13 @@ export default async function ProfessorTurmaDetailPage({
   ).size;
   const totalMeetingCount = (meetings ?? []).length;
 
+  // Relatório pós-aula: só onde o semestre exige, no encontro em que sou escalado(a) e depois do término.
+  const reportActive = (await loadReportActiveByClass(supabase, [classId])).get(classId) ?? false;
+  const nowForReports = new Date();
+  const myScheduledMeetingIds = new Set(
+    (blocks ?? []).filter((b) => b.teacher_id === authContext.userId && b.status !== "canceled").map((b) => b.class_meeting_id),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -210,14 +219,16 @@ export default async function ProfessorTurmaDetailPage({
                     ) : null}
                     {meeting.room ? <span className="ml-2 text-xs text-neutral-400">· {meeting.room}</span> : null}
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={`/professor/turmas/${classId}/encontros/${meeting.id}/relatorio`}
-                      className={buttonVariants({ variant: "ghost", size: "sm" })}
-                    >
-                      Relatório
-                    </Link>
-                  </div>
+                  {reportActive && myScheduledMeetingIds.has(meeting.id) && isMeetingOver(meeting.meeting_date, meeting.end_time, nowForReports) ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/professor/turmas/${classId}/encontros/${meeting.id}/relatorio`}
+                        className={buttonVariants({ variant: "ghost", size: "sm" })}
+                      >
+                        {reportedMeetingIds.has(meeting.id) ? "Ver relatório" : "Enviar relatório"}
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
 
                 {meetingBlocks.length === 0 ? (
