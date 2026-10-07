@@ -12,7 +12,7 @@ import { TeacherClassCardView } from "./TeacherClassCardView";
 
 /** Início do professor: o que fazer agora em poucos segundos. */
 export function TeacherHome({ firstName, data, todayKey }: { firstName: string; data: TeacherDashboardData; todayKey: string }) {
-  const { summary, pendingReports, indicators, newMaterials } = data;
+  const { summary, pendingReports, indicators, newMaterials, participation } = data;
   const weekLessons = [summary.nextLesson, ...summary.todayOtherLessons, ...summary.upcomingLessons].filter(
     (l): l is TeacherLesson => Boolean(l),
   );
@@ -169,6 +169,31 @@ export function TeacherHome({ firstName, data, todayKey }: { firstName: string; 
           />
         </dl>
       </section>
+
+      {/* Jornada das turmas: só agregados */}
+      {participation.length > 0 ? (
+        <section aria-labelledby="jornada-turmas">
+          <h2 id="jornada-turmas" className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Jornada das suas turmas
+          </h2>
+          <Card className="flex flex-col divide-y divide-neutral-100 p-0">
+            {participation.map((p) => (
+              <Link key={p.classId} href={`/professor/turmas/${p.classId}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-neutral-50">
+                <span className="min-w-0 text-neutral-800">
+                  <span className="font-medium">{classTagLabel(p.volumeName, p.className)}</span>
+                  <span className="block text-xs text-neutral-500">
+                    {p.percent === null ? "Sem dados de participação nos desafios" : `Participação nos desafios de fixação: ${p.percent}%`}
+                    {p.doubts > 0 ? ` · ${p.doubts} questão(ões) com dúvida recorrente` : ""}
+                  </span>
+                </span>
+                <span aria-hidden="true" className="text-neutral-400">
+                  →
+                </span>
+              </Link>
+            ))}
+          </Card>
+        </section>
+      ) : null}
 
       {/* Avisos */}
       {summary.announcements.length > 0 ? (

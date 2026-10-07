@@ -2966,6 +2966,10 @@ export type Database = {
           location_status: string | null
         }[]
       }
+      class_journey_stats: {
+        Args: { p_class_id: string }
+        Returns: Json
+      }
       class_meeting_subjects: {
         Args: { p_class_id: string }
         Returns: {

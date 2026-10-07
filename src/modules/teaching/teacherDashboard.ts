@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { addSaoPauloDays, getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { toProgressCredits, type CreditRow } from "@/modules/attendance/credits";
 import { computeProgress } from "@/modules/attendance/progress";
+import { loadClassJourney } from "@/modules/learning/classJourney";
 import { loadPendingReports, type PendingReport } from "./pendingReports";
 import { loadTeacherHomeSummary, type TeacherHomeSummary } from "./teacherHome";
 
@@ -24,8 +25,18 @@ export interface NewMaterial {
   title: string;
 }
 
+export interface ClassParticipation {
+  classId: string;
+  volumeName: string;
+  className: string;
+  /** Participação média nos desafios publicados (0-100); null = sem dados. */
+  percent: number | null;
+  doubts: number;
+}
+
 export interface TeacherDashboardData {
   summary: TeacherHomeSummary;
+  participation: ClassParticipation[];
   pendingReports: PendingReport[];
   indicators: TeacherIndicators;
   newMaterials: NewMaterial[];
@@ -90,16 +101,33 @@ async function loadNewMaterials(supabase: DB, volumeIds: string[], moduleIds: st
     .map((c) => ({ id: c.id, title: c.title }));
 }
 
+/** Participação média nos desafios de fixação de cada turma (só agregados); sem desafio publicado ou sem aluno = sem dados. */
+async function loadParticipation(supabase: DB, classes: TeacherHomeSummary["classes"]): Promise<ClassParticipation[]> {
+  return Promise.all(
+    classes.map(async (klass) => {
+      const journey = await loadClassJourney(supabase, klass.classId);
+      const published = (journey?.modules ?? []).filter((m) => m.activitiesPublished > 0);
+      const percent =
+        !journey || journey.students === 0 || published.length === 0
+          ? null
+          : Math.round((published.reduce((sum, m) => sum + m.studentsDoneActivity, 0) / (published.length * journey.students)) * 100);
+      return { classId: klass.classId, volumeName: klass.volumeName, className: klass.className, percent, doubts: journey?.doubts.length ?? 0 };
+    }),
+  );
+}
+
 export async function loadTeacherDashboard(supabase: DB, teacherId: string): Promise<TeacherDashboardData> {
   const summary = await loadTeacherHomeSummary(supabase, teacherId);
   const classIds = summary.classes.map((c) => c.classId);
-  const [pendingReports, indicators, newMaterials] = await Promise.all([
+  const [pendingReports, indicators, newMaterials, participation] = await Promise.all([
     loadPendingReports(supabase, teacherId),
     loadIndicators(supabase, classIds),
     loadNewMaterials(supabase, summary.volumeIds, summary.myModuleIds),
+    loadParticipation(supabase, summary.classes),
   ]);
   return {
     summary,
+    participation,
     pendingReports,
     indicators: { ...indicators, lessonsDone: summary.lessonsDone, lessonsPlanned: summary.lessonsPlanned },
     newMaterials,

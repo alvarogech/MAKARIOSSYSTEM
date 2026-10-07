@@ -7,6 +7,8 @@ import { classContext } from "@/modules/academic/classHub";
 import { formatHours } from "@/modules/attendance/progress";
 import { SITUATION } from "@/modules/attendance/situation";
 import { loadOverview } from "@/modules/attendance/overviewLoader";
+import { loadClassJourney } from "@/modules/learning/classJourney";
+import { ClassJourneyPanel } from "@/modules/learning/components/ClassJourneyPanel";
 
 export const metadata: Metadata = { title: "Turma" };
 
@@ -19,10 +21,11 @@ export default async function TurmaVisaoPage({ params }: { params: Promise<{ cla
   const ctx = await classContext(supabase, classId);
   if (!ctx) notFound();
 
-  const [{ overview }, { data: meetings }, { data: blocks }] = await Promise.all([
+  const [{ overview }, { data: meetings }, { data: blocks }, journey] = await Promise.all([
     loadOverview(supabase, ctx.seasonId, { classId }),
     supabase.from("class_meetings").select("id, sequence, meeting_date, start_time, end_time, status").eq("class_id", classId).order("meeting_date"),
     supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, teacher_label, status"),
+    loadClassJourney(supabase, classId),
   ]);
 
   const klass = overview.classes[0];
@@ -101,6 +104,10 @@ export default async function TurmaVisaoPage({ params }: { params: Promise<{ cla
           </ul>
         )}
       </Card>
+
+      <div className="lg:col-span-2">
+        <ClassJourneyPanel journey={journey} />
+      </div>
     </div>
   );
 }
