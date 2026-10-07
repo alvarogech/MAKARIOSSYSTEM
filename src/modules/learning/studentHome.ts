@@ -20,6 +20,7 @@ export interface StudentNextMeeting {
 }
 
 export interface StudentNextStep {
+  kind: "assessment" | "meeting" | "study";
   label: string;
   href: string | null;
 }
@@ -143,14 +144,15 @@ export async function loadStudentHomeSummary(
   const firstOpenAssessment = (openAssessments ?? [])[0] ?? null;
 
   const nextStep: StudentNextStep | null = firstOpenAssessment
-    ? { label: `Você tem uma avaliação em aberto: ${firstOpenAssessment.title}`, href: `/avaliacoes/${firstOpenAssessment.id}` }
+    ? { kind: "assessment", label: `Você tem uma avaliação em aberto: ${firstOpenAssessment.title}`, href: `/avaliacoes/${firstOpenAssessment.id}` }
     : nextMeeting
       ? {
+          kind: "meeting",
           label: `Seu próximo passo é participar do encontro de ${nextMeeting.className} em ${nextMeeting.dateLabel}.`,
           href: nextMeeting.volumeHref,
         }
       : rows[0]
-        ? { label: "Continue seus estudos nos volumes em andamento.", href: `/meus-volumes/${rows[0].id}` }
+        ? { kind: "study", label: "Continue seus estudos nos volumes em andamento.", href: `/meus-volumes/${rows[0].id}` }
         : null;
 
   const volumesCards: StudentVolumeCard[] = rows.map((enrollment) => {

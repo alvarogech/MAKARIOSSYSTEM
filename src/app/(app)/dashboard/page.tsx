@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Calendar, MapPin, MessageCircle } from "lucide-react";
+import { Calendar, MapPin, MessageCircle } from "lucide-react";
 import { can, canAccessArea, getAuthContext } from "@/authorization";
 import { ROLE_LABELS } from "@/lib/roleLabels";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
@@ -15,6 +15,10 @@ import { loadDeclarationPrompts, type DeclarationPrompt } from "@/modules/attend
 import { loadToday, type TodayData } from "@/modules/academic/today";
 import { TodayPanel } from "@/modules/academic/components/TodayPanel";
 import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
+import { loadStudentJourneys } from "@/modules/learning/journeyLoader";
+import type { VolumeJourney } from "@/modules/learning/journey";
+import { ModuleJourney } from "@/modules/learning/components/ModuleJourney";
+import { NextStepCard } from "@/modules/learning/components/NextStepCard";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -38,12 +42,15 @@ export default async function DashboardPage() {
 
   let studentSummary: StudentHomeSummary | null = null;
   let frequency: VolumeFrequency[] = [];
+  let journeys: VolumeJourney[] = [];
   let declarationPrompts: DeclarationPrompt[] = [];
   let studentAnnouncements: { id: string; title: string; body: string; published_at: string }[] = [];
   if (authContext.activeRole === "student") {
     const supabase = await createSupabaseServerClient();
     studentSummary = await loadStudentHomeSummary(supabase, authContext.userId);
     frequency = await loadStudentFrequency(supabase, authContext.userId);
+    // A jornada é uma camada de leitura: se algo falhar, a home continua funcionando sem ela.
+    journeys = await loadStudentJourneys(supabase, authContext.userId, frequency).catch(() => []);
     declarationPrompts = await loadDeclarationPrompts(supabase, authContext.userId);
     // A política do banco já entrega só o que é para este aluno (geral, da turma ou do módulo dele).
     const { data: announcementRows } = await supabase
@@ -76,6 +83,24 @@ export default async function DashboardPage() {
 
       {authContext.activeRole === "student" && studentSummary ? (
         <>
+          {(() => {
+            const journeyNext = journeys.find((j) => j.next)?.next ?? null;
+            // Avaliação em aberto sempre vem primeiro; depois o passo da jornada; por fim o passo geral.
+            if (studentSummary.nextStep?.kind === "assessment") {
+              return <NextStepCard title={studentSummary.nextStep.label} href={studentSummary.nextStep.href} cta="Abrir avaliação" />;
+            }
+            if (journeyNext) {
+              return <NextStepCard title={journeyNext.title} detail={journeyNext.detail} href={journeyNext.href} cta={journeyNext.cta} />;
+            }
+            return studentSummary.nextStep ? (
+              <NextStepCard title={studentSummary.nextStep.label} href={studentSummary.nextStep.href} />
+            ) : null;
+          })()}
+
+          {journeys.map((journey) => (
+            <ModuleJourney key={journey.enrollmentId} journey={journey} />
+          ))}
+
           {studentSummary.nextMeeting ? (
             <Card>
               <div className="flex items-start justify-between gap-4">
@@ -131,23 +156,6 @@ export default async function DashboardPage() {
               </p>
             </Card>
           )}
-
-          {studentSummary.nextStep ? (
-            <Card className="border-brand-blue/30 bg-brand-blue-light">
-              <p className="text-xs font-semibold uppercase tracking-wide text-brand-blue">
-                Meu próximo passo
-              </p>
-              <p className="mt-1.5 text-sm font-medium text-neutral-900">{studentSummary.nextStep.label}</p>
-              {studentSummary.nextStep.href ? (
-                <Link
-                  href={studentSummary.nextStep.href}
-                  className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand-blue hover:underline"
-                >
-                  Continuar <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              ) : null}
-            </Card>
-          ) : null}
 
           {studentAnnouncements.length > 0 ? (
             <Card>
