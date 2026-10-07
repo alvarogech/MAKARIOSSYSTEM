@@ -12,6 +12,8 @@ import { loadStudentHomeSummary, type StudentHomeSummary } from "@/modules/learn
 import { loadStudentAccess, summarize, type AccessSummary } from "@/modules/access/studentAccess";
 import { FrequencyAlert, FrequencyMeter } from "@/modules/attendance/components/FrequencyPanel";
 import { loadStudentFrequency, type VolumeFrequency } from "@/modules/attendance/studentFrequency";
+import { loadDeclarationPrompts, type DeclarationPrompt } from "@/modules/attendance/declarations";
+import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -35,10 +37,12 @@ export default async function DashboardPage() {
 
   let studentSummary: StudentHomeSummary | null = null;
   let frequency: VolumeFrequency[] = [];
+  let declarationPrompts: DeclarationPrompt[] = [];
   if (authContext.activeRole === "student") {
     const supabase = await createSupabaseServerClient();
     studentSummary = await loadStudentHomeSummary(supabase, authContext.userId);
     frequency = await loadStudentFrequency(supabase, authContext.userId);
+    declarationPrompts = await loadDeclarationPrompts(supabase, authContext.userId);
   }
 
   let accessSummary: AccessSummary | null = null;
@@ -138,6 +142,12 @@ export default async function DashboardPage() {
               ) : null}
             </Card>
           ) : null}
+
+          {declarationPrompts
+            .filter((prompt) => !prompt.declared)
+            .map((prompt) => (
+              <DeclarationCard key={prompt.meetingId} prompt={prompt} />
+            ))}
 
           {frequency.map((volume) => (
             <Card key={volume.classId} className="flex flex-col gap-3">

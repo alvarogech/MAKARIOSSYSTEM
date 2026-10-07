@@ -9,6 +9,7 @@ import { getPublicEnv } from "@/lib/env";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { deleteManualAttendance } from "@/modules/attendance/actions/manageAttendance";
 import { GenerateQrCodesForm, RequireLocationSwitch } from "@/modules/attendance/components/AttendanceForms";
+import { DeclarationsTab } from "@/modules/attendance/components/DeclarationsTab";
 import { ManualAttendanceForm, type ManualClassOption } from "@/modules/attendance/components/ManualAttendanceForm";
 import { computeProgress, formatHours, type Situation } from "@/modules/attendance/progress";
 import { loadAttendanceData, scanLessons, type ScanRow } from "@/modules/attendance/report";
@@ -67,7 +68,7 @@ function scanDetail(s: ScanRow) {
 export default async function PresencaCoordenacaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dia?: string; aba?: string; temporada?: string }>;
+  searchParams: Promise<{ dia?: string; aba?: string; temporada?: string; status?: string; volume?: string }>;
 }) {
   const auth = await getAuthContext();
   if (!auth) return null;
@@ -75,13 +76,14 @@ export default async function PresencaCoordenacaoPage({
     return <AccessDenied description="Esta área é exclusiva da Coordenação (ou Administrador)." />;
   }
 
-  const { dia, aba, temporada } = await searchParams;
+  const { dia, aba, temporada, status: declStatus, volume: declVolume } = await searchParams;
   const today = getSaoPauloDateKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : today;
   const general = aba === "geral";
   // Lançar presença depois (inclusive reposição) é só do administrador.
   const canBackfill = can(auth, { resource: "attendance", action: "backfill" });
   const manualTab = aba === "manual" && canBackfill;
+  const declarationsTab = aba === "autodeclaracoes";
   const supabase = await createSupabaseServerClient();
   // Uma turma por semestre: o relatório mostra uma temporada por vez, a mais
   // recente por padrão.
@@ -148,11 +150,14 @@ export default async function PresencaCoordenacaoPage({
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-5 text-sm">
-            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(!general && !manualTab)}>
+            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(!general && !manualTab && !declarationsTab)}>
               Relatório do dia
             </Link>
             <Link href={`?aba=geral&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(general)}>
               Relatório geral
+            </Link>
+            <Link href={`?aba=autodeclaracoes&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(declarationsTab)}>
+              Autodeclarações
             </Link>
             {canBackfill ? (
               <Link href={`?aba=manual&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(manualTab)}>
@@ -161,7 +166,7 @@ export default async function PresencaCoordenacaoPage({
             ) : null}
           </div>
           <form method="get" className="flex items-center gap-2 text-sm text-neutral-600">
-            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : "dia"} />
+            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : declarationsTab ? "autodeclaracoes" : "dia"} />
             <input type="hidden" name="dia" value={day} />
             <label htmlFor="temporada">Temporada</label>
             <select
@@ -182,7 +187,9 @@ export default async function PresencaCoordenacaoPage({
           </form>
         </div>
 
-        {manualTab ? (
+        {declarationsTab ? (
+          <DeclarationsTab status={declStatus} volume={declVolume} />
+        ) : manualTab ? (
           <div className="flex flex-col gap-3">
             <p className="text-xs text-neutral-500">
               Só o administrador lança presença depois. Serve para quem não conseguiu escanear e assinou a lista de papel, e também

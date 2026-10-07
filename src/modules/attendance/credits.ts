@@ -42,12 +42,13 @@ export function toProgressCredits(rows: CreditRow[]): ScanCredit[] {
   return credits;
 }
 
-export type LessonStatus = "presente" | "ausente" | "atraso" | "reposicao" | "futuro";
+export type LessonStatus = "presente" | "autodeclarada" | "ausente" | "atraso" | "reposicao" | "futuro";
 
 /**
  * Situação de cada aula (de 1 hora) de um encontro para o aluno:
  * - futuro: o encontro (ou a aula) ainda não aconteceu;
- * - presente: a aula consta nas presenças da própria turma;
+ * - presente: a aula consta nas presenças da própria turma (QR ou lançamento manual);
+ * - autodeclarada: só consta porque o próprio aluno declarou (a coordenação ainda pode revogar);
  * - atraso: faltou a aula, mas esteve em alguma aula DEPOIS dela (chegou depois do início);
  * - reposição: as horas foram devolvidas por reposição em outra turma;
  * - ausente: nenhuma das anteriores.
@@ -55,13 +56,17 @@ export type LessonStatus = "presente" | "ausente" | "atraso" | "reposicao" | "fu
 export function lessonStatuses(input: {
   lessons: { number: number; startMinute: number }[];
   present: number[];
+  /** Aulas que só constam por autodeclaração. */
+  declared?: number[];
   makeupMinutes: number;
   meetingDate: string;
   today: string;
   nowMinute: number;
 }): Map<number, LessonStatus> {
+  const declared = new Set(input.declared ?? []);
   const present = new Set(input.present);
-  const firstPresent = input.present.length > 0 ? Math.min(...input.present) : null;
+  const anyCredited = [...input.present, ...declared];
+  const firstPresent = anyCredited.length > 0 ? Math.min(...anyCredited) : null;
   let makeupLeft = input.makeupMinutes;
   const result = new Map<number, LessonStatus>();
 
@@ -70,6 +75,8 @@ export function lessonStatuses(input: {
       input.meetingDate > input.today || (input.meetingDate === input.today && lesson.startMinute > input.nowMinute);
     if (present.has(lesson.number)) {
       result.set(lesson.number, "presente");
+    } else if (declared.has(lesson.number)) {
+      result.set(lesson.number, "autodeclarada");
     } else if (notStarted) {
       result.set(lesson.number, "futuro");
     } else if (makeupLeft >= LESSON_MINUTES) {

@@ -6,12 +6,15 @@ import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { FrequencyAlert, FrequencyMeter } from "@/modules/attendance/components/FrequencyPanel";
 import { formatHours } from "@/modules/attendance/progress";
 import { loadStudentFrequency } from "@/modules/attendance/studentFrequency";
+import { loadDeclarationPrompts } from "@/modules/attendance/declarations";
+import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
 import type { LessonStatus } from "@/modules/attendance/credits";
 
 export const metadata: Metadata = { title: "Minha frequência" };
 
 const STATUS: Record<LessonStatus, { label: string; className: string }> = {
   presente: { label: "✓ Presente", className: "bg-green-50 text-green-700" },
+  autodeclarada: { label: "✎ Autodeclarada", className: "bg-violet-50 text-violet-700" },
   ausente: { label: "✗ Ausente", className: "bg-red-50 text-red-700" },
   atraso: { label: "◐ Atraso", className: "bg-amber-50 text-amber-700" },
   reposicao: { label: "↺ Reposição", className: "bg-brand-blue-light text-brand-blue" },
@@ -32,7 +35,10 @@ export default async function MinhaFrequenciaPage() {
   }
 
   const supabase = await createSupabaseServerClient();
-  const volumes = await loadStudentFrequency(supabase, auth.userId);
+  const [volumes, prompts] = await Promise.all([
+    loadStudentFrequency(supabase, auth.userId),
+    loadDeclarationPrompts(supabase, auth.userId),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,6 +49,10 @@ export default async function MinhaFrequenciaPage() {
           por encontro.
         </p>
       </div>
+
+      {prompts.map((prompt) => (
+        <DeclarationCard key={prompt.meetingId} prompt={prompt} />
+      ))}
 
       {volumes.length === 0 ? (
         <Card>

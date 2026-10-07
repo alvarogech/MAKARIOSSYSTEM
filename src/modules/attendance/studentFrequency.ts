@@ -117,13 +117,17 @@ export async function loadStudentFrequency(supabase: DB, studentId: string): Pro
         subjects,
       );
       const own = credits.filter((c) => c.meeting_id === m.id && c.counts_for_meeting_id === m.id);
-      const present = [...new Set(own.flatMap((c) => c.lessons ?? []))];
+      const present = [...new Set(own.filter((c) => c.source !== "autodeclaracao").flatMap((c) => c.lessons ?? []))];
+      const declared = [
+        ...new Set(own.filter((c) => c.source === "autodeclaracao").flatMap((c) => c.lessons ?? [])),
+      ].filter((n) => !present.includes(n));
       const makeupMinutes = credits
         .filter((c) => c.counts_for_meeting_id === m.id && c.meeting_id !== m.id)
         .reduce((sum, c) => sum + c.minutes, 0);
       const statuses = lessonStatuses({
         lessons: lessons.map((l) => ({ number: l.number, startMinute: toMinutes(l.start) })),
         present,
+        declared,
         makeupMinutes,
         meetingDate: m.meeting_date!,
         today,

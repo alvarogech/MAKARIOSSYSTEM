@@ -663,6 +663,89 @@ export type Database = {
           },
         ]
       }
+      attendance_declaration_windows: {
+        Row: {
+          closes_at: string
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          meeting_id: string
+        }
+        Insert: {
+          closes_at: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          meeting_id: string
+        }
+        Update: {
+          closes_at?: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          meeting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_declaration_windows_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: true
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_declarations: {
+        Row: {
+          declared_at: string
+          enrollment_request_id: string | null
+          id: string
+          lessons: number[]
+          meeting_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_id: string
+        }
+        Insert: {
+          declared_at?: string
+          enrollment_request_id?: string | null
+          id?: string
+          lessons?: number[]
+          meeting_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id: string
+        }
+        Update: {
+          declared_at?: string
+          enrollment_request_id?: string | null
+          id?: string
+          lessons?: number[]
+          meeting_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_declarations_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_declarations_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_manual_entries: {
         Row: {
           created_at: string
@@ -2726,6 +2809,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      declare_attendance: {
+        Args: { p_meeting_id: string; p_lessons: number[] }
+        Returns: undefined
+      }
       attendance_credits: {
         Args: { p_class_id?: string }
         Returns: {
