@@ -10,8 +10,10 @@ import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { deleteManualAttendance } from "@/modules/attendance/actions/manageAttendance";
 import { GenerateQrCodesForm, RequireLocationSwitch } from "@/modules/attendance/components/AttendanceForms";
 import { DeclarationsTab } from "@/modules/attendance/components/DeclarationsTab";
+import { OverviewTab } from "@/modules/attendance/components/OverviewTab";
 import { ManualAttendanceForm, type ManualClassOption } from "@/modules/attendance/components/ManualAttendanceForm";
-import { computeProgress, formatHours, type Situation } from "@/modules/attendance/progress";
+import { computeProgress, formatHours } from "@/modules/attendance/progress";
+import { SITUATION } from "@/modules/attendance/situation";
 import { loadAttendanceData, scanLessons, type ScanRow } from "@/modules/attendance/report";
 import { LESSON_MINUTES, meetingBlocks } from "@/modules/attendance/rules";
 
@@ -22,12 +24,6 @@ const LOCATION: Record<string, string> = {
   impreciso: "GPS impreciso",
   sem_localizacao: "sem localização",
   longe: "longe do local",
-};
-const SITUATION: Record<Situation, { label: string; className: string }> = {
-  em_dia: { label: "Em dia", className: "bg-green-50 text-green-700" },
-  atencao: { label: "Atenção", className: "bg-amber-50 text-amber-700" },
-  no_limite: { label: "No limite", className: "bg-orange-50 text-orange-700" },
-  reprovado: { label: "Reprovado por frequência", className: "bg-red-50 text-red-700" },
 };
 
 function time(iso: string) {
@@ -68,7 +64,7 @@ function scanDetail(s: ScanRow) {
 export default async function PresencaCoordenacaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dia?: string; aba?: string; temporada?: string; status?: string; volume?: string }>;
+  searchParams: Promise<{ dia?: string; aba?: string; temporada?: string; status?: string; volume?: string; turma?: string; de?: string; ate?: string }>;
 }) {
   const auth = await getAuthContext();
   if (!auth) return null;
@@ -76,7 +72,7 @@ export default async function PresencaCoordenacaoPage({
     return <AccessDenied description="Esta área é exclusiva da Coordenação (ou Administrador)." />;
   }
 
-  const { dia, aba, temporada, status: declStatus, volume: declVolume } = await searchParams;
+  const { dia, aba, temporada, status: declStatus, volume: declVolume, turma, de, ate } = await searchParams;
   const today = getSaoPauloDateKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : today;
   const general = aba === "geral";
@@ -84,6 +80,9 @@ export default async function PresencaCoordenacaoPage({
   const canBackfill = can(auth, { resource: "attendance", action: "backfill" });
   const manualTab = aba === "manual" && canBackfill;
   const declarationsTab = aba === "autodeclaracoes";
+  // A "Visão geral" é a primeira aba e a padrão; o relatório do dia só abre com ?aba=dia.
+  const overviewTab = !aba || aba === "visao";
+  const dayTab = aba === "dia";
   const supabase = await createSupabaseServerClient();
   // Uma turma por semestre: o relatório mostra uma temporada por vez, a mais
   // recente por padrão.
@@ -150,7 +149,10 @@ export default async function PresencaCoordenacaoPage({
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-5 text-sm">
-            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(!general && !manualTab && !declarationsTab)}>
+            <Link href={`?aba=visao&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(overviewTab)}>
+              Visão geral
+            </Link>
+            <Link href={`?aba=dia&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(dayTab)}>
               Relatório do dia
             </Link>
             <Link href={`?aba=geral&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(general)}>
@@ -166,7 +168,7 @@ export default async function PresencaCoordenacaoPage({
             ) : null}
           </div>
           <form method="get" className="flex items-center gap-2 text-sm text-neutral-600">
-            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : declarationsTab ? "autodeclaracoes" : "dia"} />
+            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : declarationsTab ? "autodeclaracoes" : overviewTab ? "visao" : "dia"} />
             <input type="hidden" name="dia" value={day} />
             <label htmlFor="temporada">Temporada</label>
             <select
@@ -187,7 +189,13 @@ export default async function PresencaCoordenacaoPage({
           </form>
         </div>
 
-        {declarationsTab ? (
+        {overviewTab ? (
+          <OverviewTab
+            seasonId={season?.id ?? ""}
+            filters={{ volume: declVolume || undefined, classId: turma || undefined, from: de || undefined, to: ate || undefined }}
+            baseQuery={{ temporada: season?.id ?? "", dia: day }}
+          />
+        ) : declarationsTab ? (
           <DeclarationsTab status={declStatus} volume={declVolume} />
         ) : manualTab ? (
           <div className="flex flex-col gap-3">

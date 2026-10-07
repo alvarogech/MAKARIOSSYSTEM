@@ -180,6 +180,18 @@ function NextLessonCard({ lesson, sameDayLessons }: { lesson: TeacherLesson; sam
         <Link href={`/professor/aulas/${lesson.blockId}`} className={buttonVariants({ variant: "primary", size: "sm" })}>
           Preparar aula
         </Link>
+        <Link
+          href={`/professor/turmas/${lesson.classId}/encontros/${lesson.meetingId}/frequencia`}
+          className={buttonVariants({ variant: "secondary", size: "sm" })}
+        >
+          Ver presença
+        </Link>
+        <Link
+          href={`/professor/turmas/${lesson.classId}/encontros/${lesson.meetingId}/relatorio`}
+          className={buttonVariants({ variant: "secondary", size: "sm" })}
+        >
+          Enviar relatório
+        </Link>
         {lesson.mapsUrl ? (
           <a href={lesson.mapsUrl} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "secondary", size: "sm" })}>
             Ver localização

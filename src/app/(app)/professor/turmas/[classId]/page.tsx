@@ -8,7 +8,11 @@ import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loadMaterials } from "@/modules/teaching/loadMaterials";
 import { MaterialsSection } from "@/modules/teaching/components/MaterialsSection";
-import { formatSaoPauloLongDate, formatSaoPauloTimeRange } from "@/lib/saoPauloDate";
+import { formatSaoPauloLongDate, formatSaoPauloTimeRange, getSaoPauloDateKey } from "@/lib/saoPauloDate";
+import { toProgressCredits, type CreditRow } from "@/modules/attendance/credits";
+import { computeProgress, formatHours } from "@/modules/attendance/progress";
+import { SITUATION } from "@/modules/attendance/situation";
+import { describeFrequency } from "@/modules/attendance/studentFrequency";
 
 export const metadata: Metadata = { title: "Turma" };
 
@@ -57,7 +61,7 @@ export default async function ProfessorTurmaDetailPage({
       : classLocation.name
     : klass.location;
 
-  const [{ data: offering }, { data: meetings }, { data: enrollments }, { data: reports }] =
+  const [{ data: offering }, { data: meetings }, { data: roster }, { data: creditRows }, { data: reports }] =
     await Promise.all([
       supabase
         .from("season_volume_offerings")
@@ -69,18 +73,25 @@ export default async function ProfessorTurmaDetailPage({
         .select("id, sequence, meeting_date, academic_minutes, status, room")
         .eq("class_id", classId)
         .order("sequence"),
-      supabase
-        .from("enrollments")
-        .select("id, student_id, status")
-        .eq("class_id", classId),
+      // Lista única da turma (matriculados + aprovados que ainda vão criar a conta) e as presenças
+      // de cada um — as mesmas funções da coordenação, então os números batem.
+      supabase.rpc("class_roster", { p_class_id: classId }),
+      supabase.rpc("attendance_credits", { p_class_id: classId }),
       supabase.from("class_meeting_reports").select("meeting_id").eq("teacher_id", authContext.userId),
     ]);
 
-  const studentIds = (enrollments ?? []).map((e) => e.student_id);
-  const { data: profiles } = studentIds.length
-    ? await supabase.from("profiles").select("id, full_name").in("id", studentIds)
-    : { data: [] };
-  const profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const todayKey = getSaoPauloDateKey(new Date());
+  const meetingInfos = (meetings ?? [])
+    .filter((m) => m.status !== "canceled")
+    .map((m) => ({ id: m.id, minutes: m.academic_minutes, past: Boolean(m.meeting_date && m.meeting_date < todayKey) }));
+  const creditsByPerson = new Map<string, CreditRow[]>();
+  for (const row of (creditRows ?? []) as (CreditRow & { person_key: string })[]) {
+    creditsByPerson.set(row.person_key, [...(creditsByPerson.get(row.person_key) ?? []), row]);
+  }
+  const students = (roster ?? []).map((person) => {
+    const progress = computeProgress(meetingInfos, toProgressCredits(creditsByPerson.get(person.person_key) ?? []));
+    return { person, progress, view: describeFrequency(progress) };
+  });
 
   const meetingIds = (meetings ?? []).map((m) => m.id);
   const reportedMeetingIds = new Set((reports ?? []).map((r) => r.meeting_id));
@@ -141,17 +152,35 @@ export default async function ProfessorTurmaDetailPage({
       </div>
 
       <Card>
-        <h2 className="font-semibold text-neutral-900">Alunos ({(enrollments ?? []).length})</h2>
+        <h2 className="font-semibold text-neutral-900">Alunos ({students.length})</h2>
+        <p className="mt-1 text-xs text-neutral-500">
+          Inclui quem já tem matrícula e quem foi aprovado e ainda vai criar a conta. Frequência: horas cumpridas e situação em
+          relação aos 75% exigidos.
+        </p>
         <ul className="mt-3 divide-y divide-neutral-100 text-sm">
-          {(enrollments ?? []).map((enrollment) => (
-            <li key={enrollment.id} className="py-1.5 text-neutral-700">
-              {profilesById.get(enrollment.student_id)?.full_name ?? "Aluno"}{" "}
-              <span className="text-neutral-400">({enrollment.status})</span>
-            </li>
-          ))}
-          {(enrollments ?? []).length === 0 ? (
-            <li className="py-1.5 text-neutral-400">Nenhum aluno matriculado ainda.</li>
-          ) : null}
+          {students.map(({ person, progress, view }) => {
+            const situation = SITUATION[progress.situation];
+            const pct = progress.totalMinutes > 0 ? Math.round((progress.attendedMinutes / progress.totalMinutes) * 100) : 0;
+            return (
+              <li key={person.person_key} className="flex flex-wrap items-center justify-between gap-2 py-2 text-neutral-700">
+                <span className="min-w-0">
+                  {person.full_name}
+                  {person.stage === "aguardando_acesso" ? (
+                    <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">aguardando acesso</span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-2 text-xs">
+                  <span className="text-neutral-500">
+                    {formatHours(progress.attendedMinutes)} de {formatHours(progress.totalMinutes)} · {pct}%
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 font-medium ${situation.className}`} title={`Pode perder mais ${formatHours(view.progress.slackMinutes)}`}>
+                    {situation.label}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+          {students.length === 0 ? <li className="py-1.5 text-neutral-400">Nenhum aluno nesta turma ainda.</li> : null}
         </ul>
       </Card>
 
