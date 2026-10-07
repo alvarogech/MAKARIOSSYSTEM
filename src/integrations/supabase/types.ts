@@ -2726,6 +2726,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attendance_credits: {
+        Args: { p_class_id?: string }
+        Returns: {
+          person_key: string
+          meeting_id: string
+          counts_for_meeting_id: string
+          lessons: number[] | null
+          minutes: number
+          source: string
+          location_status: string | null
+        }[]
+      }
+      class_meeting_subjects: {
+        Args: { p_class_id: string }
+        Returns: {
+          meeting_id: string
+          start_time: string
+          end_time: string
+          subject: string | null
+        }[]
+      }
+      class_roster: {
+        Args: { p_class_id: string }
+        Returns: {
+          person_key: string
+          request_id: string | null
+          student_id: string | null
+          enrollment_id: string | null
+          full_name: string
+          email: string | null
+          phone: string | null
+          cpf_last4: string | null
+          stage: string
+        }[]
+      }
       coordination_student_access: {
         Args: Record<PropertyKey, never>
         Returns: {

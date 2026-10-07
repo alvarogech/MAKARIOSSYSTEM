@@ -10,6 +10,8 @@ import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateInvitationForm } from "@/modules/auth/components/CreateInvitationForm";
 import { loadStudentHomeSummary, type StudentHomeSummary } from "@/modules/learning/studentHome";
 import { loadStudentAccess, summarize, type AccessSummary } from "@/modules/access/studentAccess";
+import { FrequencyAlert, FrequencyMeter } from "@/modules/attendance/components/FrequencyPanel";
+import { loadStudentFrequency, type VolumeFrequency } from "@/modules/attendance/studentFrequency";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -32,9 +34,11 @@ export default async function DashboardPage() {
   const canAccessAdmin = canAccessArea(authContext, "admin");
 
   let studentSummary: StudentHomeSummary | null = null;
+  let frequency: VolumeFrequency[] = [];
   if (authContext.activeRole === "student") {
     const supabase = await createSupabaseServerClient();
     studentSummary = await loadStudentHomeSummary(supabase, authContext.userId);
+    frequency = await loadStudentFrequency(supabase, authContext.userId);
   }
 
   let accessSummary: AccessSummary | null = null;
@@ -134,6 +138,19 @@ export default async function DashboardPage() {
               ) : null}
             </Card>
           ) : null}
+
+          {frequency.map((volume) => (
+            <Card key={volume.classId} className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold text-neutral-900">Minha frequência · {volume.volumeName}</h2>
+                <Link href="/minha-frequencia" className="text-sm font-medium text-brand-blue hover:underline">
+                  Ver encontro por encontro →
+                </Link>
+              </div>
+              {volume.progress.situation !== "em_dia" ? <FrequencyAlert view={volume} /> : null}
+              <FrequencyMeter view={volume} />
+            </Card>
+          ))}
 
           <Card>
             <div className="flex items-center justify-between">
