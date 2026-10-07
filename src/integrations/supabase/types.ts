@@ -67,7 +67,10 @@ export type Database = {
       activity_answers: {
         Row: {
           attempt_id: string
+          checked_at: string | null
           created_at: string
+          first_is_correct: boolean | null
+          first_selected_option_ids: string[] | null
           id: string
           is_correct: boolean | null
           question_id: string
@@ -75,7 +78,10 @@ export type Database = {
         }
         Insert: {
           attempt_id: string
+          checked_at?: string | null
           created_at?: string
+          first_is_correct?: boolean | null
+          first_selected_option_ids?: string[] | null
           id?: string
           is_correct?: boolean | null
           question_id: string
@@ -83,7 +89,10 @@ export type Database = {
         }
         Update: {
           attempt_id?: string
+          checked_at?: string | null
           created_at?: string
+          first_is_correct?: boolean | null
+          first_selected_option_ids?: string[] | null
           id?: string
           is_correct?: boolean | null
           question_id?: string
@@ -1173,6 +1182,42 @@ export type Database = {
             columns: ["season_volume_offering_id"]
             isOneToOne: false
             referencedRelation: "season_volume_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_completions: {
+        Row: {
+          challenge_id: string
+          enrollment_id: string
+          practiced_at: string
+          private_note: string | null
+        }
+        Insert: {
+          challenge_id: string
+          enrollment_id: string
+          practiced_at?: string
+          private_note?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          enrollment_id?: string
+          practiced_at?: string
+          private_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_completions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "practice_challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_completions_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
             referencedColumns: ["id"]
           },
         ]
@@ -2693,6 +2738,18 @@ export type Database = {
       }
       record_content_open: {
         Args: { p_content_id: string }
+        Returns: undefined
+      }
+      check_activity_answer: {
+        Args: { p_attempt_id: string; p_question_id: string }
+        Returns: Json
+      }
+      get_activity_attempt_answers: {
+        Args: { p_attempt_id: string }
+        Returns: Json
+      }
+      save_activity_answer: {
+        Args: { p_attempt_id: string; p_question_id: string; p_selected: string[] }
         Returns: undefined
       }
       check_rate_limit: {

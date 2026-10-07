@@ -15,6 +15,7 @@ function buildNavLinks(authContext: AuthContext): NavLink[] {
 
   if (authContext.activeRole === "student") {
     links.push({ href: "/meus-volumes", label: "Meus volumes" });
+    links.push({ href: "/meu-aprendizado", label: "Meu aprendizado" });
     links.push({ href: "/agenda", label: "Agenda" });
   }
 
