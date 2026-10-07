@@ -68,6 +68,12 @@ export interface TeacherHomeSummary {
   classes: TeacherClassCard[];
   announcements: TeacherAnnouncement[];
   conflicts: ScheduleConflict[];
+  /** Aulas suas já realizadas / previstas no total (sem as canceladas). */
+  lessonsDone: number;
+  lessonsPlanned: number;
+  /** Temas que você ministra e volumes das suas turmas — para filtrar materiais novos. */
+  myModuleIds: string[];
+  volumeIds: string[];
 }
 
 function locationLabelFor(
@@ -113,6 +119,10 @@ export async function loadTeacherHomeSummary(
       classes: [],
       announcements: [],
       conflicts: [],
+      lessonsDone: 0,
+      lessonsPlanned: 0,
+      myModuleIds: [],
+      volumeIds: [],
     };
   }
 
@@ -277,6 +287,8 @@ export async function loadTeacherHomeSummary(
     todayKey,
   )?.ref ?? null;
 
+  const plannedLessons = myLessons.filter((l) => l.blockStatus !== "canceled" && l.meetingStatus !== "canceled");
+
   const upcomingSorted = myLessons
     .filter((l) => l.meetingDateKey && l.meetingDateKey >= todayKey && l.blockStatus !== "canceled" && l.meetingStatus !== "canceled")
     .sort((a, b) => {
@@ -351,5 +363,9 @@ export async function loadTeacherHomeSummary(
     classes: classCards,
     announcements,
     conflicts: detectScheduleConflicts(conflictIntervals),
+    lessonsDone: plannedLessons.filter((l) => l.meetingDateKey && l.meetingDateKey < todayKey).length,
+    lessonsPlanned: plannedLessons.length,
+    myModuleIds: [...new Set((blocks ?? []).filter((b) => b.teacher_id === teacherId && b.module_id).map((b) => b.module_id as string))],
+    volumeIds,
   };
 }

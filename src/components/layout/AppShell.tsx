@@ -5,6 +5,7 @@ import type { RoleSlug } from "@/authorization";
 import { signOut } from "@/modules/auth/actions/signOut";
 import { buttonVariants } from "@/components/ui/Button";
 import { ROLE_LABELS } from "@/lib/roleLabels";
+import { BottomNav } from "./BottomNav";
 
 export interface NavLink {
   href: string;
@@ -69,7 +70,7 @@ export function AppShell({
         </div>
 
         {navLinks.length > 0 ? (
-          <nav className="border-t border-neutral-100 bg-neutral-50">
+          <nav className={`border-t border-neutral-100 bg-neutral-50 ${activeRole === "teacher" ? "hidden md:block" : ""}`}>
             <div className="mx-auto flex max-w-5xl flex-wrap gap-x-5 gap-y-1 px-4 py-2 text-sm sm:px-6">
               {navLinks.map((link) => (
                 <Link
@@ -85,7 +86,9 @@ export function AppShell({
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
+      <main className={`mx-auto max-w-5xl px-4 py-8 sm:px-6 ${activeRole === "teacher" ? "pb-24 md:pb-8" : ""}`}>{children}</main>
+
+      {activeRole === "teacher" ? <BottomNav links={navLinks} /> : null}
     </div>
   );
 }

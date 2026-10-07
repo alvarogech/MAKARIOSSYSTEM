@@ -23,14 +23,9 @@ function buildNavLinks(authContext: AuthContext): NavLink[] {
   const isStaff = canAccessArea(authContext, "coordination");
 
   if (canAccessArea(authContext, "teacher")) {
-    if (isStaff) {
-      // Quem coordena e também leciona vê um atalho só; a área do professor completa vem ao trocar de perfil.
-      links.push({ href: "/professor", label: "Área do professor" });
-    } else {
-      links.push({ href: "/professor", label: "Área do professor" });
-      links.push({ href: "/professor/agenda", label: "Agenda" });
-      links.push({ href: "/professor/turmas", label: "Minhas turmas" });
-    }
+    // O Início já é o painel do professor: não há mais "Área do professor" duplicando.
+    links.push({ href: "/professor/agenda", label: "Agenda" });
+    links.push({ href: "/professor/turmas", label: "Turmas" });
   }
 
   if (isStaff) {

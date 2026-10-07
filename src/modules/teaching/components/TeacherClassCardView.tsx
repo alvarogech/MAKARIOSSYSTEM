@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MapPin, Users } from "lucide-react";
 import { buttonVariants } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { classScheduleLabel } from "@/lib/classLabel";
 import type { TeacherClassCard } from "../teacherHome";
 
 /** Card de turma reutilizado na home do professor e em "Minhas turmas". */
@@ -9,7 +10,7 @@ export function TeacherClassCardView({ klass }: { klass: TeacherClassCard }) {
   return (
     <div className="flex flex-col rounded-[var(--radius-sm)] border border-neutral-200 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-brand-blue">{klass.volumeName}</p>
-      <p className="mt-0.5 font-medium text-neutral-900">{klass.className}</p>
+      <p className="mt-0.5 font-medium text-neutral-900">Turma {classScheduleLabel(klass.className)}</p>
       <p className="mt-1 text-xs text-neutral-500">{klass.seasonName}</p>
       {klass.scheduleLabel ? <p className="mt-1.5 text-sm text-neutral-600">{klass.scheduleLabel}</p> : null}
       <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">

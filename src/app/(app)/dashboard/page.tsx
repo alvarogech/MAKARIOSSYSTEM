@@ -19,6 +19,9 @@ import { loadStudentJourneys } from "@/modules/learning/journeyLoader";
 import type { VolumeJourney } from "@/modules/learning/journey";
 import { ModuleJourney } from "@/modules/learning/components/ModuleJourney";
 import { NextStepCard } from "@/modules/learning/components/NextStepCard";
+import { loadTeacherDashboard } from "@/modules/teaching/teacherDashboard";
+import { TeacherHome } from "@/modules/teaching/components/TeacherHome";
+import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { AchievementsCard } from "@/modules/learning/components/AchievementsCard";
 import { loadStudentRewards, type StudentRewards } from "@/modules/learning/achievementsLoader";
 
@@ -33,13 +36,19 @@ export default async function DashboardPage() {
     return null;
   }
 
+  // Professor: o Início é o painel de ação (próxima aula, pendências, semana).
+  if (authContext.activeRole === "teacher") {
+    const supabase = await createSupabaseServerClient();
+    const data = await loadTeacherDashboard(supabase, authContext.userId);
+    return <TeacherHome firstName={authContext.fullName.split(" ")[0] ?? ""} data={data} todayKey={getSaoPauloDateKey(new Date())} />;
+  }
+
   const canInvite = can(authContext, {
     resource: "invitations",
     action: "create",
   });
   const canManageContent = can(authContext, { resource: "content", action: "manage" });
   const canAccessCoordination = canAccessArea(authContext, "coordination");
-  const canAccessTeacherArea = canAccessArea(authContext, "teacher");
   const canAccessAdmin = canAccessArea(authContext, "admin");
 
   let studentSummary: StudentHomeSummary | null = null;
@@ -255,17 +264,6 @@ export default async function DashboardPage() {
             </div>
           </Card>
         </>
-      ) : null}
-
-      {canAccessTeacherArea && !isStaffHome ? (
-        <Card>
-          <h2 className="text-lg font-semibold text-neutral-900">Área do professor</h2>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link href="/professor" className={buttonVariants({ variant: "primary" })}>
-              Minhas turmas e agenda
-            </Link>
-          </div>
-        </Card>
       ) : null}
 
       {today ? <TodayPanel data={today} /> : null}
