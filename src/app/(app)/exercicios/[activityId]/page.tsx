@@ -32,13 +32,19 @@ export default async function ActivityPage({
   // matriculado do aluno é retornado (activities_select_student).
   const { data: activity } = await supabase
     .from("activities")
-    .select("id, title, instructions")
+    .select("id, title, instructions, lesson_id")
     .eq("id", activityId)
     .maybeSingle();
 
   if (!activity) {
     notFound();
   }
+
+  // Matéria (etapa do caminho) a que o desafio pertence — só para mostrar o nome.
+  const { data: lesson } = await supabase.from("lessons").select("module_id").eq("id", activity.lesson_id).maybeSingle();
+  const { data: module_ } = lesson
+    ? await supabase.from("modules").select("name").eq("id", lesson.module_id).maybeSingle()
+    : { data: null };
 
   // Tentativas do próprio aluno (RLS): a em andamento e a última enviada.
   const { data: attempts } = await supabase
@@ -51,8 +57,11 @@ export default async function ActivityPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <Link href="/meu-aprendizado" className="text-sm text-brand-blue hover:underline">
-        ← Voltar ao Meu aprendizado
+      <Link href="/dashboard" className="text-sm text-brand-blue hover:underline">
+        ← Voltar ao meu caminho
+      </Link>
+      <Link href="/meu-aprendizado" className="text-sm text-neutral-500 hover:underline">
+        Ver todos os desafios (Meu aprendizado)
       </Link>
       {enrollmentId ? (
         <Link href={`/meus-volumes/${enrollmentId}`} className="text-sm text-neutral-500 hover:underline">
@@ -66,12 +75,13 @@ export default async function ActivityPage({
           <p className="mt-1 text-sm text-neutral-500">{activity.instructions}</p>
         ) : null}
         <p className="mt-1 text-xs text-neutral-400">
-          Exercício de fixação — não vale nota.
+          Desafio de fixação — não vale nota.
         </p>
 
         <div className="mt-4">
           <ActivityPlayer
             activityId={activity.id}
+            stageName={module_?.name ?? null}
             inProgress={inProgress}
             last={
               lastSubmitted

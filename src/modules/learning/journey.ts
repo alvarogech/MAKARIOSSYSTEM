@@ -93,7 +93,7 @@ function buildSteps(input: StageInput, enrollmentId: string): JourneyStep[] {
     const { activityId, status } = input.fixation;
     steps.push({
       kind: "fixacao",
-      label: "Exercício de fixação",
+      label: "Desafio de fixação",
       state: status === "enviada" ? "feito" : status === "em_andamento" ? "em_andamento" : "pendente",
       detail: status === "enviada" ? "Concluído — você pode rever ou repetir" : status === "em_andamento" ? "Você já começou" : "Cinco questões, uma por vez",
       href: `/exercicios/${activityId}?enrollmentId=${enrollmentId}`,
@@ -150,7 +150,7 @@ function nextAction(stage: JourneyStage): JourneyNextStep | null {
   const verb: Record<StepKind, string> = {
     aula: "Ver",
     material: "Estudar o material de",
-    fixacao: pick.state === "em_andamento" ? "Continuar o exercício de" : "Fazer o exercício de fixação de",
+    fixacao: pick.state === "em_andamento" ? "Continuar o desafio de" : "Fazer o desafio de fixação de",
     pratica: "Registrar a prática de",
   };
   return {

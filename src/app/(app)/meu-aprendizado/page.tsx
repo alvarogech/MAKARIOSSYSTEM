@@ -135,7 +135,7 @@ export default async function MeuAprendizadoPage() {
               {activity ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-neutral-200 p-3">
                   <div>
-                    <p className="text-sm font-medium text-neutral-800">Exercício de fixação</p>
+                    <p className="text-sm font-medium text-neutral-800">Desafio de fixação</p>
                     <p className="text-xs text-neutral-500">5 questões · uma por vez · salva sozinho</p>
                   </div>
                   <Link
