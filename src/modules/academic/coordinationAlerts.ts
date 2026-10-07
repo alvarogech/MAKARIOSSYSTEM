@@ -38,8 +38,8 @@ export async function loadCoordinationAlerts(supabase: DB): Promise<Coordination
   const ids = (meetings ?? []).map((m) => m.id);
   const [{ data: blocks }, { data: reports }, { data: quality }] = await Promise.all([
     ids.length
-      ? supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, status").in("class_meeting_id", ids)
-      : Promise.resolve({ data: [] as { class_meeting_id: string; teacher_id: string | null; status: string }[] }),
+      ? supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, teacher_label, status").in("class_meeting_id", ids)
+      : Promise.resolve({ data: [] as { class_meeting_id: string; teacher_id: string | null; teacher_label: string | null; status: string }[] }),
     ids.length
       ? supabase.from("class_meeting_reports").select("meeting_id").in("meeting_id", ids)
       : Promise.resolve({ data: [] as { meeting_id: string }[] }),
@@ -47,10 +47,12 @@ export async function loadCoordinationAlerts(supabase: DB): Promise<Coordination
   ]);
 
   const withTeacher = new Set((blocks ?? []).filter((b) => b.teacher_id && b.status !== "canceled").map((b) => b.class_meeting_id));
+  // Professor sem conta (só o nome na escala) conta como escalado, mas não pode enviar relatório.
+  const scheduled = new Set((blocks ?? []).filter((b) => (b.teacher_id || b.teacher_label) && b.status !== "canceled").map((b) => b.class_meeting_id));
   const reported = new Set((reports ?? []).map((r) => r.meeting_id));
 
   const withoutTeacher: MeetingWithoutTeacher[] = (meetings ?? [])
-    .filter((m) => m.meeting_date && !withTeacher.has(m.id))
+    .filter((m) => m.meeting_date && !scheduled.has(m.id))
     .map((m) => ({
       meetingId: m.id,
       classId: m.class_id,

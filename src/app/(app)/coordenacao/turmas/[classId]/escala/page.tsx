@@ -51,7 +51,7 @@ export default async function ClassScheduleAdminPage({ params }: { params: Promi
   const meetingIds = (meetings ?? []).map((m) => m.id);
   const { data: blocks } = await supabase
     .from("class_meeting_blocks")
-    .select("id, class_meeting_id, module_id, teacher_id, start_time, end_time, order_index, status, coordination_notes")
+    .select("id, class_meeting_id, module_id, teacher_id, teacher_label, start_time, end_time, order_index, status, coordination_notes")
     .in("class_meeting_id", meetingIds)
     .order("order_index");
 
@@ -112,7 +112,7 @@ export default async function ClassScheduleAdminPage({ params }: { params: Promi
                         <span>
                           {formatSaoPauloTimeRange(block.start_time, block.end_time)} ·{" "}
                           {block.module_id ? (moduleNameById.get(block.module_id) ?? "Tema a definir") : "Tema a definir"} ·{" "}
-                          {block.teacher_id ? (teacherNameById.get(block.teacher_id) ?? "Professor") : "Professor a definir"}
+                          {block.teacher_id ? (teacherNameById.get(block.teacher_id) ?? "Professor") : block.teacher_label ? `${block.teacher_label} (sem conta)` : "Professor a definir"}
                           {block.status !== "scheduled" ? ` · ${block.status === "changed" ? "alterada" : "cancelada"}` : ""}
                         </span>
                         <DeleteLessonBlockButton blockId={block.id} />

@@ -61,14 +61,14 @@ export async function loadOverview(supabase: DB, seasonId: string, filters: Over
   const meetingIds = (meetings ?? []).map((m) => m.id);
   const [{ data: blocks }, { data: reports }] = meetingIds.length
     ? await Promise.all([
-        supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, status").in("class_meeting_id", meetingIds),
+        supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, teacher_label, status").in("class_meeting_id", meetingIds),
         supabase.from("class_meeting_reports").select("meeting_id").in("meeting_id", meetingIds),
       ])
     : [{ data: [] }, { data: [] }];
 
   const today = getSaoPauloDateKey(new Date());
   const nowMinute = nowMinuteSaoPaulo();
-  const teacherByMeeting = new Set((blocks ?? []).filter((b) => b.teacher_id && b.status !== "canceled").map((b) => b.class_meeting_id));
+  const teacherByMeeting = new Set((blocks ?? []).filter((b) => (b.teacher_id || b.teacher_label) && b.status !== "canceled").map((b) => b.class_meeting_id));
   const reportByMeeting = new Set((reports ?? []).map((r) => r.meeting_id));
 
   const classes: OverviewClass[] = sortedClasses.map((klass, i) => {

@@ -60,8 +60,8 @@ export async function loadToday(supabase: DB): Promise<TodayData> {
 
   const meetingIds = (meetings ?? []).map((m) => m.id);
   const { data: blocks } = meetingIds.length
-    ? await supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, module_id, status").in("class_meeting_id", meetingIds)
-    : { data: [] as { class_meeting_id: string; teacher_id: string | null; module_id: string | null; status: string }[] };
+    ? await supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, teacher_label, module_id, status").in("class_meeting_id", meetingIds)
+    : { data: [] as { class_meeting_id: string; teacher_id: string | null; teacher_label: string | null; module_id: string | null; status: string }[] };
   const teacherIds = [...new Set((blocks ?? []).map((b) => b.teacher_id).filter((x): x is string => Boolean(x)))];
   const moduleIds = [...new Set((blocks ?? []).map((b) => b.module_id).filter((x): x is string => Boolean(x)))];
   const [{ data: teachers }, { data: modules }] = await Promise.all([
@@ -83,7 +83,7 @@ export async function loadToday(supabase: DB): Promise<TodayData> {
         date: m.meeting_date!,
         start: m.start_time!.slice(0, 5),
         end: m.end_time!.slice(0, 5),
-        teachers: [...new Set(own.map((b) => (b.teacher_id ? teacherName.get(b.teacher_id) : null)).filter((x): x is string => Boolean(x)))],
+        teachers: [...new Set(own.map((b) => (b.teacher_id ? teacherName.get(b.teacher_id) : b.teacher_label?.replace(/^Pr[a]?\.\s*/, "").split(" ")[0]) ?? null).filter((x): x is string => Boolean(x)))],
         subjects: [...new Set(own.map((b) => (b.module_id ? moduleName.get(b.module_id) : null)).filter((x): x is string => Boolean(x)))],
       };
     });

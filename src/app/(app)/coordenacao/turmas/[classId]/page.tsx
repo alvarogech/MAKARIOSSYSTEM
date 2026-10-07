@@ -22,11 +22,11 @@ export default async function TurmaVisaoPage({ params }: { params: Promise<{ cla
   const [{ overview }, { data: meetings }, { data: blocks }] = await Promise.all([
     loadOverview(supabase, ctx.seasonId, { classId }),
     supabase.from("class_meetings").select("id, sequence, meeting_date, start_time, end_time, status").eq("class_id", classId).order("meeting_date"),
-    supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, status"),
+    supabase.from("class_meeting_blocks").select("class_meeting_id, teacher_id, teacher_label, status"),
   ]);
 
   const klass = overview.classes[0];
-  const withTeacher = new Set((blocks ?? []).filter((b) => b.teacher_id && b.status !== "canceled").map((b) => b.class_meeting_id));
+  const withTeacher = new Set((blocks ?? []).filter((b) => (b.teacher_id || b.teacher_label) && b.status !== "canceled").map((b) => b.class_meeting_id));
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
   const upcoming = (meetings ?? []).filter((m) => m.meeting_date && m.meeting_date >= today && m.status !== "canceled").slice(0, 4);
   const noTeacher = (meetings ?? []).filter((m) => m.meeting_date && m.status !== "canceled" && !withTeacher.has(m.id));

@@ -98,7 +98,7 @@ export default async function ProfessorTurmaDetailPage({
 
   const { data: blocks } = await supabase
     .from("class_meeting_blocks")
-    .select("id, class_meeting_id, module_id, teacher_id, start_time, end_time, status")
+    .select("id, class_meeting_id, module_id, teacher_id, teacher_label, start_time, end_time, status")
     .in("class_meeting_id", meetingIds)
     .order("order_index");
 
@@ -233,7 +233,7 @@ export default async function ProfessorTurmaDetailPage({
                           <span className={isMine ? "text-neutral-700" : "text-neutral-400"}>
                             {formatSaoPauloTimeRange(block.start_time, block.end_time)} ·{" "}
                             {block.module_id ? (blockModuleNameById.get(block.module_id) ?? "Tema a definir") : "Tema a definir"}
-                            {isMine ? null : ` · ${block.teacher_id ? (blockTeacherNameById.get(block.teacher_id) ?? "Outro professor") : "Professor a confirmar"}`}
+                            {isMine ? null : ` · ${block.teacher_id ? (blockTeacherNameById.get(block.teacher_id) ?? "Outro professor") : (block.teacher_label ?? "Professor a confirmar")}`}
                             {block.status === "canceled" ? " · cancelada" : block.status === "changed" ? " · alterada" : ""}
                           </span>
                           {isMine ? (

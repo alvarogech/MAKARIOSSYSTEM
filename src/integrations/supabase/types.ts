@@ -1062,6 +1062,7 @@ export type Database = {
           start_time: string | null
           status: Database["public"]["Enums"]["meeting_block_status"]
           teacher_id: string | null
+          teacher_label: string | null
           updated_at: string
         }
         Insert: {
@@ -1076,6 +1077,7 @@ export type Database = {
           start_time?: string | null
           status?: Database["public"]["Enums"]["meeting_block_status"]
           teacher_id?: string | null
+          teacher_label?: string | null
           updated_at?: string
         }
         Update: {
@@ -1090,6 +1092,7 @@ export type Database = {
           start_time?: string | null
           status?: Database["public"]["Enums"]["meeting_block_status"]
           teacher_id?: string | null
+          teacher_label?: string | null
           updated_at?: string
         }
         Relationships: [
