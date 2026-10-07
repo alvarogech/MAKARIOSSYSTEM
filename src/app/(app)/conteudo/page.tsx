@@ -10,6 +10,7 @@ import { CreateLessonForm } from "@/modules/content/components/CreateLessonForm"
 import { CreateContentForm } from "@/modules/content/components/CreateContentForm";
 import { CreateReleaseRuleForm } from "@/modules/content/components/CreateReleaseRuleForm";
 import { PublishContentButton } from "@/modules/content/components/PublishContentButton";
+import { classificationLabel, contentTypeLabel, statusLabel } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Estúdio de conteúdo" };
 
@@ -73,6 +74,14 @@ export default async function ConteudoAreaPage() {
     const lesson = lessonsById.get(lessonId);
     if (!lesson) return "Aula";
     return `${moduleLabel(lesson.module_id)} — ${lesson.name}`;
+  };
+
+  // "Apostila — Apostila — Fé": o título do conteúdo já começa com o nome da aula, então não repete.
+  const contentLabel = (c: { lesson_id: string; title: string }) => {
+    const lesson = lessonsById.get(c.lesson_id);
+    if (!lesson) return c.title;
+    const prefix = moduleLabel(lesson.module_id);
+    return c.title.startsWith(lesson.name) ? `${prefix} — ${c.title}` : `${prefix} — ${lesson.name} — ${c.title}`;
   };
 
   const sortedContents = [...(contents ?? [])].sort((a, b) => {
@@ -187,8 +196,10 @@ export default async function ConteudoAreaPage() {
           {sortedContents.map((c) => (
             <li key={c.id} className="flex items-center justify-between py-1.5 text-neutral-700">
               <span>
-                {lessonLabel(c.lesson_id)} — {c.title}{" "}
-                <span className="text-neutral-400">({c.type}, {c.classification}, {c.status})</span>
+                {contentLabel(c)}{" "}
+                <span className="text-neutral-400">
+                  ({contentTypeLabel(c.type)}, {classificationLabel(c.classification)}, {statusLabel(c.status).toLowerCase()})
+                </span>
               </span>
               <PublishContentButton contentId={c.id} currentStatus={c.status} />
             </li>

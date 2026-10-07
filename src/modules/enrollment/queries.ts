@@ -399,7 +399,7 @@ export async function getEnrollmentStatsRows(
   let query = supabase
     .from("enrollment_requests")
     .select(
-      "status, primary_volume_slug, primary_schedule_slug, is_other_church_member, is_emaus_member, has_gr, gr_network_slug, viewed_at, created_at",
+      "status, student_id, primary_volume_slug, primary_schedule_slug, is_other_church_member, is_emaus_member, has_gr, gr_network_slug, viewed_at, created_at",
     );
   query = applyEnrollmentFilters(query, filters, now);
 
@@ -419,6 +419,7 @@ export async function getEnrollmentStatsRows(
     grNetworkSlug: row.gr_network_slug as EnrollmentStatsRow["grNetworkSlug"],
     viewedAt: row.viewed_at,
     createdAt: row.created_at,
+    hasAccount: row.student_id !== null,
   }));
 }
 
@@ -443,6 +444,8 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
   let thisWeek = 0;
   let thisMonth = 0;
   let notViewedCount = 0;
+  let approvedWithoutAccount = 0;
+  const approvedByTurma: Record<string, number> = {};
   let noGrCount = 0;
   let grNetworkNotInformedCount = 0;
   const byVolumeMap = new Map<string, number>();
@@ -459,6 +462,11 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
     if (created >= weekStart) thisWeek += 1;
     if (created >= monthStart) thisMonth += 1;
     if (!row.viewedAt) notViewedCount += 1;
+    if (row.status === "approved") {
+      if (!row.hasAccount) approvedWithoutAccount += 1;
+      const turmaKey = `${row.primaryVolumeSlug}:${row.primaryScheduleSlug}`;
+      approvedByTurma[turmaKey] = (approvedByTurma[turmaKey] ?? 0) + 1;
+    }
     byVolumeMap.set(row.primaryVolumeSlug, (byVolumeMap.get(row.primaryVolumeSlug) ?? 0) + 1);
     const volumeScheduleKey = `${row.primaryVolumeSlug}:${row.primaryScheduleSlug}`;
     byVolumeScheduleMap.set(volumeScheduleKey, (byVolumeScheduleMap.get(volumeScheduleKey) ?? 0) + 1);
@@ -486,6 +494,8 @@ export function computeEnrollmentStats(rows: EnrollmentStatsRow[], now: Date): E
     thisWeek,
     thisMonth,
     notViewedCount,
+    approvedWithoutAccount,
+    approvedByTurma,
     byVolume: ENROLLMENT_VOLUMES.map((volume) => ({
       slug: volume.slug,
       label: volume.label,

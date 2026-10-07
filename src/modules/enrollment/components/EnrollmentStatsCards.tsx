@@ -21,7 +21,7 @@ function MetricCard({
   hint,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   href: string;
   selected?: boolean;
   hint?: string;
@@ -115,84 +115,49 @@ export function EnrollmentStatsCards({
     capacities.map((c) => [`${c.volumeSlug}:${c.scheduleSlug}`, c.capacity]),
   );
 
-  const noPeriodFilter = filters.period === "all" && !filters.dateFrom && !filters.dateTo;
+  const totalCapacity = capacities.reduce((sum, c) => sum + c.capacity, 0);
+  const occupied = capacities.reduce((sum, c) => sum + (stats.approvedByTurma[`${c.volumeSlug}:${c.scheduleSlug}`] ?? 0), 0);
 
-  const primaryCards: { label: string; value: number; href: string; selected: boolean; hint?: string }[] = [
-    {
-      label: "Total de inscrições",
-      value: stats.total,
-      href: buildHref({ period: "all", de: null, ate: null, page: null }),
-      selected: noPeriodFilter,
-    },
-    {
-      label: "Hoje",
-      value: stats.today,
-      href: buildHref({ period: "today", de: null, ate: null, page: null }),
-      selected: filters.period === "today" && !filters.dateFrom,
-      hint: "Desde 00h no horário de Brasília.",
-    },
-    {
-      label: "Não visualizadas",
-      value: stats.notViewedCount,
-      href: buildHref({ naoVistas: filters.notViewed ? null : "1", page: null }),
-      selected: filters.notViewed,
-      hint: "Ainda não abertas por ninguém da coordenação.",
-    },
+  // Só o que pede uma ação: pendentes para decidir, aprovadas esperando criar a conta,
+  // ocupação das vagas e o que chegou nesta semana.
+  const primaryCards: { label: string; value: number | string; href: string; selected: boolean; hint?: string }[] = [
     {
       label: "Pendentes",
       value: stats.byStatus.find((s) => s.status === "pending")?.count ?? 0,
       href: buildHref({ status: filters.status === "pending" ? null : "pending", page: null }),
       selected: filters.status === "pending",
+      hint: "Aguardando sua decisão.",
     },
     {
-      label: "Aprovadas",
-      value: stats.byStatus.find((s) => s.status === "approved")?.count ?? 0,
+      label: "Aprovadas sem matrícula",
+      value: stats.approvedWithoutAccount,
       href: buildHref({ status: filters.status === "approved" ? null : "approved", page: null }),
       selected: filters.status === "approved",
+      hint: "Aprovadas que ainda não criaram a conta.",
     },
-  ];
-
-  const secondaryCards: { label: string; value: number; href: string; selected: boolean; hint: string }[] = [
     {
-      label: "Esta semana",
+      label: "Ocupação × vagas",
+      value: totalCapacity > 0 ? `${occupied} de ${totalCapacity}` : "Defina as vagas",
+      href: buildHref({ page: null }),
+      selected: false,
+      hint:
+        totalCapacity > 0
+          ? "Aprovadas ÷ vagas das turmas com limite definido."
+          : "Informe as vagas de cada turma em “Por turma”, logo abaixo.",
+    },
+    {
+      label: "Novas na semana",
       value: stats.thisWeek,
       href: buildHref({ period: "week", de: null, ate: null, page: null }),
       selected: filters.period === "week" && !filters.dateFrom,
-      hint: "Semana atual, desde segunda-feira.",
-    },
-    {
-      label: "Este mês",
-      value: stats.thisMonth,
-      href: buildHref({ period: "month", de: null, ate: null, page: null }),
-      selected: filters.period === "month" && !filters.dateFrom,
-      hint: "Desde o primeiro dia do mês atual.",
-    },
-    {
-      label: "Últimos 7 dias",
-      value: stats.last7Days,
-      href: buildHref({ period: "7d", de: null, ate: null, page: null }),
-      selected: filters.period === "7d" && !filters.dateFrom,
-      hint: "Janela móvel de 7 dias, incluindo hoje.",
-    },
-    {
-      label: "Últimos 30 dias",
-      value: stats.last30Days,
-      href: buildHref({ period: "30d", de: null, ate: null, page: null }),
-      selected: filters.period === "30d" && !filters.dateFrom,
-      hint: "Janela móvel de 30 dias, incluindo hoje.",
+      hint: "Desde segunda-feira.",
     },
   ];
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {primaryCards.map((card) => (
-          <MetricCard key={card.label} {...card} />
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {secondaryCards.map((card) => (
           <MetricCard key={card.label} {...card} />
         ))}
       </div>
@@ -228,10 +193,12 @@ export function EnrollmentStatsCards({
                     <span className="flex flex-col">
                       <span>{entry.label}</span>
                       {capacity ? (
-                        <span className={`text-[11px] font-normal ${occupancyLabel(entry.count, capacity).className}`}>
-                          {entry.count} de {capacity} vagas preenchidas · {occupancyLabel(entry.count, capacity).text}
+                        <span className={`text-[11px] font-normal ${occupancyLabel(stats.approvedByTurma[key] ?? 0, capacity).className}`}>
+                          {stats.approvedByTurma[key] ?? 0} de {capacity} vagas preenchidas · {occupancyLabel(stats.approvedByTurma[key] ?? 0, capacity).text}
                         </span>
-                      ) : null}
+                      ) : (
+                        <span className="text-[11px] font-normal text-neutral-400">Vagas não definidas</span>
+                      )}
                     </span>
                   }
                   count={entry.count}

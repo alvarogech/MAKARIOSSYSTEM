@@ -61,11 +61,6 @@ export default async function DashboardPage() {
           Você está navegando como{" "}
           <strong>{ROLE_LABELS[authContext.activeRole]}</strong>.
         </p>
-        <p className="mt-3 text-sm text-neutral-500">
-          Fase 3 da Plataforma Makários: conteúdo, vídeos, exercícios e
-          progresso do aluno. Frequência, avaliações formais, reposições e
-          certificados chegam nas próximas fases.
-        </p>
       </Card>
 
       {authContext.activeRole === "student" && studentSummary ? (

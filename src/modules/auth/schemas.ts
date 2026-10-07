@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidBrazilianPhone } from "@/services/phone";
+import { isValidBrazilianMobile } from "@/services/phone";
 
 /**
  * Zod é usado exclusivamente para validar o FORMATO dos dados de entrada
@@ -68,8 +68,8 @@ export const phoneSchema = z
   .string()
   .trim()
   .min(1, "Informe o WhatsApp com DDD.")
-  .refine(isValidBrazilianPhone, {
-    message: "Informe um WhatsApp válido com DDD (ex.: 62 99999-9999).",
+  .refine(isValidBrazilianMobile, {
+    message: "Informe o WhatsApp com DDD e o 9 na frente (11 dígitos, ex.: 62 99999-9999).",
   });
 
 export const createTeacherInvitationSchema = z.object({

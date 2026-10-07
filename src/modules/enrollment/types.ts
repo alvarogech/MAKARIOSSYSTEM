@@ -50,6 +50,8 @@ export interface EnrollmentStatsRow {
   grNetworkSlug: EnrollmentGrNetworkSlug | null;
   viewedAt: string | null;
   createdAt: string;
+  /** A pessoa já criou a conta (inscrição ligada a um aluno). */
+  hasAccount: boolean;
 }
 
 export type ChurchVinculoValue = "member" | "other" | "nao_informado";
@@ -62,6 +64,10 @@ export interface EnrollmentStats {
   thisWeek: number;
   thisMonth: number;
   notViewedCount: number;
+  /** Aprovadas cujo aluno ainda não criou a conta (sem matrícula). */
+  approvedWithoutAccount: number;
+  /** Vagas ocupadas por inscrições aprovadas, por "volume:horario". */
+  approvedByTurma: Record<string, number>;
   byVolume: { slug: EnrollmentVolumeSlug; label: string; count: number }[];
   byVolumeSchedule: {
     volumeSlug: EnrollmentVolumeSlug;

@@ -15,9 +15,26 @@ function row(overrides: Partial<EnrollmentStatsRow>): EnrollmentStatsRow {
     grNetworkSlug: null,
     viewedAt: null,
     createdAt: NOW.toISOString(),
+    hasAccount: false,
     ...overrides,
   };
 }
+
+describe("computeEnrollmentStats — aprovadas sem matrícula e ocupação", () => {
+  it("conta aprovadas sem conta e as aprovadas por turma", () => {
+    const stats = computeEnrollmentStats(
+      [
+        row({ status: "approved", hasAccount: false }),
+        row({ status: "approved", hasAccount: true }),
+        row({ status: "approved", primaryScheduleSlug: "sabado" }),
+        row({ status: "pending" }),
+      ],
+      NOW,
+    );
+    expect(stats.approvedWithoutAccount).toBe(2);
+    expect(stats.approvedByTurma).toEqual({ "essencia:terca_quinta": 2, "essencia:sabado": 1 });
+  });
+});
 
 describe("computeEnrollmentStats", () => {
   it("conta total, hoje, semana e mês corretamente", () => {

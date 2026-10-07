@@ -32,6 +32,12 @@ export function formatBrazilianPhone(phone: string): string {
   return phone;
 }
 
+/** Celular com WhatsApp: DDD (2 dígitos) + 9 + 8 dígitos = 11 dígitos. */
+export function isValidBrazilianMobile(phone: string): boolean {
+  const digits = normalizeDigits(phone);
+  return digits.length === 11 && digits[2] === "9";
+}
+
 /** DDD (2 dígitos) + 8 ou 9 dígitos de número — o mínimo para um link de WhatsApp fazer sentido. */
 export function isValidBrazilianPhone(phone: string): boolean {
   const digits = normalizeDigits(phone);

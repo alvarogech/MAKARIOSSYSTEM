@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateQuestionForm } from "@/modules/content/components/CreateQuestionForm";
 import { CreateActivityForm } from "@/modules/content/components/CreateActivityForm";
 import { AttachQuestionForm } from "@/modules/content/components/AttachQuestionForm";
+import { difficultyLabel, questionTypeLabel } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Banco de questões e exercícios" };
 
@@ -75,7 +76,7 @@ export default async function QuestoesPage() {
         <ul className="mt-4 divide-y divide-neutral-100 text-sm">
           {(questions ?? []).map((q) => (
             <li key={q.id} className="py-1.5 text-neutral-700">
-              {q.prompt} <span className="text-neutral-400">({q.type}, {q.difficulty})</span>
+              {q.prompt} <span className="text-neutral-400">({questionTypeLabel(q.type)}, {difficultyLabel(q.difficulty).toLowerCase()})</span>
             </li>
           ))}
           {(questions ?? []).length === 0 ? <li className="py-1.5 text-neutral-400">Nenhuma questão criada ainda.</li> : null}

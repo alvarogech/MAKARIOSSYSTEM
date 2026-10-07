@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateSeasonForm } from "@/modules/academic/components/CreateSeasonForm";
 import { CreateOfferingForm } from "@/modules/academic/components/CreateOfferingForm";
+import { statusLabel } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Temporadas" };
 
@@ -48,7 +49,7 @@ export default async function TemporadasPage() {
           {(seasons ?? []).map((season) => (
             <li key={season.id} className="py-2 text-sm text-neutral-700">
               <span className="font-medium">{season.name}</span>{" "}
-              <span className="text-neutral-400">— {season.status}</span>
+              <span className="text-neutral-400">— {statusLabel(season.status).toLowerCase()}</span>
             </li>
           ))}
           {(seasons ?? []).length === 0 ? (
@@ -81,7 +82,7 @@ export default async function TemporadasPage() {
                 {volumesById.get(offering.volume_id)?.name ?? "Volume"}
               </span>{" "}
               — {seasonsById.get(offering.season_id)?.name ?? "Temporada"}{" "}
-              <span className="text-neutral-400">({offering.status})</span>
+              <span className="text-neutral-400">({statusLabel(offering.status).toLowerCase()})</span>
             </li>
           ))}
           {(offerings ?? []).length === 0 ? (

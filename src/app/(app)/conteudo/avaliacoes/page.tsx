@@ -11,6 +11,7 @@ import {
   ReleaseAnswerKeyButton,
 } from "@/modules/assessment/components/AssessmentActionButtons";
 import { GrantExceptionalAttemptForm } from "@/modules/assessment/components/GrantExceptionalAttemptForm";
+import { statusLabel } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Avaliações" };
 
@@ -98,7 +99,7 @@ export default async function AvaliacoesPage() {
                   {offeringLabel(a.season_volume_offering_id)}{" "}
                   <span className="text-neutral-400">
                     ({a.type === "final" ? "final" : "recuperação"}, {a.questions_count}q,{" "}
-                    {a.duration_minutes}min, {a.status}
+                    {a.duration_minutes}min, {statusLabel(a.status).toLowerCase()}
                     {a.answer_key_released_at ? ", gabarito liberado" : ""})
                   </span>
                 </span>

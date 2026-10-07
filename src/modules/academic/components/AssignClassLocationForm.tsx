@@ -20,7 +20,7 @@ export function AssignClassLocationForm({
   const [state, formAction, isPending] = useActionState(assignClassLocation, initialState);
 
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-3" noValidate>
+    <form action={formAction} className="flex flex-wrap items-end gap-3" noValidate key={currentLocationId ?? "sem-local"}>
       <input type="hidden" name="classId" value={classId} />
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
       <div>
@@ -46,6 +46,13 @@ export function AssignClassLocationForm({
         Salvar local
       </Button>
       {state.success ? <span className="text-xs text-success">Salvo.</span> : null}
+      {currentLocationId ? (
+        <span className="text-xs text-neutral-500">
+          Atual: {locations.find((l) => l.id === currentLocationId)?.name ?? "—"}
+        </span>
+      ) : (
+        <span className="text-xs text-warning">Sem local definido</span>
+      )}
     </form>
   );
 }
