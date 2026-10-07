@@ -135,9 +135,14 @@ export default async function TurmasPage() {
                       "nenhum designado"}
                   </div>
                 </div>
-                <Link href={`/coordenacao/turmas/${klass.id}/escala`} className="text-sm text-brand-blue hover:underline">
-                  Escala de aulas
-                </Link>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <Link href={`/coordenacao/turmas/${klass.id}`} className="font-medium text-brand-blue hover:underline">
+                    Abrir turma
+                  </Link>
+                  <Link href={`/coordenacao/turmas/${klass.id}/escala`} className="text-neutral-500 hover:underline">
+                    Escala de aulas
+                  </Link>
+                </div>
               </div>
               <div className="mt-2">
                 <AssignClassLocationForm

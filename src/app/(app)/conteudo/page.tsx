@@ -104,6 +104,9 @@ export default async function ConteudoAreaPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/conteudo/arvore" className={buttonVariants({ variant: "secondary" })}>
+            Árvore de conteúdo
+          </Link>
           <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
             Banco de questões e exercícios
           </Link>

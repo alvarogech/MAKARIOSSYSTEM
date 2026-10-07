@@ -45,7 +45,7 @@ function buildNavLinks(authContext: AuthContext): NavLink[] {
   }
 
   if (can(authContext, { resource: "content", action: "manage" })) {
-    links.push({ href: "/conteudo", label: "Conteúdo" });
+    links.push({ href: "/conteudo/arvore", label: "Conteúdo" });
   }
 
   if (isStaff) {
