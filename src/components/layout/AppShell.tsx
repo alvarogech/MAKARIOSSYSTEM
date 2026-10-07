@@ -31,11 +31,12 @@ export function AppShell({
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Image
-              src="/brand/logo-makarios-oficial-azul.png"
+              src="/brand/logo-makarios-azul-transparente.png"
               alt="Makários"
-              width={40}
-              height={13}
-              className="h-6 w-auto rounded-sm bg-brand-blue px-1.5 py-1"
+              width={160}
+              height={32}
+              priority
+              className="h-8 w-auto"
             />
           </Link>
 
