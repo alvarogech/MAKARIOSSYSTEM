@@ -1,3 +1,4 @@
+import { formatRoom } from "@/lib/room";
 import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
 import { isMeetingOver } from "@/modules/teaching/reportSettings";
 import type { Metadata } from "next";
@@ -95,6 +96,9 @@ export default async function ProfessorTurmaDetailPage({
     return { person, progress, view: describeFrequency(progress) };
   });
 
+  const waitingCount = students.filter(({ person }) => person.stage === "aguardando_acesso").length;
+  const activeCount = students.length - waitingCount;
+
   const meetingIds = (meetings ?? []).map((m) => m.id);
   const reportedMeetingIds = new Set((reports ?? []).map((r) => r.meeting_id));
 
@@ -161,7 +165,8 @@ export default async function ProfessorTurmaDetailPage({
       </div>
 
       <Card>
-        <h2 className="font-semibold text-neutral-900">Alunos ({students.length})</h2>
+        <h2 className="font-semibold text-neutral-900">Alunos</h2>
+        <p className="mt-0.5 text-sm text-neutral-700">{activeCount} ativos{waitingCount > 0 ? ` · ${waitingCount} aguardando acesso` : ""}</p>
         <p className="mt-1 text-xs text-neutral-500">
           Inclui quem já tem matrícula e quem foi aprovado e ainda vai criar a conta. Frequência: horas cumpridas e situação em
           relação aos 75% exigidos.
@@ -169,7 +174,6 @@ export default async function ProfessorTurmaDetailPage({
         <ul className="mt-3 divide-y divide-neutral-100 text-sm">
           {students.map(({ person, progress, view }) => {
             const situation = SITUATION[progress.situation];
-            const pct = progress.totalMinutes > 0 ? Math.round((progress.attendedMinutes / progress.totalMinutes) * 100) : 0;
             return (
               <li key={person.person_key} className="flex flex-wrap items-center justify-between gap-2 py-2 text-neutral-700">
                 <span className="min-w-0">
@@ -180,7 +184,7 @@ export default async function ProfessorTurmaDetailPage({
                 </span>
                 <span className="flex items-center gap-2 text-xs">
                   <span className="text-neutral-500">
-                    {formatHours(progress.attendedMinutes)} de {formatHours(progress.totalMinutes)} · {pct}%
+                    {formatHours(progress.attendedMinutes)} de {formatHours(view.heldMinutes)} realizadas · {formatHours(progress.totalMinutes)} no total
                   </span>
                   <span className={`rounded-full px-2 py-0.5 font-medium ${situation.className}`} title={`Pode perder mais ${formatHours(view.progress.slackMinutes)}`}>
                     {situation.label}
@@ -217,7 +221,7 @@ export default async function ProfessorTurmaDetailPage({
                     {reportedMeetingIds.has(meeting.id) ? (
                       <span className="ml-2 text-xs text-success">relatório enviado</span>
                     ) : null}
-                    {meeting.room ? <span className="ml-2 text-xs text-neutral-400">· {meeting.room}</span> : null}
+                    {formatRoom(meeting.room) ? <span className="ml-2 text-xs text-neutral-400">· {formatRoom(meeting.room)}</span> : null}
                   </span>
                   {reportActive && myScheduledMeetingIds.has(meeting.id) && isMeetingOver(meeting.meeting_date, meeting.end_time, nowForReports) ? (
                     <div className="flex flex-wrap gap-2">

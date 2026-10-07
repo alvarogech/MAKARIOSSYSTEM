@@ -18,14 +18,19 @@ export function TeacherClassCardView({ klass }: { klass: TeacherClassCard }) {
       </p>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
         <Users className="size-3.5 shrink-0" aria-hidden="true" />
-        {klass.studentCount} aluno{klass.studentCount === 1 ? "" : "s"} matriculado{klass.studentCount === 1 ? "" : "s"}
+        {klass.studentCount} ativos{klass.waitingCount > 0 ? ` · ${klass.waitingCount} aguardando acesso` : ""}
       </p>
       {klass.nextLesson ? (
         <p className="mt-2 text-xs text-neutral-500">
           Sua próxima aula: {klass.nextLesson.dateLabel} · {klass.nextLesson.timeLabel}
         </p>
       ) : (
-        <p className="mt-2 text-xs text-neutral-400">Sem aula sua atribuída nos próximos encontros.</p>
+        <p className="mt-2 text-xs text-neutral-500">
+          Nenhuma aula sua nesta turma por enquanto ·{" "}
+          <Link href={`/professor/turmas/${klass.classId}`} className="text-brand-blue hover:underline">
+            ver escala completa
+          </Link>
+        </p>
       )}
       <Link
         href={`/professor/turmas/${klass.classId}`}

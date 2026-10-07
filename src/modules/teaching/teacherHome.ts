@@ -47,6 +47,8 @@ export interface TeacherClassCard {
   scheduleLabel: string | null;
   locationLabel: string | null;
   studentCount: number;
+  /** Aprovados que ainda vão criar a conta (mesma lista única da página da turma). */
+  waitingCount: number;
   nextLesson: TeacherLesson | null;
 }
 
@@ -140,7 +142,6 @@ export async function loadTeacherHomeSummary(
     { data: blocks },
     { data: templates },
     { data: offerings },
-    { data: enrollments },
   ] = await Promise.all([
     supabase
       .from("class_meeting_blocks")
@@ -149,8 +150,17 @@ export async function loadTeacherHomeSummary(
       .order("order_index"),
     supabase.from("class_templates").select("id, name, start_time, end_time").in("id", templateIds),
     supabase.from("season_volume_offerings").select("id, season_id, volume_id").in("id", offeringIds),
-    supabase.from("enrollments").select("id, class_id").in("class_id", classIds),
   ]);
+
+  // Mesma fonte de verdade da página da turma e da coordenação: a lista única (ativos + aguardando acesso).
+  const rosterCounts = new Map<string, { active: number; waiting: number }>();
+  await Promise.all(
+    classIds.map(async (id) => {
+      const { data: roster } = await supabase.rpc("class_roster", { p_class_id: id });
+      const waiting = (roster ?? []).filter((p) => p.stage === "aguardando_acesso").length;
+      rosterCounts.set(id, { active: (roster ?? []).length - waiting, waiting });
+    }),
+  );
 
   const moduleIds = [...new Set((blocks ?? []).map((b) => b.module_id).filter((id): id is string => Boolean(id)))];
   const volumeIds = [...new Set((offerings ?? []).map((o) => o.volume_id))];
@@ -182,10 +192,6 @@ export async function loadTeacherHomeSummary(
     const list = blocksByMeeting.get(block.class_meeting_id) ?? [];
     list.push(block);
     blocksByMeeting.set(block.class_meeting_id, list);
-  }
-  const studentCountByClass = new Map<string, number>();
-  for (const enrollment of enrollments ?? []) {
-    studentCountByClass.set(enrollment.class_id, (studentCountByClass.get(enrollment.class_id) ?? 0) + 1);
   }
 
   const now = new Date();
@@ -302,8 +308,10 @@ export async function loadTeacherHomeSummary(
       volumeName: offering ? (volumeNameById.get(offering.volume_id) ?? "Volume") : "Volume",
       seasonName: offering ? (seasonNameById.get(offering.season_id) ?? "Temporada") : "Temporada",
       scheduleLabel: template ? `${template.name} · ${formatSaoPauloTimeRange(template.start_time, template.end_time)}` : null,
-      locationLabel: locationLabelFor(location, klass.location),
-      studentCount: studentCountByClass.get(klass.id) ?? 0,
+      // No card só o nome do local; o endereço completo fica no detalhe da turma.
+      locationLabel: location?.name ?? klass.location,
+      studentCount: rosterCounts.get(klass.id)?.active ?? 0,
+      waitingCount: rosterCounts.get(klass.id)?.waiting ?? 0,
       nextLesson: classLessons[0] ?? null,
     };
   });

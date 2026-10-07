@@ -1,3 +1,4 @@
+import { formatRoom } from "@/lib/room";
 import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
 import { isMeetingOver } from "@/modules/teaching/reportSettings";
 import type { Metadata } from "next";
@@ -141,7 +142,7 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
             <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
               <MapPin className="size-4 shrink-0" aria-hidden="true" />
               {location?.name ?? legacyLocationText ?? "Local a confirmar"}
-              {room ? ` · Sala ${room}` : " · Sala a confirmar"}
+              {formatRoom(room) ? ` · ${formatRoom(room)}` : " · Sala a confirmar"}
             </p>
             {block.status !== "scheduled" ? (
               <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-warning">
@@ -203,7 +204,7 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
           <div className="mt-2 flex flex-col gap-1.5 text-sm text-neutral-700">
             <p className="font-medium">{location.name}</p>
             {location.address ? <p className="text-neutral-500">{location.address}</p> : null}
-            {room ? <p className="text-neutral-500">Sala: {room}</p> : null}
+            {formatRoom(room) ? <p className="text-neutral-500">{formatRoom(room)}</p> : null}
             {location.entry_instructions ? <p className="text-neutral-500">Entrada: {location.entry_instructions}</p> : null}
             {location.parking_instructions ? <p className="text-neutral-500">Estacionamento: {location.parking_instructions}</p> : null}
             {location.arrival_minutes_before ? (

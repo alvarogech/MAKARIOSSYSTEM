@@ -1,3 +1,4 @@
+import { formatRoom } from "@/lib/room";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, Calendar, MapPin } from "lucide-react";
@@ -178,7 +179,7 @@ function NextLessonCard({ lesson, sameDayLessons }: { lesson: TeacherLesson; sam
           <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
             <MapPin className="size-4 shrink-0" aria-hidden="true" />
             {lesson.locationLabel ?? "Local a confirmar"}
-            {lesson.room ? ` · Sala ${lesson.room}` : " · Sala a confirmar"}
+            {formatRoom(lesson.room) ? ` · ${formatRoom(lesson.room)}` : " · Sala a confirmar"}
           </p>
 
           {sameDayLessons.length > 0 ? (
