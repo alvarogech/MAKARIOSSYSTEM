@@ -4,12 +4,21 @@ import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { EnrollmentForm } from "@/modules/academic/components/EnrollmentForm";
-import { EnrollmentRowActions } from "@/modules/academic/components/EnrollmentRowActions";
+import { EnrollmentsTable, type EnrollmentTableRow } from "@/modules/academic/components/EnrollmentsTable";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
+import { enrollmentStatusValues } from "@/modules/academic/schemas";
 
 export const metadata: Metadata = { title: "Matrículas" };
 
-export default async function MatriculasPage() {
+const PAGE_SIZE = 100;
+const fieldClass = "rounded-[var(--radius-sm)] border border-neutral-300 bg-white px-2 py-1.5 text-sm";
+
+export default async function MatriculasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; volume?: string; turma?: string; status?: string; pagina?: string }>;
+}) {
+  const { q, volume: volumeFilter, turma: classFilter, status: statusFilter, pagina } = await searchParams;
   const authContext = await getAuthContext();
   if (!authContext) return null;
 
@@ -37,7 +46,7 @@ export default async function MatriculasPage() {
       .from("enrollments")
       .select("id, student_id, season_volume_offering_id, class_id, status, created_at")
       .order("created_at", { ascending: false }),
-    supabase.from("profiles").select("id, full_name, email"),
+    supabase.from("profiles").select("id, full_name, email, is_demo"),
   ]);
 
   const volumesById = new Map((volumes ?? []).map((v) => [v.id, v]));
@@ -61,6 +70,31 @@ export default async function MatriculasPage() {
     const season = seasonsById.get(offering.season_id)?.name ?? "Temporada";
     return `${volume} — ${season}`;
   };
+
+  const needle = (q ?? "").trim().toLowerCase();
+  const offeringVolume = new Map((offerings ?? []).map((o) => [o.id, o.volume_id]));
+  const rows: EnrollmentTableRow[] = (enrollments ?? [])
+    .filter((e) => !profilesById.get(e.student_id)?.is_demo)
+    .map((e) => ({
+      id: e.id,
+      studentName: profilesById.get(e.student_id)?.full_name ?? "Aluno",
+      email: profilesById.get(e.student_id)?.email ?? null,
+      volume: volumesById.get(offeringVolume.get(e.season_volume_offering_id) ?? "")?.name ?? "Volume",
+      className: classesById.get(e.class_id)?.name ?? "Turma",
+      classId: e.class_id,
+      status: e.status,
+      offeringId: e.season_volume_offering_id,
+      classesInSameOffering: classesByOffering.get(e.season_volume_offering_id) ?? [],
+    }));
+  const filtered = rows
+    .filter((r) => !needle || r.studentName.toLowerCase().includes(needle) || (r.email ?? "").toLowerCase().includes(needle))
+    .filter((r) => !volumeFilter || offeringVolume.get(r.offeringId) === volumeFilter)
+    .filter((r) => !classFilter || r.classId === classFilter)
+    .filter((r) => !statusFilter || r.status === statusFilter)
+    .sort((a, b) => a.studentName.localeCompare(b.studentName, "pt-BR"));
+  const page = Math.max(1, Number(pagina) || 1);
+  const start = (page - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + PAGE_SIZE);
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,34 +123,82 @@ export default async function MatriculasPage() {
         </div>
       </Card>
 
-      <Card>
-        <h2 className="text-lg font-semibold text-neutral-900">
-          Matrículas registradas
-        </h2>
-        <ul className="mt-4 divide-y divide-neutral-100">
-          {(enrollments ?? []).map((enrollment) => (
-            <li key={enrollment.id} className="py-3 text-sm text-neutral-700">
-              <span className="font-medium">
-                {profilesById.get(enrollment.student_id)?.full_name ??
-                  "Aluno"}
-              </span>{" "}
-              — {offeringLabel(enrollment.season_volume_offering_id)} ·{" "}
-              {classesById.get(enrollment.class_id)?.name}
-              <span className="text-neutral-400"> ({ENROLLMENT_STATUS_LABELS[enrollment.status] ?? enrollment.status})</span>
-              <EnrollmentRowActions
-                enrollmentId={enrollment.id}
-                currentStatus={enrollment.status}
-                currentClassId={enrollment.class_id}
-                classesInSameOffering={classesByOffering.get(enrollment.season_volume_offering_id) ?? []}
-              />
-            </li>
-          ))}
-          {(enrollments ?? []).length === 0 ? (
-            <li className="py-2 text-sm text-neutral-400">
-              Nenhuma matrícula criada ainda.
-            </li>
-          ) : null}
-        </ul>
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-900">Matrículas registradas</h2>
+          <p className="text-xs text-neutral-500">
+            Busque por nome ou e-mail, filtre por volume, turma ou status e use as caixas para agir em várias de uma vez. Contas de
+            demonstração não aparecem.
+          </p>
+        </div>
+
+        <form method="get" className="flex flex-wrap items-end gap-3 text-sm">
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            Buscar
+            <input name="q" defaultValue={q ?? ""} placeholder="Nome ou e-mail" className={fieldClass} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            Volume
+            <select name="volume" defaultValue={volumeFilter ?? ""} className={fieldClass}>
+              <option value="">Todos</option>
+              {(volumes ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            Turma
+            <select name="turma" defaultValue={classFilter ?? ""} className={fieldClass}>
+              <option value="">Todas</option>
+              {(classes ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            Status
+            <select name="status" defaultValue={statusFilter ?? ""} className={fieldClass}>
+              <option value="">Todos</option>
+              {enrollmentStatusValues.map((value) => (
+                <option key={value} value={value}>
+                  {ENROLLMENT_STATUS_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="pb-1.5 text-brand-blue hover:underline">
+            Filtrar
+          </button>
+        </form>
+
+        <p className="text-xs text-neutral-500">
+          {filtered.length} matrícula(s)
+          {filtered.length > PAGE_SIZE ? ` · mostrando ${start + 1} a ${Math.min(start + PAGE_SIZE, filtered.length)}` : ""}
+        </p>
+
+        <EnrollmentsTable
+          rows={pageRows}
+          classOptions={(classes ?? []).map((c) => ({ id: c.id, name: c.name, offeringId: c.season_volume_offering_id }))}
+        />
+
+        {filtered.length > PAGE_SIZE ? (
+          <div className="flex gap-4 text-sm">
+            {page > 1 ? (
+              <a className="text-brand-blue hover:underline" href={`?${new URLSearchParams({ q: q ?? "", volume: volumeFilter ?? "", turma: classFilter ?? "", status: statusFilter ?? "", pagina: String(page - 1) })}`}>
+                ← Anteriores
+              </a>
+            ) : null}
+            {start + PAGE_SIZE < filtered.length ? (
+              <a className="text-brand-blue hover:underline" href={`?${new URLSearchParams({ q: q ?? "", volume: volumeFilter ?? "", turma: classFilter ?? "", status: statusFilter ?? "", pagina: String(page + 1) })}`}>
+                Próximas →
+              </a>
+            ) : null}
+          </div>
+        ) : null}
       </Card>
     </div>
   );

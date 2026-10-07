@@ -2149,6 +2149,7 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_demo: boolean
           last_access_at: string | null
           onboarding_completed_at: string | null
           phone: string | null
@@ -2163,6 +2164,7 @@ export type Database = {
           email?: string | null
           full_name: string
           id: string
+          is_demo?: boolean
           last_access_at?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
@@ -2177,6 +2179,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_demo?: boolean
           last_access_at?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
@@ -2809,6 +2812,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      data_quality_report: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       declare_attendance: {
         Args: { p_meeting_id: string; p_lessons: number[] }
         Returns: undefined

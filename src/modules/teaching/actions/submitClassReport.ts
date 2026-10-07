@@ -22,13 +22,13 @@ export async function submitClassReport(
   const parsed = submitClassReportSchema.safeParse({
     meetingId: formData.get("meetingId"),
     contentCompleted: formData.get("contentCompleted") || undefined,
-    planChanged: formData.get("planChanged") === "on",
-    planChangeNotes: formData.get("planChangeNotes") || undefined,
-    recurringQuestions: formData.get("recurringQuestions") || undefined,
-    occurrences: formData.get("occurrences") || undefined,
     studentsNeedingAttention: formData.get("studentsNeedingAttention") || undefined,
     observation: formData.get("observation") || undefined,
   });
+
+  if (parsed.success && !parsed.data.contentCompleted) {
+    return { error: "Conte em poucas linhas o que foi dado hoje." };
+  }
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -40,11 +40,9 @@ export async function submitClassReport(
       meeting_id: parsed.data.meetingId,
       teacher_id: authContext.userId,
       content_completed: parsed.data.contentCompleted ?? null,
-      plan_changed: parsed.data.planChanged ?? false,
-      plan_change_notes: parsed.data.planChangeNotes ?? null,
-      recurring_questions: parsed.data.recurringQuestions ?? null,
-      occurrences: parsed.data.occurrences ?? null,
       students_needing_attention: parsed.data.studentsNeedingAttention ?? null,
+      // As antigas "ocorrências" foram juntadas nas observações no formulário.
+      occurrences: null,
       observation: parsed.data.observation ?? null,
     },
     { onConflict: "meeting_id,teacher_id" },

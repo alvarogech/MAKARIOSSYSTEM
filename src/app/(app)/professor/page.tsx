@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loadTeacherHomeSummary, type TeacherLesson } from "@/modules/teaching/teacherHome";
 import { TeacherClassCardView } from "@/modules/teaching/components/TeacherClassCardView";
+import { loadPendingReports } from "@/modules/teaching/pendingReports";
 
 export const metadata: Metadata = { title: "Área do professor" };
 
@@ -21,6 +22,7 @@ export default async function ProfessorHomePage() {
 
   const supabase = await createSupabaseServerClient();
   const summary = await loadTeacherHomeSummary(supabase, authContext.userId);
+  const pendingReports = await loadPendingReports(supabase, authContext.userId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,6 +48,25 @@ export default async function ProfessorHomePage() {
               <p className="mt-1 text-xs text-neutral-500">Procure a coordenação para confirmar sua escala.</p>
             </div>
           </div>
+        </Card>
+      ) : null}
+
+      {pendingReports.length > 0 ? (
+        <Card className="border-warning/30 bg-warning/5">
+          <h2 className="font-semibold text-neutral-900">Relatório pós-aula pendente</h2>
+          <p className="mt-0.5 text-sm text-neutral-600">São só 3 campos curtos — leva um minuto.</p>
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {pendingReports.slice(0, 4).map((r) => (
+              <li key={r.meetingId}>
+                <Link
+                  href={`/professor/turmas/${r.classId}/encontros/${r.meetingId}/relatorio`}
+                  className="text-brand-blue hover:underline"
+                >
+                  {r.className} · encontro {r.sequence} · {r.date.split("-").reverse().slice(0, 2).join("/")} → enviar
+                </Link>
+              </li>
+            ))}
+          </ul>
         </Card>
       ) : null}
 

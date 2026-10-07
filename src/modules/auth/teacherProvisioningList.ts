@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { isValidBrazilianMobile } from "@/services/phone";
 
 export interface ActiveTeacherRow {
   kind: "active";
@@ -12,6 +13,8 @@ export interface ActiveTeacherRow {
   accountStatus: "active" | "suspended";
   onboardingCompleted: boolean;
   classNames: string[];
+  /** WhatsApp ausente ou sem DDD + 9 dígitos: a coordenação não consegue chamar. */
+  phoneIncomplete: boolean;
 }
 
 export interface PendingInviteRow {
@@ -25,6 +28,8 @@ export interface PendingInviteRow {
   meetingBlockIds: string[];
   classNames: string[];
   invitedAt: string;
+  /** Mesmo WhatsApp de um professor já ativo: provavelmente um convite repetido (ex.: outro e-mail da mesma pessoa). */
+  possibleDuplicateOf: string | null;
 }
 
 export type TeacherProvisioningRow = ActiveTeacherRow | PendingInviteRow;
@@ -94,10 +99,19 @@ export async function loadTeacherProvisioningData(
     classNames: (classIdsByTeacher.get(p.id) ?? [])
       .map((id) => classNameById.get(id) ?? "Turma")
       .sort(),
+    phoneIncomplete: !p.phone || !isValidBrazilianMobile(p.phone),
   }));
 
+  const digits = (value: string | null) => (value ?? "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  const activeEmails = new Set(activeRows.map((r) => r.email.trim().toLowerCase()).filter(Boolean));
+  const activeByPhone = new Map(activeRows.filter((r) => digits(r.phone)).map((r) => [digits(r.phone), r.fullName]));
+
   const now = Date.now();
-  const pendingRows: PendingInviteRow[] = (pendingInvites ?? []).map((inv) => {
+  // Convite revogado de um e-mail que já virou professor ativo é só resto: não precisa aparecer na lista.
+  const visibleInvites = (pendingInvites ?? []).filter(
+    (inv) => !(inv.revoked_at && activeEmails.has(inv.email.trim().toLowerCase())),
+  );
+  const pendingRows: PendingInviteRow[] = visibleInvites.map((inv) => {
     let inviteStatus: PendingInviteRow["inviteStatus"] = "pending";
     if (inv.revoked_at) inviteStatus = "revoked";
     else if (!inv.token_expires_at || new Date(inv.token_expires_at).getTime() < now) {
@@ -114,6 +128,7 @@ export async function loadTeacherProvisioningData(
       meetingBlockIds: inv.meeting_block_ids ?? [],
       classNames: (inv.class_ids ?? []).map((id) => classNameById.get(id) ?? "Turma").sort(),
       invitedAt: inv.invited_at,
+      possibleDuplicateOf: inviteStatus !== "revoked" && digits(inv.phone) ? (activeByPhone.get(digits(inv.phone)) ?? null) : null,
     };
   });
 

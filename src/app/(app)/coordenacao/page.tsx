@@ -58,6 +58,11 @@ const SECTIONS = [
     description: "Quantos alunos criaram a conta, entraram na plataforma e abriram material — e quem ainda não.",
   },
   {
+    href: "/coordenacao/qualidade-dados",
+    title: "Qualidade dos dados",
+    description: "Contas duplicadas, convites repetidos, WhatsApp incompleto e contas de demonstração.",
+  },
+  {
     href: "/coordenacao/avisos",
     title: "Avisos",
     description: "Publicar avisos para os professores, gerais ou por turma/módulo.",

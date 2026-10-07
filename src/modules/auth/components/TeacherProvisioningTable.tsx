@@ -70,12 +70,23 @@ export function TeacherProvisioningTable({
                         : "bg-amber-50 text-amber-800"
                     }
                   />
+                  {row.phoneIncomplete ? (
+                    <Badge label="WhatsApp incompleto" className="bg-amber-50 text-amber-800" />
+                  ) : null}
                 </>
               ) : (
-                <Badge
-                  label={INVITE_STATUS_LABEL[row.inviteStatus]}
-                  className={INVITE_STATUS_CLASS[row.inviteStatus]}
-                />
+                <>
+                  <Badge
+                    label={INVITE_STATUS_LABEL[row.inviteStatus]}
+                    className={INVITE_STATUS_CLASS[row.inviteStatus]}
+                  />
+                  {row.possibleDuplicateOf ? (
+                    <Badge
+                      label={`Possível duplicado de ${row.possibleDuplicateOf} (mesmo WhatsApp)`}
+                      className="bg-amber-50 text-amber-800"
+                    />
+                  ) : null}
+                </>
               )}
             </div>
           </div>
