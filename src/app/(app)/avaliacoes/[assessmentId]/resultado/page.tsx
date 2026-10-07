@@ -80,16 +80,35 @@ export default async function AssessmentResultPage({
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <h1 className="text-lg font-semibold text-neutral-900">{assessment.title} — Resultado</h1>
+        <p className="text-xs font-semibold uppercase tracking-wide text-brand-blue">
+          {assessment.type === "recovery" ? "Recuperação" : "Avaliação final"}
+        </p>
+        <h1 className="mt-1 text-lg font-semibold text-neutral-900">{assessment.title} — Resultado</h1>
 
-        {attempt.score !== null ? (
-          <Alert variant={passed ? "success" : "danger"}>
-            Nota: {attempt.score} — {attempt.correct_count} de {attempt.total_count} questões
-            corretas. {passed ? "Aprovado nesta avaliação." : "Abaixo da nota mínima."}
-          </Alert>
-        ) : (
-          <Alert variant="info">Sua avaliação foi enviada e está aguardando correção.</Alert>
-        )}
+        <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500" aria-label="Situação do envio">
+          <li className="font-medium text-success">✓ Enviada</li>
+          <li className={attempt.score !== null ? "font-medium text-success" : ""}>{attempt.score !== null ? "✓ Resultado disponível" : "• Resultado a divulgar"}</li>
+          <li className={assessment.answer_key_released_at ? "font-medium text-success" : ""}>
+            {assessment.answer_key_released_at ? "✓ Gabarito liberado" : "• Gabarito ainda não liberado"}
+          </li>
+        </ol>
+
+        {attempt.status === "expired" ? (
+          <div className="mt-3">
+            <Alert variant="info">O tempo esgotou. Valeram as respostas que você tinha confirmado até ali.</Alert>
+          </div>
+        ) : null}
+
+        <div className="mt-3">
+          {attempt.score !== null ? (
+            <Alert variant={passed ? "success" : "danger"}>
+              Nota: {attempt.score} — {attempt.correct_count} de {attempt.total_count} questões
+              corretas. {passed ? "Aprovado nesta avaliação." : "Abaixo da nota mínima."}
+            </Alert>
+          ) : (
+            <Alert variant="info">Avaliação enviada. Seu resultado será disponibilizado conforme a orientação da escola.</Alert>
+          )}
+        </div>
 
         {!passed && recoveryAssessmentId ? (
           <div className="mt-3">

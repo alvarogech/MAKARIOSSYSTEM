@@ -67,7 +67,7 @@ export function AssessmentReview({ attemptId }: { attemptId: string }) {
           </ul>
 
           <p className={`mt-2 text-xs ${question.isCorrect ? "text-success" : "text-danger"}`}>
-            {question.isCorrect ? "Você acertou" : "Você errou"}
+            {question.isCorrect ? "Você acertou esta questão." : "Esta não foi a resposta correta."}
           </p>
 
           {question.explanation ? (

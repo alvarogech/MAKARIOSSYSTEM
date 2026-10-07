@@ -48,6 +48,7 @@ export default async function AssessmentProvaPage({
       assessmentId={assessmentId}
       attemptId={attempt.id}
       deadlineAt={attempt.deadline_at}
+      serverNow={new Date().toISOString()}
     />
   );
 }

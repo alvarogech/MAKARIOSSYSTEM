@@ -3,11 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
-import { Card } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { StartAssessmentButton } from "@/modules/assessment/components/StartAssessmentButton";
+import { AssessmentPrep } from "@/modules/assessment/components/AssessmentPrep";
 
 export const metadata: Metadata = { title: "Avaliação" };
 
@@ -57,6 +57,16 @@ export default async function AssessmentIntroPage({
   const inProgress = (attempts ?? []).find((a) => a.status === "in_progress");
   const hasSubmitted = (attempts ?? []).some((a) => a.status === "submitted" || a.status === "expired");
 
+  // Mesma regra de start_assessment_attempt: 1 tentativa, ou 2 quando há autorização excepcional da coordenação.
+  const { count: grantCount } = await supabase
+    .from("assessment_exceptional_grants")
+    .select("assessment_id", { count: "exact", head: true })
+    .eq("assessment_id", assessmentId)
+    .eq("enrollment_id", enrollment.id);
+  const attemptsAllowed = (grantCount ?? 0) > 0 ? 2 : 1;
+  const attemptsUsed = (attempts ?? []).length;
+  const outOfAttempts = hasSubmitted && attemptsUsed >= attemptsAllowed;
+
   let recoveryBlocked = false;
   let pendingItems: string[] = [];
 
@@ -105,45 +115,48 @@ export default async function AssessmentIntroPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <h1 className="text-lg font-semibold text-neutral-900">{assessment.title}</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          {assessment.type === "recovery" ? "Recuperação" : "Avaliação final"}
-        </p>
-
-        <ul className="mt-4 space-y-1 text-sm text-neutral-600">
-          <li>📋 {assessment.questions_count} questões</li>
-          <li>⏱ {assessment.duration_minutes} minutos</li>
-          <li>✅ Nota mínima: {assessment.passing_grade}</li>
-          <li>✉ Somente a primeira resposta confirmada de cada questão é considerada</li>
-          {assessment.closes_at ? <li>📅 Prazo final: {new Date(assessment.closes_at).toLocaleString("pt-BR")}</li> : null}
-        </ul>
-
-        <div className="mt-5">
-          {hasSubmitted ? (
-            <Alert variant="info">
-              Você já enviou esta avaliação.{" "}
-              <Link href={`/avaliacoes/${assessmentId}/resultado`} className="font-medium underline">
-                Ver resultado
-              </Link>
-            </Alert>
-          ) : recoveryBlocked ? (
-            <Alert variant="danger">
-              Conclua a trilha de revisão obrigatória ({pendingItems.length} item(ns)
-              pendente(s)) antes de tentar a recuperação.
-            </Alert>
-          ) : inProgress ? (
-            <Link
-              href={`/avaliacoes/${assessmentId}/prova`}
-              className={buttonVariants({ variant: "primary" })}
-            >
-              Continuar avaliação em andamento
+      <AssessmentPrep
+        title={assessment.title}
+        type={assessment.type}
+        questionsCount={assessment.questions_count}
+        durationMinutes={assessment.duration_minutes}
+        passingGrade={assessment.passing_grade}
+        closesAt={assessment.closes_at}
+        attemptsAllowed={attemptsAllowed}
+        attemptsUsed={attemptsUsed}
+      >
+        {inProgress ? (
+          <Link href={`/avaliacoes/${assessmentId}/prova`} className={buttonVariants({ variant: "primary" })}>
+            Continuar avaliação em andamento
+          </Link>
+        ) : outOfAttempts ? (
+          <Alert variant="info">
+            Você já enviou esta avaliação.{" "}
+            <Link href={`/avaliacoes/${assessmentId}/resultado`} className="font-medium underline">
+              Ver resultado
             </Link>
-          ) : (
-            <StartAssessmentButton assessmentId={assessmentId} />
-          )}
-        </div>
-      </Card>
+          </Alert>
+        ) : recoveryBlocked ? (
+          <Alert variant="danger">
+            Conclua a trilha de revisão obrigatória ({pendingItems.length} item(ns) pendente(s)) antes de tentar a recuperação.
+          </Alert>
+        ) : (
+          <>
+            {hasSubmitted ? (
+              <Alert variant="info">
+                Sua primeira tentativa já foi enviada.{" "}
+                <Link href={`/avaliacoes/${assessmentId}/resultado`} className="font-medium underline">
+                  Ver resultado
+                </Link>{" "}
+                A coordenação autorizou mais uma tentativa.
+              </Alert>
+            ) : null}
+            <div className={hasSubmitted ? "mt-3" : ""}>
+              <StartAssessmentButton assessmentId={assessmentId} />
+            </div>
+          </>
+        )}
+      </AssessmentPrep>
     </div>
   );
 }
