@@ -58,6 +58,7 @@ export type PermissionCheck =
   | { resource: "release_rules"; action: "manage" }
   | { resource: "attendance"; action: "record" }
   | { resource: "attendance"; action: "correct" }
+  | { resource: "attendance"; action: "backfill" }
   | { resource: "class_reports"; action: "submit" }
   | { resource: "class_reports"; action: "read" }
   | { resource: "assessments"; action: "manage" }

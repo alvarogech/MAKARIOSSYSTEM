@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { canAccessArea, getAuthContext } from "@/authorization";
+import { can, canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -80,7 +80,9 @@ export default async function PresencaCoordenacaoPage({
   const today = getSaoPauloDateKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : today;
   const general = aba === "geral";
-  const manualTab = aba === "manual";
+  // Lançar presença depois (inclusive reposição) é só do administrador.
+  const canBackfill = can(auth, { resource: "attendance", action: "backfill" });
+  const manualTab = aba === "manual" && canBackfill;
   const supabase = await createSupabaseServerClient();
   // Uma turma por semestre: o relatório mostra uma temporada por vez, a mais
   // recente por padrão.
@@ -153,9 +155,11 @@ export default async function PresencaCoordenacaoPage({
             <Link href={`?aba=geral&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(general)}>
               Relatório geral
             </Link>
-            <Link href={`?aba=manual&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(manualTab)}>
-              Presença manual
-            </Link>
+            {canBackfill ? (
+              <Link href={`?aba=manual&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(manualTab)}>
+                Presença manual
+              </Link>
+            ) : null}
           </div>
           <form method="get" className="flex items-center gap-2 text-sm text-neutral-600">
             <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : "dia"} />
@@ -182,14 +186,16 @@ export default async function PresencaCoordenacaoPage({
         {manualTab ? (
           <div className="flex flex-col gap-3">
             <p className="text-xs text-neutral-500">
-              Para quem não conseguiu escanear e assinou a lista de papel. Marque só as aulas em que a pessoa esteve: quem chegou
-              atrasado ou saiu mais cedo perde as aulas que não assistiu. Lançar de novo no mesmo encontro substitui o anterior.
+              Só o administrador lança presença depois. Serve para quem não conseguiu escanear e assinou a lista de papel, e também
+              para reposição (aluno que assistiu a aula em outra turma do mesmo volume). Marque só as aulas em que a pessoa esteve.
+              Lançar de novo no mesmo encontro substitui o anterior.
             </p>
             <ManualAttendanceForm
               classes={data.classes.map(
                 (c): ManualClassOption => ({
                   id: c.id,
                   label: `${c.volumeName}, ${SCHEDULE[c.schedule] ?? c.schedule}`,
+                  volume: c.volumeName,
                   roster: c.roster,
                   meetings: c.meetings.map((m) => {
                     const blocks = meetingBlocks({ startTime: m.start, endTime: m.end, breakMinutes: m.breakMinutes });
@@ -245,8 +251,10 @@ export default async function PresencaCoordenacaoPage({
                   for (const s of scans) byPerson.set(s.personKey, [...(byPerson.get(s.personKey) ?? []), s]);
                   const manual = new Map(data.manual.filter((e) => e.meetingId === m.id).map((e) => [e.personKey, e]));
                   for (const k of manual.keys()) if (!byPerson.has(k)) byPerson.set(k, []);
-                  const came = [...byPerson.entries()].filter(([k, list]) => rosterKeys.has(k) && !list.some((s) => s.makeupFor));
-                  const makeup = [...byPerson.entries()].filter(([k, list]) => !rosterKeys.has(k) || list.some((s) => s.makeupFor));
+                  const isMakeup = (k: string, list: ScanRow[]) =>
+                    !rosterKeys.has(k) || list.some((s) => s.makeupFor) || Boolean(manual.get(k)?.makeupFor);
+                  const came = [...byPerson.entries()].filter(([k, list]) => !isMakeup(k, list));
+                  const makeup = [...byPerson.entries()].filter(([k, list]) => isMakeup(k, list));
                   const missing = m.started ? c.roster.filter((p) => !byPerson.has(p.key)) : [];
                   return (
                     <section key={m.id} className="flex flex-col gap-3 rounded-[var(--radius-sm)] border border-neutral-100 p-3">
@@ -274,9 +282,11 @@ export default async function PresencaCoordenacaoPage({
                                   <form action={deleteManualAttendance} className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
                                     <input type="hidden" name="id" value={entry.id} />
                                     Lançado à mão: {lessonList(entry.lessons)}
-                                    <button type="submit" className="text-red-700 hover:underline">
-                                      apagar
-                                    </button>
+                                    {canBackfill ? (
+                                      <button type="submit" className="text-red-700 hover:underline">
+                                        apagar
+                                      </button>
+                                    ) : null}
                                   </form>
                                 ) : null}
                               </li>
@@ -292,7 +302,20 @@ export default async function PresencaCoordenacaoPage({
                             {makeup.map(([k, list]) => (
                               <li key={k} className="py-1.5">
                                 <span className="font-medium text-neutral-800">{nameOf(k)}</span>
-                                <span className="block text-xs text-neutral-500">{list.map(scanDetail).join(" · ")}</span>
+                                {list.length > 0 ? (
+                                  <span className="block text-xs text-neutral-500">{list.map(scanDetail).join(" · ")}</span>
+                                ) : null}
+                                {manual.get(k) ? (
+                                  <form action={deleteManualAttendance} className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                                    <input type="hidden" name="id" value={manual.get(k)!.id} />
+                                    Lançado à mão{manual.get(k)!.makeupFor ? " (reposição)" : ""}: {lessonList(manual.get(k)!.lessons)}
+                                    {canBackfill ? (
+                                      <button type="submit" className="text-red-700 hover:underline">
+                                        apagar
+                                      </button>
+                                    ) : null}
+                                  </form>
+                                ) : null}
                               </li>
                             ))}
                           </ul>
@@ -335,7 +358,11 @@ export default async function PresencaCoordenacaoPage({
                   else own.set(s.meetingId, new Set([...(own.get(s.meetingId) ?? []), ...scanLessons(s)]));
                 }
                 for (const e of data.manual.filter((x) => x.personKey === p.key)) {
-                  own.set(e.meetingId, new Set([...(own.get(e.meetingId) ?? []), ...e.lessons]));
+                  if (e.makeupFor) {
+                    credits.push({ meetingId: e.meetingId, makeupForMeetingId: e.makeupFor, minutes: e.lessons.length * LESSON_MINUTES });
+                  } else {
+                    own.set(e.meetingId, new Set([...(own.get(e.meetingId) ?? []), ...e.lessons]));
+                  }
                 }
                 for (const [meetingId, set] of own) {
                   credits.push({ meetingId, makeupForMeetingId: null, minutes: set.size * LESSON_MINUTES });

@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/Label";
 export interface ManualClassOption {
   id: string;
   label: string;
+  /** Nome do volume — a reposição só vale entre turmas do mesmo volume. */
+  volume: string;
   roster: { key: string; name: string; cpfLast4: string | null }[];
   meetings: { id: string; label: string; lessons: { number: number; start: string; end: string; block: 1 | 2 }[] }[];
 }
@@ -22,24 +24,49 @@ export function ManualAttendanceForm({ classes }: { classes: ManualClassOption[]
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [meetingId, setMeetingId] = useState("");
+  const [makeup, setMakeup] = useState(false);
+  const [personKey, setPersonKey] = useState("");
 
   const cls = classes.find((c) => c.id === classId);
-  const roster = useMemo(() => {
-    const q = search.trim().toLowerCase();
+
+  // Lista de quem pode ser lançado: na turma escolhida (presença normal) ou, na reposição,
+  // nas OUTRAS turmas do mesmo volume (o aluno assistiu aqui no lugar da turma dele).
+  const people = useMemo(() => {
     if (!cls) return [];
-    if (!q) return cls.roster;
-    return cls.roster.filter((p) => p.name.toLowerCase().includes(q) || (p.cpfLast4 ?? "").includes(q.replace(/\D/g, "") || "#"));
-  }, [cls, search]);
+    const sources = makeup ? classes.filter((c) => c.id !== cls.id && c.volume === cls.volume) : [cls];
+    const q = search.trim().toLowerCase();
+    return sources
+      .flatMap((c) => c.roster.map((p) => ({ ...p, ownClassId: c.id, ownClassLabel: c.label })))
+      .filter(
+        (p) => !q || p.name.toLowerCase().includes(q) || (p.cpfLast4 ?? "").includes(q.replace(/\D/g, "") || "#"),
+      );
+  }, [cls, classes, makeup, search]);
+
   const meeting = cls?.meetings.find((m) => m.id === meetingId);
+  const chosen = people.find((p) => p.key === personKey);
+  const ownClass = makeup && chosen ? classes.find((c) => c.id === chosen.ownClassId) : undefined;
 
   return (
     <form action={action} className="flex flex-col gap-4" key={state.success ? "ok" : "form"}>
       {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
       {state.success ? <Alert variant="success">Presença lançada. Ela já aparece nos relatórios.</Alert> : null}
 
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-neutral-800">
+        <input
+          type="checkbox"
+          className="h-4 w-4"
+          checked={makeup}
+          onChange={(e) => {
+            setMakeup(e.target.checked);
+            setPersonKey("");
+          }}
+        />
+        É reposição (o aluno assistiu a aula em outra turma do mesmo volume)
+      </label>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="manual-class">Turma</Label>
+          <Label htmlFor="manual-class">{makeup ? "Turma em que ele assistiu" : "Turma"}</Label>
           <select
             id="manual-class"
             className={selectClass}
@@ -47,6 +74,7 @@ export function ManualAttendanceForm({ classes }: { classes: ManualClassOption[]
             onChange={(e) => {
               setClassId(e.target.value);
               setMeetingId("");
+              setPersonKey("");
             }}
           >
             {classes.map((c) => (
@@ -61,21 +89,29 @@ export function ManualAttendanceForm({ classes }: { classes: ManualClassOption[]
           <Input id="manual-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ex.: Maria ou 4725" />
         </div>
         <div>
-          <Label htmlFor="manual-person">Aluno</Label>
-          <select id="manual-person" name="person" className={selectClass} required defaultValue="">
+          <Label htmlFor="manual-person">{makeup ? "Aluno (de outra turma do volume)" : "Aluno"}</Label>
+          <select
+            id="manual-person"
+            name="person"
+            className={selectClass}
+            required
+            value={personKey}
+            onChange={(e) => setPersonKey(e.target.value)}
+          >
             <option value="" disabled>
-              {roster.length} encontrado(s), escolha
+              {people.length} encontrado(s), escolha
             </option>
-            {roster.map((p) => (
+            {people.map((p) => (
               <option key={p.key} value={p.key}>
                 {p.name}
                 {p.cpfLast4 ? ` · CPF final ${p.cpfLast4}` : ""}
+                {makeup ? ` · ${p.ownClassLabel}` : ""}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <Label htmlFor="manual-meeting">Encontro</Label>
+          <Label htmlFor="manual-meeting">{makeup ? "Encontro a que ele assistiu" : "Encontro"}</Label>
           <select
             id="manual-meeting"
             name="meeting"
@@ -94,6 +130,21 @@ export function ManualAttendanceForm({ classes }: { classes: ManualClassOption[]
             ))}
           </select>
         </div>
+        {makeup ? (
+          <div className="sm:col-span-2">
+            <Label htmlFor="manual-replaces">Reposição de qual encontro da turma dele?</Label>
+            <select id="manual-replaces" name="replaces" className={selectClass} required defaultValue="" key={ownClass?.id ?? "none"}>
+              <option value="" disabled>
+                {ownClass ? "Escolha o encontro que ele perdeu" : "Escolha primeiro o aluno"}
+              </option>
+              {ownClass?.meetings.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
       </div>
 
       {meeting ? (
@@ -123,7 +174,7 @@ export function ManualAttendanceForm({ classes }: { classes: ManualClassOption[]
       </div>
 
       <Button type="submit" isLoading={pending} className="self-start">
-        Lançar presença
+        {makeup ? "Lançar reposição" : "Lançar presença"}
       </Button>
     </form>
   );

@@ -56,6 +56,9 @@ export default async function ContentPage({
     notFound();
   }
 
+  // Registro de acesso ao material (para o painel de acesso da coordenação). Falha não atrapalha a aula.
+  await supabase.rpc("record_content_open", { p_content_id: contentId });
+
   const [{ data: video }, { data: files }, { data: fullContent }, { data: progress }] =
     await Promise.all([
       supabase.from("video_contents").select("youtube_video_id, min_percent").eq("content_id", contentId).maybeSingle(),

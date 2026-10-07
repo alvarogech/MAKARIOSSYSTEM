@@ -53,6 +53,11 @@ const SECTIONS = [
     description: "Cadastro de espaços (endereço, sala, estacionamento, recursos) usado na área do professor.",
   },
   {
+    href: "/coordenacao/acessos",
+    title: "Acesso dos alunos",
+    description: "Quantos alunos criaram a conta, entraram na plataforma e abriram material — e quem ainda não.",
+  },
+  {
     href: "/coordenacao/avisos",
     title: "Avisos",
     description: "Publicar avisos para os professores, gerais ou por turma/módulo.",

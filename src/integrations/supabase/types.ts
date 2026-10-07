@@ -661,6 +661,7 @@ export type Database = {
           enrollment_request_id: string | null
           id: string
           lessons: number[]
+          makeup_for_meeting_id: string | null
           meeting_id: string
           note: string | null
           student_id: string | null
@@ -671,6 +672,7 @@ export type Database = {
           enrollment_request_id?: string | null
           id?: string
           lessons: number[]
+          makeup_for_meeting_id?: string | null
           meeting_id: string
           note?: string | null
           student_id?: string | null
@@ -681,6 +683,7 @@ export type Database = {
           enrollment_request_id?: string | null
           id?: string
           lessons?: number[]
+          makeup_for_meeting_id?: string | null
           meeting_id?: string
           note?: string | null
           student_id?: string | null
@@ -1170,6 +1173,38 @@ export type Database = {
             columns: ["season_volume_offering_id"]
             isOneToOne: false
             referencedRelation: "season_volume_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_access: {
+        Row: {
+          content_id: string
+          first_opened_at: string
+          last_opened_at: string
+          opens_count: number
+          student_id: string
+        }
+        Insert: {
+          content_id: string
+          first_opened_at?: string
+          last_opened_at?: string
+          opens_count?: number
+          student_id: string
+        }
+        Update: {
+          content_id?: string
+          first_opened_at?: string
+          last_opened_at?: string
+          opens_count?: number
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_access_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "contents"
             referencedColumns: ["id"]
           },
         ]
@@ -2640,6 +2675,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      coordination_student_access: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          request_id: string
+          person_key: string
+          full_name: string
+          email: string
+          phone: string
+          volume_slug: string
+          schedule_slug: string
+          student_id: string | null
+          last_sign_in_at: string | null
+          materials_opened: number
+          last_material_at: string | null
+        }[]
+      }
+      record_content_open: {
+        Args: { p_content_id: string }
+        Returns: undefined
+      }
       check_rate_limit: {
         Args: { p_bucket: string; p_max_hits: number; p_window_seconds: number }
         Returns: boolean

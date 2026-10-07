@@ -60,6 +60,8 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   // ativo tem essa capacidade em geral", não "nesta turma específica".
   "attendance:record": ["teacher", "coordinator", "admin"],
   "attendance:correct": ["coordinator", "admin"],
+  // Presença lançada depois (inclusive reposição): só o administrador.
+  "attendance:backfill": ["admin"],
   "class_reports:submit": ["teacher", "coordinator", "admin"],
   "class_reports:read": ["coordinator", "admin"],
   // Autoria segue o mesmo grupo de "content:manage" (editor inclusive,

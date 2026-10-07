@@ -38,6 +38,8 @@ export interface ManualRow {
   meetingId: string;
   personKey: string;
   lessons: number[];
+  /** Encontro da turma do aluno que esta presença repõe (assistiu em outra turma). */
+  makeupFor: string | null;
 }
 
 export interface ScanRow {
@@ -109,7 +111,10 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
     ),
     // Antes da migration 061 a tabela não existe: a leitura falha e volta vazia.
     fetchAll((a, b) =>
-      supabase.from("attendance_manual_entries").select("id, meeting_id, enrollment_request_id, student_id, lessons").range(a, b),
+      supabase
+        .from("attendance_manual_entries")
+        .select("id, meeting_id, enrollment_request_id, student_id, lessons, makeup_for_meeting_id")
+        .range(a, b),
     ),
   ]);
 
@@ -197,6 +202,7 @@ export async function loadAttendanceData(supabase: DB, today: string, nowMinute:
     meetingId: m.meeting_id,
     personKey: m.enrollment_request_id ? `r:${m.enrollment_request_id}` : `s:${m.student_id}`,
     lessons: [...m.lessons].sort((x, y) => x - y),
+    makeupFor: m.makeup_for_meeting_id,
   }));
   return { classes: allClasses, scans: scanRows, manual: manualRows, names };
 }

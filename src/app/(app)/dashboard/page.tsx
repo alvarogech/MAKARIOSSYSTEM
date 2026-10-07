@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateInvitationForm } from "@/modules/auth/components/CreateInvitationForm";
 import { loadStudentHomeSummary, type StudentHomeSummary } from "@/modules/learning/studentHome";
+import { loadStudentAccess, summarize, type AccessSummary } from "@/modules/access/studentAccess";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -34,6 +35,12 @@ export default async function DashboardPage() {
   if (authContext.activeRole === "student") {
     const supabase = await createSupabaseServerClient();
     studentSummary = await loadStudentHomeSummary(supabase, authContext.userId);
+  }
+
+  let accessSummary: AccessSummary | null = null;
+  if (canAccessCoordination) {
+    const supabase = await createSupabaseServerClient();
+    accessSummary = summarize(await loadStudentAccess(supabase));
   }
 
   return (
@@ -194,6 +201,33 @@ export default async function DashboardPage() {
               Minhas turmas e agenda
             </Link>
           </div>
+        </Card>
+      ) : null}
+
+      {accessSummary && accessSummary.approved > 0 ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-neutral-900">Acesso dos alunos</h2>
+            <Link href="/coordenacao/acessos" className="text-sm font-medium text-brand-blue hover:underline">
+              Ver quem ainda não acessou →
+            </Link>
+          </div>
+          <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "Aprovados", value: accessSummary.approved },
+              { label: "Criaram a conta", value: accessSummary.withAccount },
+              { label: "Já entraram", value: accessSummary.loggedIn },
+              { label: "Abriram material", value: accessSummary.openedMaterial },
+            ].map((item) => (
+              <div key={item.label}>
+                <dt className="text-xs font-semibold tracking-wide text-neutral-400 uppercase">{item.label}</dt>
+                <dd className="text-2xl font-semibold text-neutral-900">{item.value}</dd>
+                <dd className="text-xs text-neutral-500">
+                  {Math.round((item.value / accessSummary.approved) * 100)}% dos aprovados
+                </dd>
+              </div>
+            ))}
+          </dl>
         </Card>
       ) : null}
 

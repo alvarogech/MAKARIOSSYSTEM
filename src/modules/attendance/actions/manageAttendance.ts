@@ -88,12 +88,13 @@ export async function setRequireLocation(requireLocation: boolean): Promise<Simp
  */
 export async function addManualAttendance(_prev: SimpleState, formData: FormData): Promise<SimpleState> {
   const auth = await getAuthContext();
-  if (!auth || !can(auth, { resource: "attendance", action: "correct" })) {
-    return { error: "Você não tem permissão para lançar presença." };
+  if (!auth || !can(auth, { resource: "attendance", action: "backfill" })) {
+    return { error: "Apenas o administrador pode lançar presença depois." };
   }
   const person = String(formData.get("person") ?? "");
   const meetingId = String(formData.get("meeting") ?? "");
   const note = String(formData.get("note") ?? "").trim() || null;
+  const replaces = String(formData.get("replaces") ?? "") || null;
   const lessons = [...new Set(formData.getAll("lessons").map((v) => Number(v)))].filter((n) => Number.isInteger(n) && n > 0);
   const match = /^(r|s):([0-9a-f-]{36})$/.exec(person);
   if (!match) return { error: "Escolha o aluno." };
@@ -103,6 +104,12 @@ export async function addManualAttendance(_prev: SimpleState, formData: FormData
   const supabase = await createSupabaseServerClient();
   const { data: meeting } = await supabase.from("class_meetings").select("academic_minutes").eq("id", meetingId).maybeSingle();
   if (!meeting) return { error: "Encontro não encontrado." };
+  if (replaces) {
+    // Reposição: o aluno assistiu a este encontro (de outra turma) no lugar do encontro `replaces` da turma dele.
+    if (replaces === meetingId) return { error: "A reposição precisa ser de um encontro diferente do assistido." };
+    const { data: target } = await supabase.from("class_meetings").select("id").eq("id", replaces).maybeSingle();
+    if (!target) return { error: "Encontro substituído não encontrado." };
+  }
   const maxLesson = Math.round(meeting.academic_minutes / 30);
   if (lessons.some((n) => n > maxLesson)) return { error: "Aula fora do encontro." };
 
@@ -114,7 +121,14 @@ export async function addManualAttendance(_prev: SimpleState, formData: FormData
 
   const { data, error } = await supabase
     .from("attendance_manual_entries")
-    .insert({ meeting_id: meetingId, ...who, lessons: lessons.sort((a, b) => a - b), note, created_by: auth.userId })
+    .insert({
+      meeting_id: meetingId,
+      ...who,
+      lessons: lessons.sort((a, b) => a - b),
+      note,
+      makeup_for_meeting_id: replaces,
+      created_by: auth.userId,
+    })
     .select("id");
   if (error || !data?.length) {
     return { error: "Não foi possível salvar. Confira se a atualização do banco (061) foi aplicada." };
@@ -125,7 +139,7 @@ export async function addManualAttendance(_prev: SimpleState, formData: FormData
 
 export async function deleteManualAttendance(formData: FormData): Promise<void> {
   const auth = await getAuthContext();
-  if (!auth || !can(auth, { resource: "attendance", action: "correct" })) return;
+  if (!auth || !can(auth, { resource: "attendance", action: "backfill" })) return;
   const supabase = await createSupabaseServerClient();
   await supabase.from("attendance_manual_entries").delete().eq("id", String(formData.get("id") ?? ""));
   revalidatePath("/coordenacao/presenca");
