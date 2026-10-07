@@ -9,11 +9,11 @@ import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { CreateInvitationForm } from "@/modules/auth/components/CreateInvitationForm";
 import { loadStudentHomeSummary, type StudentHomeSummary } from "@/modules/learning/studentHome";
-import { loadStudentAccess, summarize, type AccessSummary } from "@/modules/access/studentAccess";
 import { FrequencyAlert, FrequencyMeter } from "@/modules/attendance/components/FrequencyPanel";
 import { loadStudentFrequency, type VolumeFrequency } from "@/modules/attendance/studentFrequency";
 import { loadDeclarationPrompts, type DeclarationPrompt } from "@/modules/attendance/declarations";
-import { loadCoordinationAlerts, type CoordinationAlerts } from "@/modules/academic/coordinationAlerts";
+import { loadToday, type TodayData } from "@/modules/academic/today";
+import { TodayPanel } from "@/modules/academic/components/TodayPanel";
 import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
 
 export const metadata: Metadata = { title: "Início" };
@@ -46,12 +46,12 @@ export default async function DashboardPage() {
     declarationPrompts = await loadDeclarationPrompts(supabase, authContext.userId);
   }
 
-  let accessSummary: AccessSummary | null = null;
-  let alerts: CoordinationAlerts | null = null;
-  if (canAccessCoordination) {
+  // Home da coordenação/administração = "Hoje": só o que pede ação.
+  const isStaffHome = authContext.activeRole === "admin" || authContext.activeRole === "coordinator";
+  let today: TodayData | null = null;
+  if (isStaffHome) {
     const supabase = await createSupabaseServerClient();
-    accessSummary = summarize(await loadStudentAccess(supabase));
-    alerts = await loadCoordinationAlerts(supabase);
+    today = await loadToday(supabase);
   }
 
   return (
@@ -218,7 +218,7 @@ export default async function DashboardPage() {
         </>
       ) : null}
 
-      {canAccessTeacherArea ? (
+      {canAccessTeacherArea && !isStaffHome ? (
         <Card>
           <h2 className="text-lg font-semibold text-neutral-900">Área do professor</h2>
           <div className="mt-3 flex flex-wrap gap-3">
@@ -229,117 +229,7 @@ export default async function DashboardPage() {
         </Card>
       ) : null}
 
-      {alerts && (alerts.withoutTeacher.length > 0 || alerts.reportsMissing > 0 || alerts.dataIssues > 0) ? (
-        <Card className="border-warning/30 bg-warning/5">
-          <h2 className="text-lg font-semibold text-neutral-900">Pede atenção</h2>
-          <ul className="mt-2 flex flex-col gap-2 text-sm text-neutral-800">
-            {alerts.withoutTeacher.length > 0 ? (
-              <li>
-                <p className="font-medium">
-                  {alerts.withoutTeacher.length} aula(s) sem professor atribuído (últimas e próximas 2 semanas)
-                </p>
-                <ul className="mt-1 flex flex-col gap-0.5 text-neutral-600">
-                  {alerts.withoutTeacher.slice(0, 6).map((m) => (
-                    <li key={m.meetingId}>
-                      <Link href={`/coordenacao/turmas/${m.classId}/escala`} className="text-brand-blue hover:underline">
-                        {m.className} · encontro {m.sequence} · {m.date.split("-").reverse().slice(0, 2).join("/")}
-                      </Link>
-                      {m.past ? <span className="ml-1 font-medium text-danger">(já passou)</span> : null}
-                    </li>
-                  ))}
-                  {alerts.withoutTeacher.length > 6 ? <li>… e mais {alerts.withoutTeacher.length - 6}</li> : null}
-                </ul>
-              </li>
-            ) : null}
-            {alerts.reportsMissing > 0 ? (
-              <li>
-                <Link href="/coordenacao/relatorios" className="font-medium text-brand-blue hover:underline">
-                  {alerts.reportsMissing} encontro(s) já realizados sem relatório pós-aula →
-                </Link>
-              </li>
-            ) : null}
-            {alerts.dataIssues > 0 ? (
-              <li>
-                <Link href="/coordenacao/qualidade-dados" className="font-medium text-brand-blue hover:underline">
-                  {alerts.dataIssues} item(ns) de dados para revisar (contas ou convites duplicados, WhatsApp incompleto) →
-                </Link>
-              </li>
-            ) : null}
-          </ul>
-        </Card>
-      ) : null}
-
-      {accessSummary && accessSummary.approved > 0 ? (
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-neutral-900">Acesso dos alunos</h2>
-            <Link href="/coordenacao/acessos" className="text-sm font-medium text-brand-blue hover:underline">
-              Ver quem ainda não acessou →
-            </Link>
-          </div>
-          <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: "Aprovados", value: accessSummary.approved },
-              { label: "Criaram a conta", value: accessSummary.withAccount },
-              { label: "Já entraram", value: accessSummary.loggedIn },
-              { label: "Abriram material", value: accessSummary.openedMaterial },
-            ].map((item) => (
-              <div key={item.label}>
-                <dt className="text-xs font-semibold tracking-wide text-neutral-400 uppercase">{item.label}</dt>
-                <dd className="text-2xl font-semibold text-neutral-900">{item.value}</dd>
-                <dd className="text-xs text-neutral-500">
-                  {Math.round((item.value / accessSummary.approved) * 100)}% dos aprovados
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
-      ) : null}
-
-      {canAccessCoordination ? (
-        <Card>
-          <h2 className="text-lg font-semibold text-neutral-900">Coordenação</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Temporadas, ofertas de volume, turmas, matrículas e importação de alunos.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link href="/coordenacao" className={buttonVariants({ variant: "primary" })}>
-              Área da coordenação
-            </Link>
-          </div>
-        </Card>
-      ) : null}
-
-      {canManageContent ? (
-        <Card>
-          <h2 className="text-lg font-semibold text-neutral-900">Conteúdo</h2>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link href="/conteudo" className={buttonVariants({ variant: "primary" })}>
-              Estúdio de conteúdo
-            </Link>
-            <Link href="/conteudo/questoes" className={buttonVariants({ variant: "secondary" })}>
-              Banco de questões
-            </Link>
-            <Link href="/conteudo/avaliacoes" className={buttonVariants({ variant: "secondary" })}>
-              Avaliações
-            </Link>
-            <Link href="/conteudo/revisao" className={buttonVariants({ variant: "secondary" })}>
-              Revisão de questões
-            </Link>
-          </div>
-        </Card>
-      ) : null}
-
-      {canAccessAdmin ? (
-        <Card>
-          <h2 className="text-lg font-semibold text-neutral-900">Administração</h2>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link href="/administracao" className={buttonVariants({ variant: "primary" })}>
-              Área administrativa
-            </Link>
-          </div>
-        </Card>
-      ) : null}
+      {today ? <TodayPanel data={today} /> : null}
 
       {canInvite ? (
         <Card>

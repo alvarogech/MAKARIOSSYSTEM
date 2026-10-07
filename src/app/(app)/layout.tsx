@@ -20,22 +20,36 @@ function buildNavLinks(authContext: AuthContext): NavLink[] {
     links.push({ href: "/agenda", label: "Agenda" });
   }
 
+  const isStaff = canAccessArea(authContext, "coordination");
+
   if (canAccessArea(authContext, "teacher")) {
-    links.push({ href: "/professor", label: "Área do professor" });
-    links.push({ href: "/professor/agenda", label: "Agenda" });
-    links.push({ href: "/professor/turmas", label: "Minhas turmas" });
+    if (isStaff) {
+      // Quem coordena e também leciona vê um atalho só; a área do professor completa vem ao trocar de perfil.
+      links.push({ href: "/professor", label: "Área do professor" });
+    } else {
+      links.push({ href: "/professor", label: "Área do professor" });
+      links.push({ href: "/professor/agenda", label: "Agenda" });
+      links.push({ href: "/professor/turmas", label: "Minhas turmas" });
+    }
   }
 
-  if (canAccessArea(authContext, "coordination")) {
-    links.push({ href: "/coordenacao", label: "Coordenação" });
+  if (isStaff) {
+    // Menu por tarefa: o que fazer, não qual ferramenta abrir.
+    links.splice(
+      1,
+      0,
+      { href: "/coordenacao/alunos", label: "Alunos" },
+      { href: "/coordenacao/turmas", label: "Turmas" },
+      { href: "/coordenacao/professores", label: "Professores" },
+    );
   }
 
   if (can(authContext, { resource: "content", action: "manage" })) {
     links.push({ href: "/conteudo", label: "Conteúdo" });
   }
 
-  if (canAccessArea(authContext, "admin")) {
-    links.push({ href: "/administracao", label: "Administração" });
+  if (isStaff) {
+    links.push({ href: "/coordenacao/configuracoes", label: "Configurações" });
   }
 
   return links;
