@@ -2659,6 +2659,24 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_calendar_tokens: {
+        Row: {
+          created_at: string
+          teacher_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          teacher_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          teacher_id?: string
+          token_hash?: string
+        }
+        Relationships: []
+      }
       teacher_assignments: {
         Row: {
           class_id: string
@@ -2901,6 +2919,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calendar_feed_lessons: {
+        Args: { p_token: string }
+        Returns: {
+          block_id: string
+          meeting_date: string
+          start_time: string
+          end_time: string
+          module_name: string | null
+          volume_name: string
+          class_name: string
+          location_text: string | null
+          room: string | null
+          block_status: string
+        }[]
+      }
       can_write_class_report: {
         Args: { p_meeting_id: string }
         Returns: boolean

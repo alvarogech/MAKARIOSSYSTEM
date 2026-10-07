@@ -42,6 +42,43 @@ export function buildIcsCalendar(event: CalendarEvent): string {
   return lines.join("\r\n");
 }
 
+function veventLines(event: CalendarEvent): string[] {
+  const lines = [
+    "BEGIN:VEVENT",
+    `UID:${event.uid}`,
+    `DTSTAMP:${formatIcsDate(new Date())}`,
+    `DTSTART:${formatIcsDate(event.startUtc)}`,
+    `DTEND:${formatIcsDate(event.endUtc)}`,
+    `SUMMARY:${escapeIcsText(event.title)}`,
+  ];
+  if (event.location) lines.push(`LOCATION:${escapeIcsText(event.location)}`);
+  if (event.description) lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
+  lines.push("END:VEVENT");
+  return lines;
+}
+
+/**
+ * Feed de calendário (vários eventos) para ASSINATURA: o calendário pessoal busca o endereço de tempos em
+ * tempos e se atualiza sozinho. Os UIDs são estáveis (id da aula), então remarcar uma aula atualiza o mesmo
+ * evento em vez de duplicar.
+ */
+export function buildIcsFeed(events: CalendarEvent[], calendarName: string): string {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Plataforma Makarios//Agenda do Professor//PT",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+    "X-WR-TIMEZONE:America/Sao_Paulo",
+    "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
+    "X-PUBLISHED-TTL:PT6H",
+  ];
+  for (const event of events) lines.push(...veventLines(event));
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
 function toGoogleDateParam(date: Date): string {
   return formatIcsDate(date);
 }

@@ -76,6 +76,9 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
     .eq("id", klass.season_volume_offering_id)
     .maybeSingle();
 
+  const { data: calendarFeed } = await supabase.from("teacher_calendar_tokens").select("teacher_id").eq("teacher_id", authContext.userId).maybeSingle();
+  const hasCalendarFeed = Boolean(calendarFeed);
+
   // O relatório só aparece quando o semestre exige, para quem está escalado neste bloco e depois do término.
   const reportActive = (await loadReportActiveByClass(supabase, [klass.id])).get(klass.id) ?? false;
   const reportOpen = reportActive && block.teacher_id === authContext.userId && isMeetingOver(meeting.meeting_date, meeting.end_time, new Date());
@@ -191,9 +194,13 @@ export default async function PrepararAulaPage({ params }: { params: Promise<{ b
             </Link>
           ) : null}
         </div>
-        {canExportCalendar ? (
+        {canExportCalendar && !hasCalendarFeed ? (
           <p className="mt-2 text-xs text-neutral-400">
-            Isto exporta o evento uma vez — se a coordenação alterar data, horário ou local depois, atualize manualmente no seu calendário pessoal.
+            O botão acima exporta só esta aula, uma vez. Para ter todas as aulas sempre atualizadas, assine o calendário na{" "}
+            <Link href="/professor/agenda" className="underline">
+              Agenda
+            </Link>
+            .
           </p>
         ) : null}
       </Card>

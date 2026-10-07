@@ -20,6 +20,11 @@
   --color-neutral-800: #2c2721;
   --color-neutral-900: #1a1713;
 
+  /* Trilhas: cor discreta de cada uma (tags, agenda, cards). Só identificação, nunca ação principal. */
+  --color-trail-essencia: #a2622a;
+  --color-trail-caminho: #2f7a5c;
+  --color-trail-voz: #7a4ea3;
+
   --color-success: #2f8a5b;
   --color-danger: #c0392b;
   --color-warning: #b8860b;
