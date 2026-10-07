@@ -14,6 +14,8 @@ export interface JourneyStep {
   state: StepState;
   detail: string | null;
   href: string | null;
+  /** Apoio para consulta (ex.: material): é só um acesso, não é tarefa — não conta como atividade nem como "a fazer". */
+  support?: boolean;
 }
 
 export interface JourneyStage {
@@ -78,14 +80,15 @@ function buildSteps(input: StageInput, enrollmentId: string): JourneyStep[] {
   }
 
   if (input.material.total > 0) {
-    const { total, released, completed } = input.material;
+    const { released } = input.material;
+    // O material é só um acesso (como abrir a apostila): a avaliação é feita pelo desafio de fixação e pela prática.
     steps.push({
       kind: "material",
-      label: "Material de estudo",
-      state: completed >= total ? "feito" : released === 0 ? "indisponivel" : completed > 0 ? "em_andamento" : "pendente",
-      detail:
-        released === 0 ? "Ainda não liberado" : `${completed} de ${total} ${total === 1 ? "item concluído" : "itens concluídos"}`,
+      label: "Material de apoio",
+      state: released === 0 ? "indisponivel" : "feito",
+      detail: released === 0 ? "Ainda não liberado" : "Para consultar quando quiser",
       href: released > 0 ? `/meus-volumes/${enrollmentId}` : null,
+      support: true,
     });
   }
 
@@ -115,8 +118,8 @@ function buildSteps(input: StageInput, enrollmentId: string): JourneyStep[] {
 
 export function buildStage(input: StageInput, number: number, enrollmentId: string): JourneyStage {
   const steps = buildSteps(input, enrollmentId);
-  // Só material, fixação e prática são "ações" do aluno; a aula ao vivo é contexto.
-  const actions = steps.filter((s) => s.kind !== "aula" && s.state !== "indisponivel");
+  // Só fixação e prática são "ações" do aluno; a aula ao vivo e o material de apoio são contexto.
+  const actions = steps.filter((s) => !s.support && s.kind !== "aula" && s.state !== "indisponivel");
   const actionsDone = actions.filter((s) => s.state === "feito").length;
 
   let state: StageState;
@@ -144,12 +147,12 @@ export function buildStage(input: StageInput, number: number, enrollmentId: stri
 
 /** Próxima ação sugerida dentro de uma etapa: continuar o que está em andamento, senão o primeiro pendente. */
 function nextAction(stage: JourneyStage): JourneyNextStep | null {
-  const actions = stage.steps.filter((s) => s.kind !== "aula" && s.href && s.state !== "feito" && s.state !== "indisponivel");
+  const actions = stage.steps.filter((s) => !s.support && s.kind !== "aula" && s.href && s.state !== "feito" && s.state !== "indisponivel");
   const pick = actions.find((s) => s.state === "em_andamento") ?? actions[0];
   if (!pick || !pick.href) return null;
   const verb: Record<StepKind, string> = {
     aula: "Ver",
-    material: "Estudar o material de",
+    material: "Consultar o material de",
     fixacao: pick.state === "em_andamento" ? "Continuar o desafio de" : "Fazer o desafio de fixação de",
     pratica: "Registrar a prática de",
   };

@@ -44,10 +44,12 @@ function Step({ step }: { step: JourneyStep }) {
   const Icon = STEP_ICON[step.kind];
   const body = (
     <span className="flex min-w-0 items-start gap-2.5">
-      <Icon className={`mt-0.5 size-4 shrink-0 ${step.state === "feito" ? "text-success" : "text-neutral-400"}`} aria-hidden="true" />
+      <Icon className={`mt-0.5 size-4 shrink-0 ${step.state === "feito" && !step.support ? "text-success" : "text-neutral-400"}`} aria-hidden="true" />
       <span className="min-w-0">
         <span className="block text-sm font-medium text-neutral-900">
-          {step.label} <span className="font-normal text-neutral-500">· {(step.kind === "aula" ? AULA_STATE_LABEL : STEP_STATE_LABEL)[step.state]}</span>
+          {step.label} {step.support && step.state !== "indisponivel" ? null : (
+            <span className="font-normal text-neutral-500">· {(step.kind === "aula" ? AULA_STATE_LABEL : STEP_STATE_LABEL)[step.state]}</span>
+          )}
         </span>
         {step.detail ? <span className="block text-xs text-neutral-500">{step.detail}</span> : null}
       </span>

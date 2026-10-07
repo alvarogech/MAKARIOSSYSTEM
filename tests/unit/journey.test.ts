@@ -49,6 +49,21 @@ describe("buildStage", () => {
     expect(s.state).toBe("concluida");
   });
 
+  it("material liberado é só apoio: link para consulta, sem contar como atividade nem como 'a fazer'", () => {
+    const s = buildStage(base({ material: { total: 3, released: 3, completed: 0 }, fixation: { activityId: "a1", status: "nenhuma" } }), 1, "e1");
+    const mat = s.steps.find((x) => x.kind === "material");
+    expect(mat?.support).toBe(true);
+    expect(mat?.href).toBe("/meus-volumes/e1");
+    expect(mat?.state).not.toBe("pendente");
+    expect([s.actionsDone, s.actionsTotal]).toEqual([0, 1]);
+  });
+
+  it("só material liberado, sem fixação nem prática: a etapa não fica pendente por causa do material", () => {
+    const s = buildStage(base({ material: { total: 2, released: 2, completed: 0 }, meeting: { date: "2026-10-06", past: true, attendance: "presente" } }), 1, "e1");
+    expect(s.actionsTotal).toBe(0);
+    expect(s.state).toBe("concluida");
+  });
+
   it("material ainda não liberado não conta como ação nem vira link", () => {
     const s = buildStage(base({ material: { total: 3, released: 0, completed: 0 } }), 1, "e1");
     expect(s.actionsTotal).toBe(0);
