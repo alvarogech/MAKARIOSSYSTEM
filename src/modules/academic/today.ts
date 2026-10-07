@@ -30,6 +30,7 @@ export interface TodayData {
   atRisk: { person: PersonStat; classLabel: string }[];
   pendingRequests: number;
   approvedWithoutAccount: number;
+  pendingAttendanceRequests: number;
   avgPct: number | null;
 }
 
@@ -41,7 +42,7 @@ export async function loadToday(supabase: DB): Promise<TodayData> {
   const { data: seasons } = await supabase.from("seasons").select("id").order("starts_on", { ascending: false, nullsFirst: false }).limit(1);
   const seasonId = seasons?.[0]?.id ?? "";
 
-  const [alerts, loaded, { data: meetings }, { count: pending }, { count: approvedNoAccount }] = await Promise.all([
+  const [alerts, loaded, { data: meetings }, { count: pending }, { count: approvedNoAccount }, { count: pendingRequests }] = await Promise.all([
     loadCoordinationAlerts(supabase),
     seasonId ? loadOverview(supabase, seasonId) : Promise.resolve(null),
     supabase
@@ -54,6 +55,7 @@ export async function loadToday(supabase: DB): Promise<TodayData> {
       .order("start_time"),
     supabase.from("enrollment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
     supabase.from("enrollment_requests").select("id", { count: "exact", head: true }).eq("status", "approved").is("student_id", null),
+    supabase.from("attendance_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
   ]);
 
   const meetingIds = (meetings ?? []).map((m) => m.id);
@@ -110,6 +112,7 @@ export async function loadToday(supabase: DB): Promise<TodayData> {
     atRisk,
     pendingRequests: pending ?? 0,
     approvedWithoutAccount: approvedNoAccount ?? 0,
+    pendingAttendanceRequests: pendingRequests ?? 0,
     avgPct: overview?.avgPct ?? null,
   };
 }

@@ -34,6 +34,7 @@ export function TodayPanel({ data }: { data: TodayData }) {
     alerts.reportsMissing === 0 &&
     data.pendingRequests === 0 &&
     data.approvedWithoutAccount === 0 &&
+    data.pendingAttendanceRequests === 0 &&
     data.atRisk.length === 0;
 
   return (
@@ -141,6 +142,13 @@ export function TodayPanel({ data }: { data: TodayData }) {
                 {data.pendingRequests} inscrição(ões) pendente(s) de decisão →
               </Link>
             </li>
+            {data.pendingAttendanceRequests > 0 ? (
+              <li>
+                <Link href="/coordenacao/presenca?aba=solicitacoes&status=pending" className="font-medium text-brand-blue hover:underline">
+                  {data.pendingAttendanceRequests} pedido(s) de presença aguardando sua decisão →
+                </Link>
+              </li>
+            ) : null}
             <li>
               <Link href="/coordenacao/acessos?f=sem_conta" className="font-medium text-brand-blue hover:underline">
                 {data.approvedWithoutAccount} aprovado(s) que ainda não criaram a conta →

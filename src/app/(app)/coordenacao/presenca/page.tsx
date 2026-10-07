@@ -11,6 +11,7 @@ import { deleteManualAttendance } from "@/modules/attendance/actions/manageAtten
 import { GenerateQrCodesForm, RequireLocationSwitch } from "@/modules/attendance/components/AttendanceForms";
 import { DeclarationsTab } from "@/modules/attendance/components/DeclarationsTab";
 import { OverviewTab } from "@/modules/attendance/components/OverviewTab";
+import { RequestsTab } from "@/modules/attendance/components/RequestsTab";
 import { ManualAttendanceForm, type ManualClassOption } from "@/modules/attendance/components/ManualAttendanceForm";
 import { computeProgress, formatHours } from "@/modules/attendance/progress";
 import { SITUATION } from "@/modules/attendance/situation";
@@ -80,6 +81,7 @@ export default async function PresencaCoordenacaoPage({
   const canBackfill = can(auth, { resource: "attendance", action: "backfill" });
   const manualTab = aba === "manual" && canBackfill;
   const declarationsTab = aba === "autodeclaracoes";
+  const requestsTab = aba === "solicitacoes";
   // A "Visão geral" é a primeira aba e a padrão; o relatório do dia só abre com ?aba=dia.
   const overviewTab = !aba || aba === "visao";
   const dayTab = aba === "dia";
@@ -158,6 +160,9 @@ export default async function PresencaCoordenacaoPage({
             <Link href={`?aba=geral&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(general)}>
               Relatório geral
             </Link>
+            <Link href={`?aba=solicitacoes&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(requestsTab)}>
+              Solicitações
+            </Link>
             <Link href={`?aba=autodeclaracoes&dia=${day}&temporada=${season?.id ?? ""}`} className={tab(declarationsTab)}>
               Autodeclarações
             </Link>
@@ -168,7 +173,7 @@ export default async function PresencaCoordenacaoPage({
             ) : null}
           </div>
           <form method="get" className="flex items-center gap-2 text-sm text-neutral-600">
-            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : declarationsTab ? "autodeclaracoes" : overviewTab ? "visao" : "dia"} />
+            <input type="hidden" name="aba" value={general ? "geral" : manualTab ? "manual" : declarationsTab ? "autodeclaracoes" : requestsTab ? "solicitacoes" : overviewTab ? "visao" : "dia"} />
             <input type="hidden" name="dia" value={day} />
             <label htmlFor="temporada">Temporada</label>
             <select
@@ -195,6 +200,8 @@ export default async function PresencaCoordenacaoPage({
             filters={{ volume: declVolume || undefined, classId: turma || undefined, from: de || undefined, to: ate || undefined }}
             baseQuery={{ temporada: season?.id ?? "", dia: day }}
           />
+        ) : requestsTab ? (
+          <RequestsTab canDecide={canBackfill} status={declStatus} />
         ) : declarationsTab ? (
           <DeclarationsTab status={declStatus} volume={declVolume} />
         ) : manualTab ? (

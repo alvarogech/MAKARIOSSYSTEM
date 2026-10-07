@@ -8,6 +8,8 @@ import { formatHours } from "@/modules/attendance/progress";
 import { loadStudentFrequency } from "@/modules/attendance/studentFrequency";
 import { loadDeclarationPrompts } from "@/modules/attendance/declarations";
 import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
+import { AttendanceRequestSection } from "@/modules/attendance/components/AttendanceRequestSection";
+import { loadStudentRequests } from "@/modules/attendance/requests";
 import type { LessonStatus } from "@/modules/attendance/credits";
 
 export const metadata: Metadata = { title: "Minha frequência" };
@@ -39,6 +41,7 @@ export default async function MinhaFrequenciaPage() {
     loadStudentFrequency(supabase, auth.userId),
     loadDeclarationPrompts(supabase, auth.userId),
   ]);
+  const requests = await loadStudentRequests(supabase, auth.userId, volumes);
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,6 +56,8 @@ export default async function MinhaFrequenciaPage() {
       {prompts.map((prompt) => (
         <DeclarationCard key={prompt.meetingId} prompt={prompt} />
       ))}
+
+      <AttendanceRequestSection requestable={requests.requestable} own={requests.own} />
 
       {volumes.length === 0 ? (
         <Card>

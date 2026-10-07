@@ -889,6 +889,56 @@ export type Database = {
           },
         ]
       }
+      attendance_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          enrollment_request_id: string | null
+          id: string
+          justification: string
+          lessons: number[]
+          meeting_id: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          enrollment_request_id?: string | null
+          id?: string
+          justification: string
+          lessons: number[]
+          meeting_id: string
+          status?: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          enrollment_request_id?: string | null
+          id?: string
+          justification?: string
+          lessons?: number[]
+          meeting_id?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_requests_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "class_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_scans: {
         Row: {
           block: number
@@ -2815,6 +2865,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_attendance_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      request_attendance: {
+        Args: { p_meeting_id: string; p_lessons: number[]; p_justification: string }
+        Returns: undefined
+      }
       data_quality_report: {
         Args: Record<PropertyKey, never>
         Returns: Json
