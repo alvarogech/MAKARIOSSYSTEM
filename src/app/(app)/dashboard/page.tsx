@@ -19,6 +19,8 @@ import { loadStudentJourneys } from "@/modules/learning/journeyLoader";
 import type { VolumeJourney } from "@/modules/learning/journey";
 import { ModuleJourney } from "@/modules/learning/components/ModuleJourney";
 import { NextStepCard } from "@/modules/learning/components/NextStepCard";
+import { AchievementsCard } from "@/modules/learning/components/AchievementsCard";
+import { loadStudentRewards, type StudentRewards } from "@/modules/learning/achievementsLoader";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -43,6 +45,7 @@ export default async function DashboardPage() {
   let studentSummary: StudentHomeSummary | null = null;
   let frequency: VolumeFrequency[] = [];
   let journeys: VolumeJourney[] = [];
+  let rewards: StudentRewards | null = null;
   let declarationPrompts: DeclarationPrompt[] = [];
   let studentAnnouncements: { id: string; title: string; body: string; published_at: string }[] = [];
   if (authContext.activeRole === "student") {
@@ -51,6 +54,7 @@ export default async function DashboardPage() {
     frequency = await loadStudentFrequency(supabase, authContext.userId);
     // A jornada é uma camada de leitura: se algo falhar, a home continua funcionando sem ela.
     journeys = await loadStudentJourneys(supabase, authContext.userId, frequency).catch(() => []);
+    rewards = await loadStudentRewards(supabase, authContext.userId, journeys).catch(() => null);
     declarationPrompts = await loadDeclarationPrompts(supabase, authContext.userId);
     // A política do banco já entrega só o que é para este aluno (geral, da turma ou do módulo dele).
     const { data: announcementRows } = await supabase
@@ -100,6 +104,8 @@ export default async function DashboardPage() {
           {journeys.map((journey) => (
             <ModuleJourney key={journey.enrollmentId} journey={journey} />
           ))}
+
+          {rewards ? <AchievementsCard rewards={rewards} compact /> : null}
 
           {studentSummary.nextMeeting ? (
             <Card>

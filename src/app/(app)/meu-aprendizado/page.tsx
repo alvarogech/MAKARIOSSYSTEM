@@ -6,6 +6,10 @@ import { Card } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { ChallengeCard } from "@/modules/learning/components/ChallengeCard";
+import { AchievementsCard } from "@/modules/learning/components/AchievementsCard";
+import { loadStudentRewards } from "@/modules/learning/achievementsLoader";
+import { loadStudentJourneys } from "@/modules/learning/journeyLoader";
+import { loadStudentFrequency } from "@/modules/attendance/studentFrequency";
 
 export const metadata: Metadata = { title: "Meu aprendizado" };
 
@@ -70,6 +74,10 @@ export default async function MeuAprendizadoPage() {
       ])
     : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
+  const frequency = await loadStudentFrequency(supabase, auth.userId).catch(() => []);
+  const journeys = await loadStudentJourneys(supabase, auth.userId, frequency).catch(() => []);
+  const rewards = await loadStudentRewards(supabase, auth.userId, journeys).catch(() => null);
+
   const offeringById = new Map((offerings ?? []).map((o) => [o.id, o]));
 
   const sections = (enrollments ?? [])
@@ -117,6 +125,8 @@ export default async function MeuAprendizadoPage() {
           </p>
         </Card>
       ) : null}
+
+      {rewards ? <AchievementsCard rewards={rewards} /> : null}
 
       {sections.map(({ enrollment, volume, rows }) => (
         <section key={enrollment.id} className="flex flex-col gap-3">

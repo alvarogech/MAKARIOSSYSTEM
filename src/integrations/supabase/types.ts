@@ -2626,6 +2626,27 @@ export type Database = {
         }
         Relationships: []
       }
+      student_weekly_goals: {
+        Row: {
+          enabled: boolean
+          student_id: string
+          target: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          student_id: string
+          target?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          student_id?: string
+          target?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       teacher_assignments: {
         Row: {
           class_id: string
