@@ -7,6 +7,8 @@ export interface OverviewClass {
   volume: string;
   schedule: string;
   label: string;
+  /** A temporada exige o relatório pós-aula? Desligado: ausência de relatório nunca vira alerta. */
+  reportRequired: boolean;
   meetings: {
     id: string;
     sequence: number;
@@ -253,7 +255,7 @@ export function detectAnomalies(classStats: ClassStat[], classes: OverviewClass[
 
       const mm = meta?.meetings.find((x) => x.id === m.id);
       if (mm && !mm.hasTeacher) out.push({ ...base, severity: "media", text: `${where}: encontro realizado sem professor atribuído.` });
-      if (mm && mm.hasTeacher && !mm.hasReport) out.push({ ...base, severity: "media", text: `${where}: sem relatório pós-aula.` });
+      if (meta?.reportRequired && mm && mm.hasTeacher && !mm.hasReport) out.push({ ...base, severity: "media", text: `${where}: sem relatório pós-aula.` });
     });
   }
   return out.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "alta" ? -1 : 1));

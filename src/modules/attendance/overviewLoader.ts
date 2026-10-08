@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { buildOverview, type Overview, type OverviewClass, type OverviewCredit } from "./overview";
 import { toMinutes } from "./rules";
+import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
 
 type DB = SupabaseClient<Database>;
 
@@ -66,6 +67,9 @@ export async function loadOverview(supabase: DB, seasonId: string, filters: Over
       ])
     : [{ data: [] }, { data: [] }];
 
+  // Temporada com o relatório pós-aula desligado não gera alerta de "sem relatório".
+  const reportActiveByClass = await loadReportActiveByClass(supabase, classIds);
+
   const today = getSaoPauloDateKey(new Date());
   const nowMinute = nowMinuteSaoPaulo();
   const teacherByMeeting = new Set((blocks ?? []).filter((b) => (b.teacher_id || b.teacher_label) && b.status !== "canceled").map((b) => b.class_meeting_id));
@@ -79,6 +83,7 @@ export async function loadOverview(supabase: DB, seasonId: string, filters: Over
       volume,
       schedule,
       label: `${volume}, ${schedule.toLowerCase()}`,
+      reportRequired: reportActiveByClass.get(klass.id) === true,
       meetings: (meetings ?? [])
         .filter((m) => m.class_id === klass.id && m.meeting_date)
         .map((m) => ({

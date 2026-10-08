@@ -6,6 +6,7 @@ const klass = (over: Partial<OverviewClass> = {}): OverviewClass => ({
   volume: "Essência",
   schedule: "sabado",
   label: "Essência, sábado",
+  reportRequired: true,
   meetings: [
     { id: "m1", sequence: 1, date: "2026-10-03", minutes: 240, past: true, lessonCount: 4, hasTeacher: true, hasReport: true },
     { id: "m2", sequence: 2, date: "2026-10-10", minutes: 240, past: true, lessonCount: 4, hasTeacher: true, hasReport: true },
@@ -93,6 +94,13 @@ describe("detectAnomalies", () => {
     const texts = overview.anomalies.map((a) => a.text).join("\n");
     expect(texts).toMatch(/sem professor atribuído/);
     expect(texts).toMatch(/sem relatório pós-aula/);
+  });
+
+  it("temporada sem exigência de relatório: nunca alerta 'sem relatório pós-aula'", () => {
+    const k = klass({ reportRequired: false });
+    k.meetings[1] = { ...k.meetings[1]!, hasReport: false };
+    const overview = buildOverview([k], [...everyone("m1"), ...everyone("m2")]);
+    expect(overview.anomalies.map((a) => a.text).join("\n")).not.toMatch(/relatório/);
   });
 
   it("encontro bem abaixo do padrão das outras turmas (comparação entre turmas)", () => {
