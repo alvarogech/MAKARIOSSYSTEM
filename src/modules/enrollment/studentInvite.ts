@@ -176,6 +176,13 @@ export async function createStudentOnboardingInvitation(
     return { ok: false, error: "Papel 'Aluno' não encontrado no sistema." };
   }
 
+  // Inscrição que já está ligada a uma conta não recebe outro convite de primeiro acesso: um segundo convite aceito
+  // criava uma segunda conta para a mesma pessoa.
+  const { data: linkedRequest } = await supabase.from("enrollment_requests").select("student_id").eq("id", request.id).maybeSingle();
+  if (linkedRequest?.student_id) {
+    return { ok: false, error: "Esta inscrição já está ligada a uma conta — não é preciso novo convite de primeiro acesso." };
+  }
+
   const primary = await resolveCourseForSlugs(
     supabase,
     request.season_id,
@@ -226,6 +233,15 @@ export async function createStudentOnboardingInvitation(
     }
     if (users.length < 200) break;
   }
+
+  // Só um link vale por inscrição: convites anteriores ainda pendentes dela são revogados antes de gerar o novo.
+  await admin
+    .from("invitations")
+    .update({ revoked_at: new Date().toISOString(), revoked_by: invitedBy })
+    .eq("purpose", "student_onboarding")
+    .eq("enrollment_request_id", request.id)
+    .is("consumed_at", null)
+    .is("revoked_at", null);
 
   const { data: otherPendingInvites } = await admin
     .from("invitations")

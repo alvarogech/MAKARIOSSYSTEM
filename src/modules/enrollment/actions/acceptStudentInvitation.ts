@@ -9,6 +9,7 @@ import { checkRateLimit, getClientIp } from "@/modules/auth/rateLimit";
 import { escapeIlike, normalizeEmail } from "@/modules/auth/lookupTeacherCandidate";
 import { formatAccessCode, generateUniqueAccessCode } from "@/modules/auth/accessCode";
 import { sendMail } from "@/modules/notifications/mailer";
+import { ALREADY_HAS_ACCOUNT_MESSAGE, findExistingAccountForPerson } from "../existingAccount";
 
 export interface AcceptStudentInvitationState {
   error?: string;
@@ -74,10 +75,12 @@ async function finalizeStudentEnrollment(
     // Liga a inscrição à conta recém-criada — é isso que permite ao
     // Dashboard de Inscrições mostrar a turma atual e oferecer mover de
     // turma direto por lá, sem precisar abrir Matrículas.
+    // Só liga se ainda não houver conta ligada: nunca sobrescreve (era assim que a inscrição "trocava" de conta).
     await admin
       .from("enrollment_requests")
       .update({ student_id: studentId })
-      .eq("id", invitation.enrollment_request_id);
+      .eq("id", invitation.enrollment_request_id)
+      .is("student_id", null);
   }
 
 
@@ -154,6 +157,17 @@ export async function acceptStudentInvitation(
   // e-mail+senha. O código de acesso só entra quando o convite foi
   // marcado como exceção (use_access_code) — e-mail já em uso por outra
   // conta, tipicamente de um familiar. Ver migração 00000000000054.
+  // Uma pessoa = uma conta: se esta inscrição já tem conta (ou já existe conta com o mesmo e-mail e o mesmo nome),
+  // não criamos outra. E-mail dividido com um familiar de nome diferente continua permitido.
+  const existing = await findExistingAccountForPerson(admin, {
+    enrollmentRequestId: invitation.enrollment_request_id,
+    contactEmail,
+    names: [parsed.data.fullName],
+  });
+  if (existing) {
+    return { error: ALREADY_HAS_ACCOUNT_MESSAGE };
+  }
+
   const useAccessCode = invitation.use_access_code;
   const accessCode = useAccessCode ? await generateUniqueAccessCode(admin) : null;
 
@@ -193,6 +207,12 @@ export async function acceptStudentInvitation(
 
   if (consumeError) {
     console.error("Falha ao marcar convite como consumido (conta já criada):", consumeError);
+    // O banco recusa quando a inscrição já foi aceita por outro convite (23505): desfaz a conta recém-criada
+    // (ainda sem matrícula nem papel) em vez de deixar uma duplicada.
+    if (consumeError.code === "23505") {
+      await admin.auth.admin.deleteUser(studentId);
+      return { error: ALREADY_HAS_ACCOUNT_MESSAGE };
+    }
   }
 
   const { data: role } = await admin.from("roles").select("id").eq("slug", "student").single();
