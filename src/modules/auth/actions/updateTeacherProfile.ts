@@ -58,6 +58,7 @@ export async function updateTeacherProfile(_prev: UpdateTeacherProfileState, for
 
   revalidatePath("/coordenacao/professores");
   revalidatePath("/coordenacao/professores/escala");
+  revalidatePath("/coordenacao/qualidade-dados");
   return { success: "Cadastro atualizado." };
 }
 
@@ -89,5 +90,6 @@ export async function updatePendingTeacherContact(_prev: UpdateTeacherProfileSta
   if (error || !data) return { error: "Não foi possível salvar: o convite pode já ter sido usado." };
 
   revalidatePath("/coordenacao/professores");
+  revalidatePath("/coordenacao/qualidade-dados");
   return { success: "Cadastro atualizado." };
 }

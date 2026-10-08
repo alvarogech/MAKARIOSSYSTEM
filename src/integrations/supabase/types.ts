@@ -2950,6 +2950,18 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      delete_enrollment_request: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      duplicate_account_blocker: {
+        Args: { p_profile_id: string }
+        Returns: string
+      }
+      audit_admin_action: {
+        Args: { p_action: string; p_entity: string; p_entity_id: string; p_detail: Json }
+        Returns: undefined
+      }
       declare_attendance: {
         Args: { p_meeting_id: string; p_lessons: number[] }
         Returns: undefined
