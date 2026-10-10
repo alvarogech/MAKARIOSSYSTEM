@@ -12,13 +12,14 @@ interface Tab {
 const SECTIONS: { name: string; match: string[]; tabs: Tab[] }[] = [
   {
     name: "Alunos",
-    match: ["/coordenacao/alunos", "/coordenacao/inscricoes", "/coordenacao/matriculas", "/coordenacao/acessos", "/coordenacao/qualidade-dados"],
+    match: ["/coordenacao/alunos", "/coordenacao/inscricoes", "/coordenacao/matriculas", "/coordenacao/acessos", "/coordenacao/qualidade-dados", "/coordenacao/ajuda"],
     tabs: [
       { href: "/coordenacao/alunos", label: "Todos os alunos" },
       { href: "/coordenacao/inscricoes", label: "Inscrições" },
       { href: "/coordenacao/matriculas", label: "Matrículas" },
       { href: "/coordenacao/acessos", label: "Acesso à plataforma" },
       { href: "/coordenacao/qualidade-dados", label: "Qualidade dos dados" },
+      { href: "/coordenacao/ajuda", label: "Pedidos de ajuda" },
     ],
   },
   {

@@ -1753,6 +1753,59 @@ export type Database = {
           },
         ]
       }
+      help_requests: {
+        Row: {
+          cpf_hash: string
+          cpf_last4: string
+          created_at: string
+          enrollment_request_id: string | null
+          full_name: string
+          id: string
+          message: string | null
+          phone: string
+          problems: string[]
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          cpf_hash: string
+          cpf_last4: string
+          created_at?: string
+          enrollment_request_id?: string | null
+          full_name: string
+          id?: string
+          message?: string | null
+          phone: string
+          problems?: string[]
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          cpf_hash?: string
+          cpf_last4?: string
+          created_at?: string
+          enrollment_request_id?: string | null
+          full_name?: string
+          id?: string
+          message?: string | null
+          phone?: string
+          problems?: string[]
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_requests_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_rows: {
         Row: {
           created_at: string
