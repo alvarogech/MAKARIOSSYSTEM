@@ -14,6 +14,7 @@ import { loadStudentFrequency, type VolumeFrequency } from "@/modules/attendance
 import { loadDeclarationPrompts, type DeclarationPrompt } from "@/modules/attendance/declarations";
 import { loadToday, type TodayData } from "@/modules/academic/today";
 import { TodayPanel } from "@/modules/academic/components/TodayPanel";
+import { NextClassDayCard } from "@/modules/academic/components/NextClassDayCard";
 import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
 import { loadStudentJourneys } from "@/modules/learning/journeyLoader";
 import type { VolumeJourney } from "@/modules/learning/journey";
@@ -93,6 +94,8 @@ export default async function DashboardPage() {
           <strong>{ROLE_LABELS[authContext.activeRole]}</strong>.
         </p>
       </Card>
+
+      {today ? <NextClassDayCard day={today.nextClassDay} failed={today.nextClassDayFailed} todayKey={today.todayKey} /> : null}
 
       {authContext.activeRole === "student" && studentSummary ? (
         <>

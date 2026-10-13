@@ -70,6 +70,18 @@ export function startOfSaoPauloMonth(date: Date): Date {
   return new Date(naiveUtc - offsetMinutes * 60000);
 }
 
+/** Minutos desde 00:00 em São Paulo para o instante informado (0 a 1439). */
+export function getSaoPauloMinuteOfDay(date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: SAO_PAULO_TZ,
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return get("hour") * 60 + get("minute");
+}
+
 export function addSaoPauloDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 86_400_000);
 }
