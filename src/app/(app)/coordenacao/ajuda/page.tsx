@@ -9,6 +9,7 @@ import { getPublicEnv } from "@/lib/env";
 import { buildWhatsAppLink } from "@/services/whatsapp";
 import { setHelpRequestStatus } from "@/modules/support/actions/manageHelpRequests";
 import { helpProblemLabel } from "@/modules/support/helpRequest";
+import { SendAccessLinkButton } from "@/modules/enrollment/components/SendAccessLinkButton";
 
 export const metadata: Metadata = { title: "Pedidos de ajuda" };
 
@@ -33,13 +34,42 @@ export default async function PedidosDeAjudaPage({ searchParams }: { searchParam
   const [{ data: rows }, { count: openCount }] = await Promise.all([
     supabase
       .from("help_requests")
-      .select("id, full_name, cpf_last4, phone, problems, message, enrollment_request_id, status, created_at, resolved_at")
+      .select("id, full_name, cpf_hash, cpf_last4, phone, problems, message, enrollment_request_id, status, created_at, resolved_at")
       .eq("status", showResolved ? "resolvido" : "aberto")
       .order(showResolved ? "resolved_at" : "created_at", { ascending: !showResolved })
       .limit(200),
     supabase.from("help_requests").select("id", { count: "exact", head: true }).eq("status", "aberto"),
   ]);
   const requests = rows ?? [];
+
+  // Para cada pedido: se o aluno ainda não criou a conta (botão de mandar o
+  // acesso) e os erros que a chamada por QR mostrou para ele.
+  const requestIds = [...new Set(requests.map((r) => r.enrollment_request_id).filter((id): id is string => !!id))];
+  const cpfHashes = [...new Set(requests.map((r) => r.cpf_hash))];
+  const [{ data: enrollmentRows }, { data: failureRows }] = await Promise.all([
+    requestIds.length > 0
+      ? supabase.from("enrollment_requests").select("id, status, student_id").in("id", requestIds)
+      : Promise.resolve({ data: [] as { id: string; status: string; student_id: string | null }[] }),
+    cpfHashes.length > 0
+      ? supabase
+          .from("attendance_scan_failures")
+          .select("id, created_at, step, code, message, cpf_hash, enrollment_request_id, had_location")
+          .or(
+            requestIds.length > 0
+              ? `cpf_hash.in.(${cpfHashes.join(",")}),enrollment_request_id.in.(${requestIds.join(",")})`
+              : `cpf_hash.in.(${cpfHashes.join(",")})`,
+          )
+          .order("created_at", { ascending: false })
+          .limit(500)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const withoutAccount = new Set(
+    (enrollmentRows ?? []).filter((e) => e.status === "approved" && !e.student_id).map((e) => e.id),
+  );
+  const failuresOf = (r: (typeof requests)[number]) =>
+    (failureRows ?? [])
+      .filter((f) => f.cpf_hash === r.cpf_hash || (!!r.enrollment_request_id && f.enrollment_request_id === r.enrollment_request_id))
+      .slice(0, 5);
 
   const link = `${getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/ajuda`;
 
@@ -121,6 +151,21 @@ export default async function PedidosDeAjudaPage({ searchParams }: { searchParam
                   </p>
                 ) : null}
 
+                {failuresOf(r).length > 0 ? (
+                  <div className="rounded-[var(--radius-sm)] border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                    <p className="font-medium text-amber-900">O que a chamada mostrou para este aluno</p>
+                    <ul className="mt-1 flex flex-col gap-1 text-amber-900">
+                      {failuresOf(r).map((f) => (
+                        <li key={f.id}>
+                          <span className="text-xs text-amber-700">{when(f.created_at)}</span>{" "}
+                          {f.code === "excecao" ? "Falha no servidor ao carregar a chamada." : f.message}
+                          {f.had_location ? "" : <span className="text-xs text-amber-700"> (sem localização)</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap items-center gap-2">
                   <a
                     href={buildWhatsAppLink(r.phone)}
@@ -130,6 +175,9 @@ export default async function PedidosDeAjudaPage({ searchParams }: { searchParam
                   >
                     WhatsApp {formatPhone(r.phone)}
                   </a>
+                  {r.enrollment_request_id && withoutAccount.has(r.enrollment_request_id) ? (
+                    <SendAccessLinkButton requestId={r.enrollment_request_id} />
+                  ) : null}
                   <form action={setHelpRequestStatus}>
                     <input type="hidden" name="id" value={r.id} />
                     <input type="hidden" name="status" value={r.status === "aberto" ? "resolvido" : "aberto"} />

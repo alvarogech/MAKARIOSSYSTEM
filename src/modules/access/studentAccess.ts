@@ -26,6 +26,8 @@ export const ACCESS_STAGE_LABELS: Record<AccessStage, string> = {
 
 export interface AccessPerson {
   personKey: string;
+  /** Inscrição de referência da pessoa (a primeira que aparece), para a ficha e o link de acesso. */
+  requestId: string;
   name: string;
   email: string;
   phone: string;
@@ -84,6 +86,7 @@ export async function loadStudentAccess(supabase: DB): Promise<AccessPerson[]> {
     }
     byPerson.set(row.person_key, {
       personKey: row.person_key,
+      requestId: row.request_id,
       name: row.full_name,
       email: row.email,
       phone: row.phone,

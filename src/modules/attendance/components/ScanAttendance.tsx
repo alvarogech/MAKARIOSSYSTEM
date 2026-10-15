@@ -43,6 +43,12 @@ async function readPosition(): Promise<Position> {
 
 type Day = Extract<DayResult, { ok: true }>;
 
+const OFFLINE = {
+  ok: false as const,
+  code: "erro" as const,
+  message: "Não conseguimos falar com o sistema. Confira a internet do celular e toque em Tentar de novo.",
+};
+
 export function ScanAttendance({ token }: { token: string }) {
   const [result, setResult] = useState<DayResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,9 +74,11 @@ export function ScanAttendance({ token }: { token: string }) {
   };
 
   const load = useCallback(
-    async (cpfValue?: string) => {
+    async (cpfValue?: string): Promise<DayResult> => {
       const where = await locate();
-      return loadAttendanceDay({ token, cpf: cpfValue, ...where });
+      // Sem internet (ou site atualizado no meio), a chamada ao servidor falha
+      // e a tela ficava presa em "Carregando..." para sempre.
+      return loadAttendanceDay({ token, cpf: cpfValue, ...where }).catch(() => OFFLINE);
     },
     [token, locate],
   );
@@ -107,7 +115,7 @@ export function ScanAttendance({ token }: { token: string }) {
       cpf: cpf || undefined,
       lessons: [...selected].sort((a, b) => a - b),
       ...where,
-    });
+    }).catch(() => OFFLINE);
     setSaving(false);
     if (response.ok) {
       setSaved(response.lessonNumbers);
@@ -184,6 +192,16 @@ export function ScanAttendance({ token }: { token: string }) {
             <br />
             Turma: {day.scheduleLabel}
           </p>
+          <button
+            type="button"
+            className="mt-1 text-sm font-medium text-brand-blue hover:underline"
+            onClick={() => {
+              setCpf("");
+              setResult({ ok: false, code: "precisa_cpf", message: `Não é ${day.firstName}? Digite o seu CPF.` });
+            }}
+          >
+            Não é {day.firstName}? Marcar com outro CPF
+          </button>
           {day.makeupForSequence ? (
             <p className="mt-1 text-sm text-neutral-500">
               Esta turma não é a sua: vai contar como reposição do encontro {day.makeupForSequence} da sua turma.

@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getAuthContext } from "@/authorization";
 import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
@@ -154,6 +154,7 @@ async function resolveContext(supabase: Admin, input: DayInput) {
   const cookieStore = await cookies();
   const deviceRequestId = verifyAttendanceDevice(cookieStore.get(DEVICE_COOKIE)?.value);
 
+  const typedCpf = (input.cpf ?? "").replace(/\D/g, "");
   let loginLinked = false;
   if (auth) {
     const [{ count: requests }, { count: enrollments }] = await Promise.all([
@@ -175,7 +176,10 @@ async function resolveContext(supabase: Admin, input: DayInput) {
       .order("created_at", { ascending: false })
       .limit(1);
     request = (data?.[0] as RequestRow | undefined) ?? null;
-  } else if (deviceRequestId) {
+  } else if (deviceRequestId && typedCpf.length !== 11) {
+    // CPF digitado vale mais que o celular lembrado: senão, quem pega o celular
+    // de outra pessoa (ou tem a inscrição lembrada desfeita) fica preso pedindo
+    // o CPF para sempre, porque o CPF digitado era ignorado.
     identifiedBy = "aparelho";
     const { data } = await supabase
       .from("enrollment_requests")
@@ -187,7 +191,7 @@ async function resolveContext(supabase: Admin, input: DayInput) {
     if (!request) return fail("Não encontramos a sua inscrição. Digite o seu CPF.", "precisa_cpf");
   } else {
     identifiedBy = "cpf";
-    const cpf = (input.cpf ?? "").replace(/\D/g, "");
+    const cpf = typedCpf;
     if (cpf.length !== 11) return fail("Digite o seu CPF para marcar presença.", "precisa_cpf");
     // No Wi-Fi do local todos os celulares saem pelo mesmo IP e a turma chega junta: limite alto.
     const ip = await getClientIp();
@@ -353,7 +357,7 @@ function rememberDevice(ctx: Context) {
  * Passo 1: identifica a pessoa pelo QR e mostra as aulas de HOJE do volume
  * dela (com horário e matéria), já com o que ela tenha marcado antes.
  */
-export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
+async function loadAttendanceDayInner(input: DayInput): Promise<DayResult> {
   const ctx = await resolveContext(createSupabaseAdminClient(), input);
   if (!ctx.ok) return ctx;
 
@@ -398,7 +402,7 @@ export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
  * Passo 2: grava as aulas que a pessoa marcou (uma vez no dia basta). Pode ser
  * refeito no mesmo dia: a nova marcação substitui a anterior.
  */
-export async function saveAttendanceDay(input: DayInput & { lessons: number[] }): Promise<SaveResult> {
+async function saveAttendanceDayInner(input: DayInput & { lessons: number[] }): Promise<SaveResult> {
   const ctx = await resolveContext(createSupabaseAdminClient(), input);
   if (!ctx.ok) return ctx;
 
@@ -451,4 +455,71 @@ export async function saveAttendanceDay(input: DayInput & { lessons: number[] })
 
   rememberDevice(ctx);
   return { ok: true, lessonNumbers: chosen };
+}
+
+/**
+ * Guarda o motivo de uma recusa da chamada, para a coordenação ver junto do
+ * pedido de ajuda do aluno (antes a mensagem sumia da tela do aluno e só
+ * restava "deu erro"). Pedir o CPF na primeira leitura é o fluxo normal e não
+ * entra. Nunca derruba a chamada: se gravar falhar, segue a vida.
+ */
+async function recordFailure(input: DayInput, step: "abrir" | "salvar", code: string, message: string) {
+  const cpf = (input.cpf ?? "").replace(/\D/g, "");
+  if (code === "precisa_cpf" && cpf.length === 0) return;
+  try {
+    const supabase = createSupabaseAdminClient();
+    const cookieStore = await cookies();
+    const [auth, qr, h] = await Promise.all([
+      getAuthContext(),
+      supabase.from("attendance_qr_codes").select("id").eq("token", input.token).maybeSingle(),
+      headers(),
+    ]);
+    const { error } = await supabase.from("attendance_scan_failures").insert({
+      step,
+      code: code.slice(0, 40),
+      message: message.slice(0, 300),
+      qr_code_id: qr.data?.id ?? null,
+      cpf_hash: cpf.length === 11 ? hashCpf(cpf) : null,
+      // Com CPF digitado, a recusa é de quem digitou, não da pessoa lembrada no celular.
+      enrollment_request_id: cpf.length === 11 ? null : verifyAttendanceDevice(cookieStore.get(DEVICE_COOKIE)?.value),
+      student_id: auth?.userId ?? null,
+      had_location: input.lat != null && input.lng != null,
+      user_agent: h.get("user-agent")?.slice(0, 300) ?? null,
+    });
+    if (error) console.error("Falha ao registrar erro da chamada:", error.message);
+  } catch (error) {
+    console.error("Falha ao registrar erro da chamada:", error);
+  }
+}
+
+const UNEXPECTED = "Não foi possível carregar agora. Tente de novo.";
+
+/**
+ * Passo 1: identifica a pessoa pelo QR e mostra as aulas de HOJE do volume
+ * dela. Uma exceção vira mensagem na tela: sem isto, a página do aluno ficava
+ * presa em "Carregando..." para sempre.
+ */
+export async function loadAttendanceDay(input: DayInput): Promise<DayResult> {
+  try {
+    const result = await loadAttendanceDayInner(input);
+    if (!result.ok) await recordFailure(input, "abrir", result.code, result.message);
+    return result;
+  } catch (error) {
+    console.error("Erro ao carregar a chamada:", error);
+    await recordFailure(input, "abrir", "excecao", String(error));
+    return fail(UNEXPECTED);
+  }
+}
+
+/** Passo 2: grava as aulas marcadas, guardando o motivo se recusar. */
+export async function saveAttendanceDay(input: DayInput & { lessons: number[] }): Promise<SaveResult> {
+  try {
+    const result = await saveAttendanceDayInner(input);
+    if (!result.ok) await recordFailure(input, "salvar", result.code, result.message);
+    return result;
+  } catch (error) {
+    console.error("Erro ao gravar a chamada:", error);
+    await recordFailure(input, "salvar", "excecao", String(error));
+    return fail("Não foi possível registrar agora. Tente de novo.");
+  }
 }

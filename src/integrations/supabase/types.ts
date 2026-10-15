@@ -939,6 +939,63 @@ export type Database = {
           },
         ]
       }
+      attendance_scan_failures: {
+        Row: {
+          code: string
+          cpf_hash: string | null
+          created_at: string
+          enrollment_request_id: string | null
+          had_location: boolean
+          id: string
+          message: string
+          qr_code_id: string | null
+          step: string
+          student_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          code: string
+          cpf_hash?: string | null
+          created_at?: string
+          enrollment_request_id?: string | null
+          had_location?: boolean
+          id?: string
+          message: string
+          qr_code_id?: string | null
+          step: string
+          student_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          code?: string
+          cpf_hash?: string | null
+          created_at?: string
+          enrollment_request_id?: string | null
+          had_location?: boolean
+          id?: string
+          message?: string
+          qr_code_id?: string | null
+          step?: string
+          student_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_scan_failures_enrollment_request_id_fkey"
+            columns: ["enrollment_request_id"]
+            isOneToOne: false
+            referencedRelation: "enrollment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_scan_failures_qr_code_id_fkey"
+            columns: ["qr_code_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_qr_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_scans: {
         Row: {
           block: number

@@ -16,6 +16,7 @@ import { grNetworkLabel, scheduleLabel, volumeLabel } from "@/modules/enrollment
 import { formatBrazilianPhone, isValidBrazilianPhone } from "@/services/phone";
 import { buildWhatsAppLink } from "@/services/whatsapp";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
+import { SendAccessLinkButton } from "@/modules/enrollment/components/SendAccessLinkButton";
 
 export const metadata: Metadata = { title: "Ficha do aluno" };
 
@@ -190,7 +191,16 @@ export default async function FichaAlunoPage({ params }: { params: Promise<{ req
             <p className="text-sm text-neutral-500">
               {request.status === "approved" ? "Aprovado, aguardando criar a conta (a matrícula nasce nesse momento)." : "Sem matrícula."}
             </p>
-          ) : (
+          ) : null}
+          {request.status === "approved" && !request.student_id ? (
+            <div className="mt-2 flex flex-col gap-1">
+              <SendAccessLinkButton requestId={request.id} />
+              <p className="text-xs text-neutral-500">
+                Para quando o e-mail do convite não chega. Abre o WhatsApp do aluno com o link de criar a conta já escrito.
+              </p>
+            </div>
+          ) : null}
+          {(enrollments ?? []).length === 0 ? null : (
             <ul className="text-sm text-neutral-800">
               {(enrollments ?? []).map((e) => (
                 <li key={e.id}>

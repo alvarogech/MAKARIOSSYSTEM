@@ -13,6 +13,7 @@ import {
 } from "@/modules/access/studentAccess";
 import { formatBrazilianPhone, isValidBrazilianPhone } from "@/services/phone";
 import { buildWhatsAppLink } from "@/services/whatsapp";
+import { SendAccessLinkButton } from "@/modules/enrollment/components/SendAccessLinkButton";
 
 export const metadata: Metadata = { title: "Acesso dos alunos" };
 
@@ -127,7 +128,9 @@ export default async function AcessosPage({ searchParams }: { searchParams: Prom
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_STYLE[p.stage]}`}>
                   {ACCESS_STAGE_LABELS[p.stage]}
                 </span>
-                {p.stage !== "abriu_material" && isValidBrazilianPhone(p.phone) ? (
+                {p.stage === "sem_conta" ? (
+                  <SendAccessLinkButton requestId={p.requestId} />
+                ) : p.stage !== "abriu_material" && isValidBrazilianPhone(p.phone) ? (
                   <a
                     href={buildWhatsAppLink(p.phone)}
                     target="_blank"
