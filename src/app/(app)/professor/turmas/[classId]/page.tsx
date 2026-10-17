@@ -18,6 +18,7 @@ import { ClassJourneyPanel } from "@/modules/learning/components/ClassJourneyPan
 import { MaterialsSection } from "@/modules/teaching/components/MaterialsSection";
 import { StudentsList, type StudentRowView } from "@/modules/teaching/components/StudentsList";
 import { loadMaterials } from "@/modules/teaching/loadMaterials";
+import { loadAttendanceCredits } from "@/modules/attendance/creditsLoader";
 import { isMeetingOver } from "@/modules/teaching/reportSettings";
 import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
 import { countdownLabel } from "@/modules/teaching/teacherDashboardLogic";
@@ -84,7 +85,7 @@ export default async function ProfessorTurmaDetailPage({
       // Lista única da turma (matriculados + aprovados que ainda vão criar a conta) e as presenças
       // de cada um — as mesmas funções da coordenação, então os números batem.
       supabase.rpc("class_roster", { p_class_id: classId }),
-      supabase.rpc("attendance_credits", { p_class_id: classId }),
+      loadAttendanceCredits(supabase, { classId }).then((data) => ({ data })),
       supabase.from("class_meeting_reports").select("meeting_id").eq("teacher_id", authContext.userId),
       loadClassJourney(supabase, classId),
     ]);

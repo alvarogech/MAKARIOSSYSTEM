@@ -9,7 +9,8 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loadFunnel } from "@/modules/academic/funnelLoader";
 import { FUNNEL_LABELS, FUNNEL_STYLE } from "@/modules/academic/studentFunnel";
-import { toProgressCredits, type CreditRow } from "@/modules/attendance/credits";
+import { toProgressCredits } from "@/modules/attendance/credits";
+import { loadAttendanceCredits } from "@/modules/attendance/creditsLoader";
 import { formatHours } from "@/modules/attendance/progress";
 import { SITUATION } from "@/modules/attendance/situation";
 import { grNetworkLabel, scheduleLabel, volumeLabel } from "@/modules/enrollment/labels";
@@ -70,7 +71,9 @@ export default async function FichaAlunoPage({ params }: { params: Promise<{ req
     studentId
       ? supabase.from("content_access").select("content_id, opens_count, last_opened_at").eq("student_id", studentId).order("last_opened_at", { ascending: false }).limit(10)
       : Promise.resolve({ data: [] as { content_id: string; opens_count: number; last_opened_at: string }[] }),
-    supabase.rpc("attendance_credits"),
+    loadAttendanceCredits(supabase, {
+      personKeys: studentId ? [`r:${request.id}`, `s:${studentId}`] : [`r:${request.id}`],
+    }).then((data) => ({ data })),
   ]);
 
   const classIds = [...new Set((enrollments ?? []).map((e) => e.class_id))];
@@ -85,7 +88,7 @@ export default async function FichaAlunoPage({ params }: { params: Promise<{ req
   ]);
 
   const key = `r:${request.id}`;
-  const mine = ((creditRows ?? []) as (CreditRow & { person_key: string })[]).filter((c) => c.person_key === key || (studentId && c.person_key === `s:${studentId}`));
+  const mine = creditRows.filter((c) => c.person_key === key || (studentId && c.person_key === `s:${studentId}`));
   const credits = toProgressCredits(mine);
   const minutesFor = (meetingId: string) => credits.filter((c) => (c.makeupForMeetingId ?? c.meetingId) === meetingId).reduce((sum, c) => sum + c.minutes, 0);
   const sourcesFor = (meetingId: string) => [...new Set(mine.filter((c) => c.counts_for_meeting_id === meetingId).map((c) => c.source))];

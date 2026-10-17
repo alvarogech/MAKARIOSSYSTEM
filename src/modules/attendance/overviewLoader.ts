@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { buildOverview, type Overview, type OverviewClass, type OverviewCredit } from "./overview";
+import { loadAttendanceCredits } from "./creditsLoader";
 import { toMinutes } from "./rules";
 import { loadReportActiveByClass } from "@/modules/teaching/reportSettingsLoader";
 
@@ -56,7 +57,7 @@ export async function loadOverview(supabase: DB, seasonId: string, filters: Over
       .neq("status", "canceled")
       .order("meeting_date"),
     Promise.all(classIds.map((id) => supabase.rpc("class_roster", { p_class_id: id }))),
-    supabase.rpc("attendance_credits"),
+    loadAttendanceCredits(supabase).then((data) => ({ data })),
   ]);
 
   const meetingIds = (meetings ?? []).map((m) => m.id);

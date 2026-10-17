@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { addSaoPauloDays, getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { toProgressCredits, type CreditRow } from "@/modules/attendance/credits";
 import { computeProgress } from "@/modules/attendance/progress";
+import { loadAttendanceCredits } from "@/modules/attendance/creditsLoader";
 import { loadClassJourney } from "@/modules/learning/classJourney";
 import { loadPendingReports, type PendingReport } from "./pendingReports";
 import { loadTeacherHomeSummary, type TeacherHomeSummary } from "./teacherHome";
@@ -65,7 +66,7 @@ async function loadIndicators(supabase: DB, classIds: string[]): Promise<Pick<Te
 
     const [{ data: roster }, { data: creditRows }] = await Promise.all([
       supabase.rpc("class_roster", { p_class_id: classId }),
-      supabase.rpc("attendance_credits", { p_class_id: classId }),
+      loadAttendanceCredits(supabase, { classId }).then((data) => ({ data })),
     ]);
     const byPerson = new Map<string, CreditRow[]>();
     for (const row of (creditRows ?? []) as (CreditRow & { person_key: string })[]) {
