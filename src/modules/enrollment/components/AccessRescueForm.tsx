@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useSyncExternalStore } from "react";
+import { startTransition, useActionState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -61,7 +61,17 @@ function Outcome({ outcome, maskedEmail }: { outcome: RescueOutcome; maskedEmail
   }
 }
 
-export function AccessRescueForm() {
+/**
+ * `title` e `description` existem para a página de primeiro acesso, que usa
+ * este mesmo formulário quando a pessoa chega sem o link do convite.
+ */
+export function AccessRescueForm({
+  title = "Recuperar meu acesso",
+  description,
+}: {
+  title?: string;
+  description?: ReactNode;
+} = {}) {
   const [state, formAction, isPending] = useActionState(requestAccessRescue, initialState);
   // Antes de o JavaScript carregar, um envio cairia no GET nativo do navegador e
   // colocaria o CPF/e-mail na barra de endereço. O botão só liga depois da hidratação.
@@ -82,10 +92,14 @@ export function AccessRescueForm() {
       noValidate
     >
       <div>
-        <h1 className="text-2xl font-semibold text-neutral-900">Recuperar meu acesso</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900">{title}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Não conseguiu abrir o link que veio no e-mail, ou ele expirou? Informe o <strong>e-mail</strong> ou o{" "}
-          <strong>CPF</strong> que você usou na inscrição e enviamos um novo link para o e-mail cadastrado nela.
+          {description ?? (
+            <>
+              Não conseguiu abrir o link que veio no e-mail, ou ele expirou? Informe o <strong>e-mail</strong> ou o{" "}
+              <strong>CPF</strong> que você usou na inscrição e enviamos um novo link para o e-mail cadastrado nela.
+            </>
+          )}
         </p>
       </div>
 
