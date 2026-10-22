@@ -206,7 +206,9 @@ export type Database = {
           class_id: string | null
           created_at: string
           created_by: string
+          expires_at: string | null
           id: string
+          is_urgent: boolean
           module_id: string | null
           published_at: string
           title: string
@@ -217,7 +219,9 @@ export type Database = {
           class_id?: string | null
           created_at?: string
           created_by: string
+          expires_at?: string | null
           id?: string
+          is_urgent?: boolean
           module_id?: string | null
           published_at?: string
           title: string
@@ -228,7 +232,9 @@ export type Database = {
           class_id?: string | null
           created_at?: string
           created_by?: string
+          expires_at?: string | null
           id?: string
+          is_urgent?: boolean
           module_id?: string | null
           published_at?: string
           title?: string

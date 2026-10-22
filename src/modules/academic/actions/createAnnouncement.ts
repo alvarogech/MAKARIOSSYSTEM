@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { can, getAuthContext } from "@/authorization";
+import { saoPauloWallTimeToUtc } from "@/lib/saoPauloDate";
 import { createAnnouncementSchema } from "../schemas";
 
 export interface CreateAnnouncementState {
@@ -25,6 +26,8 @@ export async function createAnnouncement(
     classId: formData.get("classId") || "",
     moduleId: formData.get("moduleId") || "",
     audience: formData.get("audience") || "teachers",
+    urgent: formData.get("urgent") === "on",
+    expiresOn: formData.get("expiresOn") || "",
   });
 
   if (!parsed.success) {
@@ -38,6 +41,9 @@ export async function createAnnouncement(
     class_id: parsed.data.classId || null,
     module_id: parsed.data.moduleId || null,
     audience: parsed.data.audience,
+    is_urgent: parsed.data.urgent,
+    // O aviso sai do ar ao fim do último dia escolhido (hora de São Paulo).
+    expires_at: parsed.data.expiresOn ? saoPauloWallTimeToUtc(parsed.data.expiresOn, "23:59").toISOString() : null,
     created_by: authContext.userId,
   });
 

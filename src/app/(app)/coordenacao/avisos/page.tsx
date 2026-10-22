@@ -3,7 +3,7 @@ import { canAccessArea, getAuthContext } from "@/authorization";
 import { AccessDenied } from "@/components/feedback/AccessDenied";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
-import { formatSaoPauloLongDate } from "@/lib/saoPauloDate";
+import { formatSaoPauloLongDate, getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { CreateAnnouncementForm } from "@/modules/academic/components/CreateAnnouncementForm";
 
 export const metadata: Metadata = { title: "Avisos" };
@@ -19,7 +19,7 @@ export default async function AvisosPage() {
   const supabase = await createSupabaseServerClient();
 
   const [{ data: announcements }, { data: classes }, { data: modules }] = await Promise.all([
-    supabase.from("announcements").select("id, title, body, class_id, module_id, published_at, audience").order("published_at", { ascending: false }),
+    supabase.from("announcements").select("id, title, body, class_id, module_id, published_at, audience, is_urgent, expires_at").order("published_at", { ascending: false }),
     supabase.from("classes").select("id, name").order("name"),
     supabase.from("modules").select("id, name").order("name"),
   ]);
@@ -42,7 +42,12 @@ export default async function AvisosPage() {
         <ul className="mt-3 flex flex-col divide-y divide-neutral-100 text-sm">
           {(announcements ?? []).map((announcement) => (
             <li key={announcement.id} className="py-2">
-              <p className="font-medium text-neutral-900">{announcement.title}</p>
+              <p className="font-medium text-neutral-900">
+                {announcement.is_urgent ? (
+                  <span className="mr-2 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold uppercase text-danger">Importante</span>
+                ) : null}
+                {announcement.title}
+              </p>
               <p className="text-neutral-600">{announcement.body}</p>
               <p className="text-xs text-neutral-400">
                 {formatSaoPauloLongDate(announcement.published_at.slice(0, 10), { capitalize: true })} ·{" "}
@@ -52,6 +57,7 @@ export default async function AvisosPage() {
                   : announcement.module_id
                     ? (moduleNameById.get(announcement.module_id) ?? "Módulo")
                     : "Geral"}
+                {announcement.expires_at ? ` · no ar até ${formatSaoPauloLongDate(getSaoPauloDateKey(new Date(announcement.expires_at)))}` : ""}
               </p>
             </li>
           ))}

@@ -15,6 +15,8 @@ import { loadDeclarationPrompts, type DeclarationPrompt } from "@/modules/attend
 import { loadToday, type TodayData } from "@/modules/academic/today";
 import { TodayPanel } from "@/modules/academic/components/TodayPanel";
 import { NextClassDayCard } from "@/modules/academic/components/NextClassDayCard";
+import { UrgentAnnouncements } from "@/modules/academic/components/UrgentAnnouncements";
+import { splitStudentAnnouncements, type StudentAnnouncement } from "@/modules/academic/announcements";
 import { DeclarationCard } from "@/modules/attendance/components/DeclarationCard";
 import { loadStudentJourneys } from "@/modules/learning/journeyLoader";
 import type { VolumeJourney } from "@/modules/learning/journey";
@@ -57,7 +59,8 @@ export default async function DashboardPage() {
   let journeys: VolumeJourney[] = [];
   let rewards: StudentRewards | null = null;
   let declarationPrompts: DeclarationPrompt[] = [];
-  let studentAnnouncements: { id: string; title: string; body: string; published_at: string }[] = [];
+  let studentAnnouncements: StudentAnnouncement[] = [];
+  let urgentAnnouncements: StudentAnnouncement[] = [];
   if (authContext.activeRole === "student") {
     const supabase = await createSupabaseServerClient();
     studentSummary = await loadStudentHomeSummary(supabase, authContext.userId);
@@ -69,10 +72,13 @@ export default async function DashboardPage() {
     // A política do banco já entrega só o que é para este aluno (geral, da turma ou do módulo dele).
     const { data: announcementRows } = await supabase
       .from("announcements")
-      .select("id, title, body, published_at")
+      .select("id, title, body, published_at, is_urgent, expires_at")
       .order("published_at", { ascending: false })
-      .limit(4);
-    studentAnnouncements = announcementRows ?? [];
+      .limit(12);
+    // Importantes (e ainda no ar) vão em destaque no topo; os comuns seguem na lista "Avisos da escola".
+    const split = splitStudentAnnouncements(announcementRows ?? [], new Date());
+    studentAnnouncements = split.regular;
+    urgentAnnouncements = split.urgent;
   }
 
   // Home da coordenação/administração = "Hoje": só o que pede ação.
@@ -94,6 +100,8 @@ export default async function DashboardPage() {
           <strong>{ROLE_LABELS[authContext.activeRole]}</strong>.
         </p>
       </Card>
+
+      <UrgentAnnouncements items={urgentAnnouncements} />
 
       {today ? <NextClassDayCard day={today.nextClassDay} failed={today.nextClassDayFailed} todayKey={today.todayKey} /> : null}
 

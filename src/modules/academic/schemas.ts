@@ -111,6 +111,9 @@ export const createAnnouncementSchema = z.object({
   classId: z.string().uuid().optional().or(z.literal("")),
   moduleId: z.string().uuid().optional().or(z.literal("")),
   audience: z.enum(["teachers", "students", "all"], { message: "Escolha para quem é o aviso." }),
+  // Aviso importante: banner vermelho no topo do início do aluno. `expiresOn` = último dia em que aparece ("AAAA-MM-DD").
+  urgent: z.boolean().default(false),
+  expiresOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de saída inválida.").optional().or(z.literal("")),
 });
 
 export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;

@@ -86,6 +86,23 @@ export function CreateAnnouncementForm({
         </div>
       </div>
 
+      <div className="rounded-[var(--radius-sm)] border border-danger/30 bg-danger/5 p-3">
+        <label className="flex items-start gap-2 text-sm font-medium text-neutral-900">
+          <input type="checkbox" name="urgent" className="mt-0.5 size-4 accent-[var(--color-danger)]" />
+          <span>
+            Aviso importante
+            <span className="block text-xs font-normal text-neutral-600">
+              Aparece em destaque (banner vermelho) no topo do início dos alunos, antes de tudo.
+            </span>
+          </span>
+        </label>
+        <div className="mt-3 max-w-xs">
+          <Label htmlFor="expiresOn">Mostrar até (opcional)</Label>
+          <Input id="expiresOn" name="expiresOn" type="date" />
+          <p className="mt-1 text-xs text-neutral-500">Depois desse dia o aviso importante sai do ar sozinho.</p>
+        </div>
+      </div>
+
       <Button type="submit" isLoading={isPending} className="self-start">
         Publicar aviso
       </Button>
