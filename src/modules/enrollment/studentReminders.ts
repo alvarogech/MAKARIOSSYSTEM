@@ -250,7 +250,7 @@ export async function resendStudentOnboardingInvite(
 
   const { data: invite, error: fetchError } = await admin
     .from("invitations")
-    .select("id, email, intended_full_name, invited_at, reminder_stage, class_ids, token_hash, consumed_at, revoked_at")
+    .select("id, email, intended_full_name, invited_at, reminder_stage, class_ids, token_hash, consumed_at, revoked_at, initial_email_sent_at")
     .eq("id", invitationId)
     .eq("channel", "email")
     .eq("purpose", "student_onboarding")
@@ -296,7 +296,13 @@ export async function resendStudentOnboardingInvite(
 
   await admin
     .from("invitations")
-    .update({ reminder_stage: isFinal ? "final_sent" : invite.reminder_stage, last_sent_at: now.toISOString() })
+    .update({
+      reminder_stage: isFinal ? "final_sent" : invite.reminder_stage,
+      last_sent_at: now.toISOString(),
+      // Primeiro e-mail que de fato saiu (ex.: o e-mail foi trocado na ficha):
+      // a ficha passa a mostrar "E-mail de acesso enviado".
+      ...(invite.initial_email_sent_at ? {} : { initial_email_sent_at: now.toISOString() }),
+    })
     .eq("id", invite.id);
 
   return { ok: true };

@@ -250,7 +250,7 @@ export async function updateEnrollmentRequest(
             .limit(1),
         ]);
         patch.use_access_code = (sameEmailProfiles?.length ?? 0) > 0 || (sameEmailInvites?.length ?? 0) > 0;
-        notes.push("convite atualizado para o novo e-mail — será reenviado automaticamente");
+        notes.push("convite atualizado para o novo e-mail. Para mandar o link, use \"Reenviar acesso por e-mail\" ou o WhatsApp na ficha do aluno");
       } else {
         notes.push("turmas do convite atualizadas");
       }

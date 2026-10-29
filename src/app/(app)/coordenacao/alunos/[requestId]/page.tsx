@@ -18,6 +18,7 @@ import { formatBrazilianPhone, isValidBrazilianPhone } from "@/services/phone";
 import { buildWhatsAppLink } from "@/services/whatsapp";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
 import { SendAccessLinkButton } from "@/modules/enrollment/components/SendAccessLinkButton";
+import { SendAccessEmailButton } from "@/modules/enrollment/components/SendAccessEmailButton";
 
 export const metadata: Metadata = { title: "Ficha do aluno" };
 
@@ -197,9 +198,12 @@ export default async function FichaAlunoPage({ params }: { params: Promise<{ req
           ) : null}
           {request.status === "approved" && !request.student_id ? (
             <div className="mt-2 flex flex-col gap-1">
-              <SendAccessLinkButton requestId={request.id} />
+              <div className="flex flex-wrap items-center gap-2">
+                <SendAccessLinkButton requestId={request.id} />
+                <SendAccessEmailButton requestId={request.id} />
+              </div>
               <p className="text-xs text-neutral-500">
-                Para quando o e-mail do convite não chega. Abre o WhatsApp do aluno com o link de criar a conta já escrito.
+                Os dois mandam o mesmo link de criar a conta. O e-mail vai para o endereço desta ficha; se ele não chegar, mande pelo WhatsApp.
               </p>
             </div>
           ) : null}
