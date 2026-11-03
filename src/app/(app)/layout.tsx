@@ -37,6 +37,7 @@ function buildNavLinks(authContext: AuthContext): NavLink[] {
       { href: "/coordenacao/alunos", label: "Alunos" },
       { href: "/coordenacao/turmas", label: "Turmas" },
       { href: "/coordenacao/professores", label: "Professores" },
+      { href: "/coordenacao/formatura", label: "Formatura" },
     );
   }
 

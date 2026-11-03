@@ -1816,6 +1816,303 @@ export type Database = {
           },
         ]
       }
+      graduation_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          edition_id: string | null
+          id: number
+          student_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          edition_id?: string | null
+          id?: number
+          student_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          edition_id?: string | null
+          id?: number
+          student_id?: string | null
+        }
+        Relationships: []
+      }
+      graduation_contacts: {
+        Row: {
+          channel: string
+          contacted_at: string
+          contacted_by: string | null
+          created_at: string
+          due_date: string | null
+          edition_id: string
+          id: string
+          message_text: string | null
+          next_step: string | null
+          requirement_key: string | null
+          response: string | null
+          student_id: string
+          summary: string | null
+        }
+        Insert: {
+          channel: string
+          contacted_at?: string
+          contacted_by?: string | null
+          created_at?: string
+          due_date?: string | null
+          edition_id: string
+          id?: string
+          message_text?: string | null
+          next_step?: string | null
+          requirement_key?: string | null
+          response?: string | null
+          student_id: string
+          summary?: string | null
+        }
+        Update: {
+          channel?: string
+          contacted_at?: string
+          contacted_by?: string | null
+          created_at?: string
+          due_date?: string | null
+          edition_id?: string
+          id?: string
+          message_text?: string | null
+          next_step?: string | null
+          requirement_key?: string | null
+          response?: string | null
+          student_id?: string
+          summary?: string | null
+        }
+        Relationships: []
+      }
+      graduation_editions: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          event_date: string | null
+          event_name: string | null
+          event_time: string | null
+          id: string
+          instructions: string | null
+          invite_message: string | null
+          location_name: string | null
+          name: string
+          published_at: string | null
+          published_by: string | null
+          rsvp_deadline: string | null
+          season_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_date?: string | null
+          event_name?: string | null
+          event_time?: string | null
+          id?: string
+          instructions?: string | null
+          invite_message?: string | null
+          location_name?: string | null
+          name: string
+          published_at?: string | null
+          published_by?: string | null
+          rsvp_deadline?: string | null
+          season_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_date?: string | null
+          event_name?: string | null
+          event_time?: string | null
+          id?: string
+          instructions?: string | null
+          invite_message?: string | null
+          location_name?: string | null
+          name?: string
+          published_at?: string | null
+          published_by?: string | null
+          rsvp_deadline?: string | null
+          season_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      graduation_follow_ups: {
+        Row: {
+          contact_status: string
+          created_at: string
+          due_date: string | null
+          edition_id: string
+          id: string
+          next_step: string | null
+          notes: string | null
+          requirement_key: string
+          responsible_id: string | null
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          contact_status?: string
+          created_at?: string
+          due_date?: string | null
+          edition_id: string
+          id?: string
+          next_step?: string | null
+          notes?: string | null
+          requirement_key?: string
+          responsible_id?: string | null
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contact_status?: string
+          created_at?: string
+          due_date?: string | null
+          edition_id?: string
+          id?: string
+          next_step?: string | null
+          notes?: string | null
+          requirement_key?: string
+          responsible_id?: string | null
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      graduation_history_records: {
+        Row: {
+          evidence: string
+          id: string
+          origin: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          season_label: string | null
+          student_id: string
+          validated_at: string
+          validated_by: string
+          volume_slug: string
+        }
+        Insert: {
+          evidence: string
+          id?: string
+          origin: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          season_label?: string | null
+          student_id: string
+          validated_at?: string
+          validated_by: string
+          volume_slug: string
+        }
+        Update: {
+          evidence?: string
+          id?: string
+          origin?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          season_label?: string | null
+          student_id?: string
+          validated_at?: string
+          validated_by?: string
+          volume_slug?: string
+        }
+        Relationships: []
+      }
+      graduation_participants: {
+        Row: {
+          added_by: string | null
+          added_reason: string
+          attendance_recorded_at: string | null
+          attendance_recorded_by: string | null
+          ceremony_attendance: string
+          certificate_name: string | null
+          certificate_name_checked_at: string | null
+          certificate_name_checked_by: string | null
+          created_at: string
+          edition_id: string
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          invited_status: string | null
+          response: string
+          response_channel: string | null
+          response_recorded_by: string | null
+          response_source: string | null
+          responded_at: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          added_reason?: string
+          attendance_recorded_at?: string | null
+          attendance_recorded_by?: string | null
+          ceremony_attendance?: string
+          certificate_name?: string | null
+          certificate_name_checked_at?: string | null
+          certificate_name_checked_by?: string | null
+          created_at?: string
+          edition_id: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          invited_status?: string | null
+          response?: string
+          response_channel?: string | null
+          response_recorded_by?: string | null
+          response_source?: string | null
+          responded_at?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          added_reason?: string
+          attendance_recorded_at?: string | null
+          attendance_recorded_by?: string | null
+          ceremony_attendance?: string
+          certificate_name?: string | null
+          certificate_name_checked_at?: string | null
+          certificate_name_checked_by?: string | null
+          created_at?: string
+          edition_id?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          invited_status?: string | null
+          response?: string
+          response_channel?: string | null
+          response_recorded_by?: string | null
+          response_source?: string | null
+          responded_at?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       help_requests: {
         Row: {
           cpf_hash: string
@@ -3272,6 +3569,10 @@ export type Database = {
       has_active_enrollment_in_offering: {
         Args: { p_offering_id: string }
         Returns: boolean
+      }
+      graduation_respond: {
+        Args: { p_edition_id: string; p_response: string }
+        Returns: Json
       }
       has_active_enrollment_in_volume: {
         Args: { p_volume_id: string }

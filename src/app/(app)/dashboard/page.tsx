@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calendar, MapPin, MessageCircle } from "lucide-react";
+import { Calendar, GraduationCap, MapPin, MessageCircle } from "lucide-react";
 import { can, canAccessArea, getAuthContext } from "@/authorization";
 import { ROLE_LABELS } from "@/lib/roleLabels";
 import { ENROLLMENT_STATUS_LABELS } from "@/lib/enrollmentStatusLabels";
@@ -27,6 +27,7 @@ import { TeacherHome } from "@/modules/teaching/components/TeacherHome";
 import { getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { AchievementsCard } from "@/modules/learning/components/AchievementsCard";
 import { loadStudentRewards, type StudentRewards } from "@/modules/learning/achievementsLoader";
+import { loadStudentInvitation, type StudentInvitation } from "@/modules/graduation/studentView";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -59,6 +60,7 @@ export default async function DashboardPage() {
   let journeys: VolumeJourney[] = [];
   let rewards: StudentRewards | null = null;
   let declarationPrompts: DeclarationPrompt[] = [];
+  let graduationInvitation: StudentInvitation | null = null;
   let studentAnnouncements: StudentAnnouncement[] = [];
   let urgentAnnouncements: StudentAnnouncement[] = [];
   if (authContext.activeRole === "student") {
@@ -69,6 +71,8 @@ export default async function DashboardPage() {
     journeys = await loadStudentJourneys(supabase, authContext.userId, frequency).catch(() => []);
     rewards = await loadStudentRewards(supabase, authContext.userId, journeys).catch(() => null);
     declarationPrompts = await loadDeclarationPrompts(supabase, authContext.userId);
+    // Só aparece para quem foi convidado e com a cerimônia já publicada (o banco garante).
+    graduationInvitation = await loadStudentInvitation(supabase, authContext.userId).catch(() => null);
     // A política do banco já entrega só o que é para este aluno (geral, da turma ou do módulo dele).
     const { data: announcementRows } = await supabase
       .from("announcements")
@@ -197,6 +201,27 @@ export default async function DashboardPage() {
                   </li>
                 ))}
               </ul>
+            </Card>
+          ) : null}
+
+          {graduationInvitation ? (
+            <Card className="flex flex-wrap items-center justify-between gap-3 border-brand-blue/40 bg-brand-blue-light/40">
+              <div className="flex items-start gap-3">
+                <GraduationCap className="mt-0.5 size-5 shrink-0 text-brand-blue" aria-hidden="true" />
+                <div>
+                  <h2 className="font-semibold text-neutral-900">Formatura Makários</h2>
+                  <p className="text-sm text-neutral-700">
+                    {graduationInvitation.response === "sem_resposta"
+                      ? "Parabéns! Você foi convidado(a) para a cerimônia. Confirme se estará conosco."
+                      : graduationInvitation.response === "confirmado"
+                        ? "Sua presença está confirmada."
+                        : "Você avisou que não poderá comparecer."}
+                  </p>
+                </div>
+              </div>
+              <Link href="/formatura" className={buttonVariants({ size: "sm", variant: graduationInvitation.response === "sem_resposta" ? "primary" : "secondary" })}>
+                {graduationInvitation.response === "sem_resposta" ? "Responder ao convite" : "Ver detalhes"}
+              </Link>
             </Card>
           ) : null}
 

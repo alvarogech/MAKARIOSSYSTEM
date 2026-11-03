@@ -78,6 +78,14 @@ const ALLOWED_ACTIVE_ROLES: Record<string, RoleSlug[]> = {
   "assessments:release_answer_key": ["coordinator", "admin"],
   "assessments:grant_exceptional_attempt": ["coordinator", "admin"],
   "assessments:take": ["student"],
+  // Central de Formatura. Ver e contatar são da coordenação; reconhecer histórico
+  // anterior à plataforma (prova de conclusão) é decisão só do administrador.
+  "graduation:view": ["coordinator", "admin"],
+  "graduation:contact": ["coordinator", "admin"],
+  "graduation:validate_history": ["admin"],
+  "graduation:configure": ["coordinator", "admin"],
+  "graduation:record_rsvp": ["coordinator", "admin"],
+  "graduation:export": ["coordinator", "admin"],
   "area:student": ["student"],
   "area:teacher": ["teacher"],
   "area:coordination": ["coordinator", "admin"],

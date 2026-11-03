@@ -68,6 +68,12 @@ export type PermissionCheck =
   | { resource: "assessments"; action: "release_answer_key" }
   | { resource: "assessments"; action: "grant_exceptional_attempt" }
   | { resource: "assessments"; action: "take" }
+  | { resource: "graduation"; action: "view" }
+  | { resource: "graduation"; action: "contact" }
+  | { resource: "graduation"; action: "validate_history" }
+  | { resource: "graduation"; action: "configure" }
+  | { resource: "graduation"; action: "record_rsvp" }
+  | { resource: "graduation"; action: "export" }
   | { resource: "area"; action: "student" }
   | { resource: "area"; action: "teacher" }
   | { resource: "area"; action: "coordination" }
