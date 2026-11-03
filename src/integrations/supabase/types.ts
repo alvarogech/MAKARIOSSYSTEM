@@ -1830,6 +1830,9 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           status: string
+          student_id: string | null
+          wanted_schedule_slug: string | null
+          wanted_volume_slug: string | null
         }
         Insert: {
           cpf_hash: string
@@ -1844,6 +1847,9 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
+          student_id?: string | null
+          wanted_schedule_slug?: string | null
+          wanted_volume_slug?: string | null
         }
         Update: {
           cpf_hash?: string
@@ -1858,6 +1864,9 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
+          student_id?: string | null
+          wanted_schedule_slug?: string | null
+          wanted_volume_slug?: string | null
         }
         Relationships: [
           {

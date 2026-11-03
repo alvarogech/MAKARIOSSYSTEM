@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
 import { isValidCpf, normalizeCpf } from "@/services/cpf";
 
 /** Opções da página /ajuda. A ordem é a da tela; o código é o que vai para o banco. */
@@ -77,4 +78,87 @@ export function parseHelpRequest(raw: {
     return { ok: false, errors };
   }
   return { ok: true, data: { ...result.data, cpf: normalizeCpf(result.data.cpf) } };
+}
+
+/**
+ * Pedido de ajuste feito pelo aluno já logado, dentro da plataforma: só o que
+ * ele mesmo pode ter visto errado no próprio cadastro. Não pede CPF nem
+ * WhatsApp (o servidor sabe quem é). Quando o problema é o volume ou a turma,
+ * ele diz para onde quer ir, para a coordenação só aplicar a troca.
+ */
+export const ADJUSTMENT_PROBLEMS = HELP_PROBLEMS.filter((p) =>
+  ["turma_errada", "dados_errados", "outro"].includes(p.code),
+);
+
+const ADJUSTMENT_CODES = ADJUSTMENT_PROBLEMS.map((p) => p.code) as [HelpProblemCode, ...HelpProblemCode[]];
+const volumeSlugs = ENROLLMENT_VOLUMES.map((v) => v.slug) as [string, ...string[]];
+const scheduleSlugs = ENROLLMENT_SCHEDULES.map((s) => s.slug) as [string, ...string[]];
+
+const adjustmentSchema = z
+  .object({
+    problems: z.array(z.enum(ADJUSTMENT_CODES)).min(1, "Marque o que está errado."),
+    wantedVolume: z.string().optional(),
+    wantedSchedule: z.string().optional(),
+    message: z
+      .string()
+      .trim()
+      .max(2000, "A mensagem passou de 2.000 caracteres.")
+      .transform((v) => (v === "" ? null : v)),
+  })
+  .superRefine((v, ctx) => {
+    if (v.problems.includes("turma_errada")) {
+      if (!v.wantedVolume || !volumeSlugs.includes(v.wantedVolume)) {
+        ctx.addIssue({ code: "custom", path: ["wantedVolume"], message: "Escolha o volume em que você deveria estar." });
+      }
+      if (!v.wantedSchedule || !scheduleSlugs.includes(v.wantedSchedule)) {
+        ctx.addIssue({ code: "custom", path: ["wantedSchedule"], message: "Escolha o horário em que você deveria estar." });
+      }
+    }
+    if ((v.problems.includes("dados_errados") || v.problems.includes("outro")) && v.message === null) {
+      ctx.addIssue({ code: "custom", path: ["message"], message: "Conte no espaço em branco o que precisa ser corrigido." });
+    }
+  });
+
+export type StudentAdjustmentInput = {
+  problems: HelpProblemCode[];
+  wantedVolume: string | null;
+  wantedSchedule: string | null;
+  message: string | null;
+};
+
+export type AdjustmentParseResult =
+  | { ok: true; data: StudentAdjustmentInput }
+  | { ok: false; errors: Record<string, string> };
+
+export function parseStudentAdjustment(raw: {
+  problems: unknown[];
+  wantedVolume: unknown;
+  wantedSchedule: unknown;
+  message: unknown;
+}): AdjustmentParseResult {
+  const result = adjustmentSchema.safeParse({
+    problems: [...new Set(raw.problems.map(String))],
+    wantedVolume: String(raw.wantedVolume ?? ""),
+    wantedSchedule: String(raw.wantedSchedule ?? ""),
+    message: String(raw.message ?? ""),
+  });
+  if (!result.success) {
+    const errors: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const field = String(issue.path[0] ?? "form");
+      errors[field] ??= field === "problems" && issue.code === "invalid_value" ? "Opção inválida." : issue.message;
+    }
+    return { ok: false, errors };
+  }
+  const { problems, message } = result.data;
+  const wantsMove = problems.includes("turma_errada");
+  return {
+    ok: true,
+    data: {
+      problems,
+      wantedVolume: wantsMove ? (result.data.wantedVolume ?? null) : null,
+      wantedSchedule: wantsMove ? (result.data.wantedSchedule ?? null) : null,
+      message,
+    },
+  };
 }

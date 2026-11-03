@@ -244,6 +244,12 @@ export default async function DashboardPage() {
                 <p className="text-sm text-neutral-400">Nenhuma matrícula encontrada ainda.</p>
               ) : null}
             </div>
+            <p className="mt-3 text-xs text-neutral-500">
+              Está no volume ou na turma errada?{" "}
+              <Link href="/meu-cadastro" className="font-medium text-brand-blue hover:underline">
+                Peça o ajuste à coordenação
+              </Link>
+            </p>
             {studentSummary.volumes.some((v) => v.whatsappGroupUrl) ? (
               <div className="mt-4 rounded-[var(--radius-sm)] border border-success/30 bg-success/5 p-3">
                 <p className="text-sm font-medium text-neutral-900">Grupo de WhatsApp da sua turma</p>

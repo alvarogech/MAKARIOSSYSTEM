@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { getPublicEnv } from "@/lib/env";
+import { scheduleLabel, volumeLabel } from "@/modules/enrollment/labels";
 import { buildWhatsAppLink } from "@/services/whatsapp";
 import { setHelpRequestStatus } from "@/modules/support/actions/manageHelpRequests";
 import { helpProblemLabel } from "@/modules/support/helpRequest";
@@ -34,7 +35,7 @@ export default async function PedidosDeAjudaPage({ searchParams }: { searchParam
   const [{ data: rows }, { count: openCount }] = await Promise.all([
     supabase
       .from("help_requests")
-      .select("id, full_name, cpf_hash, cpf_last4, phone, problems, message, enrollment_request_id, status, created_at, resolved_at")
+      .select("id, full_name, cpf_hash, cpf_last4, phone, problems, message, enrollment_request_id, status, created_at, resolved_at, student_id, wanted_volume_slug, wanted_schedule_slug")
       .eq("status", showResolved ? "resolvido" : "aberto")
       .order(showResolved ? "resolved_at" : "created_at", { ascending: !showResolved })
       .limit(200),
@@ -124,12 +125,19 @@ export default async function PedidosDeAjudaPage({ searchParams }: { searchParam
                     </p>
                   </div>
                   {r.enrollment_request_id ? (
-                    <Link
-                      href={`/coordenacao/alunos/${r.enrollment_request_id}`}
-                      className="text-sm font-medium text-brand-blue hover:underline"
-                    >
-                      Abrir ficha do aluno
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {r.student_id ? (
+                        <span className="rounded-full bg-brand-blue-light px-2 py-0.5 text-xs text-brand-blue-dark">
+                          Pedido feito logado na conta do aluno
+                        </span>
+                      ) : null}
+                      <Link
+                        href={`/coordenacao/alunos/${r.enrollment_request_id}`}
+                        className="text-sm font-medium text-brand-blue hover:underline"
+                      >
+                        Abrir ficha do aluno
+                      </Link>
+                    </div>
                   ) : (
                     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800">CPF sem inscrição</span>
                   )}
@@ -143,6 +151,19 @@ export default async function PedidosDeAjudaPage({ searchParams }: { searchParam
                       </li>
                     ))}
                   </ul>
+                ) : null}
+
+                {r.wanted_volume_slug && r.wanted_schedule_slug ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-brand-blue/30 bg-brand-blue-light px-3 py-2 text-sm text-brand-blue-dark">
+                    <span>
+                      Quer ir para: <strong>{volumeLabel(r.wanted_volume_slug)}</strong> · {scheduleLabel(r.wanted_schedule_slug)}
+                    </span>
+                    {r.enrollment_request_id ? (
+                      <Link href={`/coordenacao/inscricoes?detail=${r.enrollment_request_id}`} className="font-medium underline">
+                        Trocar na inscrição →
+                      </Link>
+                    ) : null}
+                  </div>
                 ) : null}
 
                 {r.message ? (

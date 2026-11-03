@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseHelpRequest } from "@/modules/support/helpRequest";
+import { parseHelpRequest, parseStudentAdjustment } from "@/modules/support/helpRequest";
 
 // CPF válido de exemplo (dígitos verificadores corretos), não é de ninguém.
 const base = { fullName: "Maria da Silva", cpf: "529.982.247-25", phone: "(62) 99999-0000", problems: ["login"], message: "" };
@@ -39,5 +39,36 @@ describe("parseHelpRequest", () => {
     expect(parseHelpRequest({ ...base, problems: ["hackear"] }).ok).toBe(false);
     const r = parseHelpRequest({ ...base, problems: ["login", "login", "convite"] });
     expect(r.ok && r.data.problems).toEqual(["login", "convite"]);
+  });
+});
+
+describe("parseStudentAdjustment", () => {
+  const adj = { problems: ["turma_errada"], wantedVolume: "caminho", wantedSchedule: "sabado", message: "" };
+
+  it("aceita troca de volume/turma com o destino e mensagem vazia", () => {
+    const r = parseStudentAdjustment(adj);
+    expect(r).toEqual({ ok: true, data: { problems: ["turma_errada"], wantedVolume: "caminho", wantedSchedule: "sabado", message: null } });
+  });
+
+  it("troca de turma exige volume e horário de destino", () => {
+    const r = parseStudentAdjustment({ ...adj, wantedVolume: "", wantedSchedule: "" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["wantedSchedule", "wantedVolume"]);
+  });
+
+  it("recusa volume ou horário que não existem", () => {
+    expect(parseStudentAdjustment({ ...adj, wantedVolume: "inexistente" }).ok).toBe(false);
+    expect(parseStudentAdjustment({ ...adj, wantedSchedule: "domingo" }).ok).toBe(false);
+  });
+
+  it("dados errados e outro exigem explicação; destino é descartado quando não é troca", () => {
+    expect(parseStudentAdjustment({ ...adj, problems: ["dados_errados"] }).ok).toBe(false);
+    const r = parseStudentAdjustment({ ...adj, problems: ["dados_errados"], message: "Meu nome está com erro" });
+    expect(r.ok && r.data.wantedVolume).toBeNull();
+  });
+
+  it("exige marcar alguma coisa e recusa opções fora da lista do aluno", () => {
+    expect(parseStudentAdjustment({ ...adj, problems: [] }).ok).toBe(false);
+    expect(parseStudentAdjustment({ ...adj, problems: ["login"] }).ok).toBe(false);
   });
 });
