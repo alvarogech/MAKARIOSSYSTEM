@@ -6,6 +6,8 @@ interface FakeUser { id: string; phone: string | null; email: string | null }
 let users: FakeUser[] = [];
 let profiles: { id: string; access_code: string | null }[] = [];
 let updateFails = false;
+/** Simula a chave de servidor ausente: criar o cliente administrativo lança erro. */
+let adminBroken = false;
 /** Senha certa de cada login (e-mail); o resto é recusado. */
 let passwords: Record<string, string> = {};
 const signInCalls: { email?: string; phone?: string }[] = [];
@@ -51,7 +53,12 @@ const server = {
   },
 };
 
-vi.mock("@/integrations/supabase/admin", () => ({ createSupabaseAdminClient: () => admin }));
+vi.mock("@/integrations/supabase/admin", () => ({
+  createSupabaseAdminClient: () => {
+    if (adminBroken) throw new Error("chave de servidor ausente");
+    return admin;
+  },
+}));
 vi.mock("@/integrations/supabase/server", () => ({ createSupabaseServerClient: async () => server }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -78,6 +85,7 @@ beforeEach(() => {
   profiles = [];
   passwords = {};
   updateFails = false;
+  adminBroken = false;
   signInCalls.length = 0;
   adminCalls.length = 0;
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -157,6 +165,31 @@ describe("signIn", () => {
     expect(result.error).toBe("E-mail/código de acesso ou senha inválidos.");
     expect(signInCalls).toHaveLength(1);
     expect(adminCalls).not.toContain("updateUserById");
+  });
+
+  it("conta antiga com senha errada: é preparada, tenta de novo, e a tela mostra só a frase genérica", async () => {
+    users = [{ id: "U1", phone: CODE, email: null }];
+    profiles = [{ id: "U1", access_code: CODE }];
+    passwords[LOGIN] = "Senha123";
+    const result = await signIn({}, form(CODE, "errada"));
+    expect(result.error).toBe("E-mail/código de acesso ou senha inválidos.");
+    // O preparo não depende da senha e não dá acesso: só deixa a conta pronta para o dono entrar.
+    expect(users[0]?.email).toBe(LOGIN);
+    expect(signInCalls).toHaveLength(2);
+    // Na vez seguinte, com a senha certa, entra de primeira.
+    signInCalls.length = 0;
+    await expect(signIn({}, form(CODE, "Senha123"))).rejects.toThrow("REDIRECT:/dashboard");
+    expect(signInCalls).toHaveLength(1);
+  });
+
+  it("falha do cliente administrativo não derruba o login: frase genérica e nada gravado", async () => {
+    users = [{ id: "U1", phone: CODE, email: null }];
+    profiles = [{ id: "U1", access_code: CODE }];
+    adminBroken = true;
+    const result = await signIn({}, form(CODE, "Senha123"));
+    expect(result.error).toBe("E-mail/código de acesso ou senha inválidos.");
+    expect(users[0]?.email).toBeNull();
+    expect(signInCalls).toHaveLength(1);
   });
 
   it("código que não existe não cria nada e devolve a frase genérica", async () => {
