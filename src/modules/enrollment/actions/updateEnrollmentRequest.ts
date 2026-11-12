@@ -8,7 +8,7 @@ import { can, getAuthContext } from "@/authorization";
 import { ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
 import { escapeIlike } from "@/modules/auth/lookupTeacherCandidate";
 import { volumeLabel, scheduleLabel } from "../labels";
-import { DUPLICATE_EMAIL_MESSAGE, findEnrollmentConflict } from "../duplicateCheck";
+import { DUPLICATE_EMAIL_MESSAGE, findEnrollmentConflict, isEmailChange } from "../duplicateCheck";
 import { resolveCourseForSlugs, type ResolvedCourse } from "../studentInvite";
 
 export interface UpdateEnrollmentRequestState {
@@ -98,7 +98,7 @@ export async function updateEnrollmentRequest(
     return { error: "Só dá para editar inscrições pendentes ou aprovadas." };
   }
 
-  const emailChanged = input.email !== request.email.trim().toLowerCase();
+  const emailChanged = isEmailChange(input.email, request.email);
   if (request.student_id && emailChanged) {
     return {
       error:

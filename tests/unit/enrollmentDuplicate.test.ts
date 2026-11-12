@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 interface Row { id: string; email: string; cpf_hash: string; status: string; season_id: string }
 let rows: Row[] = [];
 let inserted: unknown[] = [];
+/** Falhas de mentira e contagem de leituras, para os casos de borda. */
+let insertError: { code: string } | null = null;
+let queryFails = false;
+let reads = 0;
 
 /** Banco de mentira: aplica só os filtros que a regra usa. */
 function fakeAdmin() {
@@ -26,9 +30,15 @@ function fakeAdmin() {
           return chain;
         },
         limit: () => chain,
-        insert: async (row: unknown) => (inserted.push(row), { error: null }),
-        then: (resolve: (v: unknown) => void) =>
-          resolve({ data: rows.filter((r) => filters.every((f) => f(r))), error: null }),
+        insert: async (row: unknown) => (insertError ? { error: insertError } : (inserted.push(row), { error: null })),
+        then: (resolve: (v: unknown) => void) => {
+          reads += 1;
+          return resolve(
+            queryFails
+              ? { data: null, error: { message: "tempo esgotado" } }
+              : { data: rows.filter((r) => filters.every((f) => f(r))), error: null },
+          );
+        },
       };
       return chain;
     },
@@ -40,7 +50,7 @@ vi.mock("@/modules/enrollment/dataProtection", () => ({
   protectCpf: (cpf: string) => ({ encrypted: "x", hash: `h-${cpf}`, last4: cpf.slice(-4) }),
 }));
 
-import { findEnrollmentConflict } from "@/modules/enrollment/duplicateCheck";
+import { DUPLICATE_CPF_MESSAGE, findEnrollmentConflict, isEmailChange } from "@/modules/enrollment/duplicateCheck";
 import { submitEnrollmentRequest } from "@/modules/enrollment/actions/submitEnrollmentRequest";
 
 const base = (over: Partial<Row> = {}): Row => ({
@@ -58,7 +68,7 @@ function form(over: Record<string, string> = {}) {
   return f;
 }
 
-beforeEach(() => { rows = []; inserted = []; });
+beforeEach(() => { rows = []; inserted = []; insertError = null; queryFails = false; reads = 0; });
 
 describe("findEnrollmentConflict", () => {
   it("acha CPF repetido", async () => {
@@ -106,5 +116,38 @@ describe("submitEnrollmentRequest com repetição", () => {
     const r = await submitEnrollmentRequest({}, form());
     expect(r.success).toBe(true);
     expect(inserted).toHaveLength(1);
+  });
+});
+
+describe("submitEnrollmentRequest nos casos de borda", () => {
+  it("honeypot preenchido responde sucesso sem consultar nem gravar, mesmo com CPF repetido", async () => {
+    rows = [base()];
+    const r = await submitEnrollmentRequest({}, form({ website: "https://robo.teste" }));
+    expect(r.success).toBe(true);
+    expect(reads).toBe(0);
+    expect(inserted).toHaveLength(0);
+  });
+  it("corrida de dois envios do mesmo CPF: o índice único do banco vira a frase de CPF no campo cpf", async () => {
+    insertError = { code: "23505" };
+    const r = await submitEnrollmentRequest({}, form());
+    expect(r.success).toBeUndefined();
+    expect(r.error).toBe(DUPLICATE_CPF_MESSAGE);
+    expect(r.fieldErrors?.cpf).toEqual([DUPLICATE_CPF_MESSAGE]);
+  });
+  it("banco falhando na conferência não deixa passar: pede para tentar de novo e não grava", async () => {
+    queryFails = true;
+    const r = await submitEnrollmentRequest({}, form());
+    expect(r.success).toBeUndefined();
+    expect(r.error).toContain("Tente novamente");
+    expect(inserted).toHaveLength(0);
+  });
+});
+
+describe("isEmailChange (edição pela coordenação)", () => {
+  it("mesmo e-mail com maiúscula ou espaço diferente não é troca: inscrição antiga repetida segue editável", () => {
+    expect(isEmailChange("ana@teste.local", " Ana@Teste.local ")).toBe(false);
+  });
+  it("e-mail diferente é troca e passa pela conferência", () => {
+    expect(isEmailChange("ana2@teste.local", "ana@teste.local")).toBe(true);
   });
 });

@@ -9,7 +9,8 @@ export const DUPLICATE_CPF_MESSAGE =
   "Já existe uma inscrição com este CPF neste semestre. Se precisar corrigir alguma informação, fale com a coordenação da Escola Makários.";
 
 export const DUPLICATE_EMAIL_MESSAGE =
-  "Este e-mail já foi usado em outra inscrição. Cada pessoa precisa de um e-mail só dela (marido e esposa, pais e filhos: cada um com o seu).";
+  "Este e-mail já foi usado em outra inscrição. Cada pessoa precisa de um e-mail só dela (marido e esposa, pais e filhos: cada um com o seu). " +
+  "Se a inscrição já é sua, não precisa enviar de novo: fale com a coordenação da Escola Makários.";
 
 export interface DuplicateCandidate {
   seasonId: string;
@@ -22,6 +23,11 @@ export interface DuplicateCandidate {
 
 export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/** Na edição pela coordenação: só é troca de e-mail se mudar além de maiúsculas e espaços. */
+export function isEmailChange(nextEmail: string, currentEmail: string): boolean {
+  return normalizeEmail(nextEmail) !== normalizeEmail(currentEmail);
 }
 
 /** Só inscrição pendente ou aprovada conta; recusada e cancelada liberam o dado. */
