@@ -20,6 +20,7 @@ export function QuestionPanel({
   onToggle,
   onClear,
   onConfirm,
+  onReload,
 }: {
   question: AssessmentAttemptQuestion;
   total: number;
@@ -31,6 +32,7 @@ export function QuestionPanel({
   onToggle: (optionId: string) => void;
   onClear: () => void;
   onConfirm: () => void;
+  onReload: () => void;
 }) {
   const multiple = question.selectionMode === "multiple";
   const pending = !isConfirmed && selected.length > 0;
@@ -106,7 +108,7 @@ export function QuestionPanel({
               </Button>
             </div>
           ) : null}
-          {failure ? <ConfirmFailureNotice failure={failure} retrying={confirming} onRetry={onConfirm} /> : null}
+          {failure ? <ConfirmFailureNotice failure={failure} retrying={confirming} onRetry={onConfirm} onReload={onReload} /> : null}
           <p className="text-xs text-neutral-500">
             Ao confirmar, a resposta é salva e não poderá ser alterada, e só a primeira confirmação conta. Depois de confirmar, você segue para a próxima questão. Para sair sem responder, toque em Limpar marcação.
           </p>

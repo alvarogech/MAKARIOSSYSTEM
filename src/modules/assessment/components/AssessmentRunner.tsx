@@ -11,13 +11,14 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Button } from "@/components/ui/Button";
+import { readQuestionIndex, saveQuestionIndex } from "./savedPosition";
 import { AssessmentNavBar } from "./AssessmentNavBar";
 import { AssessmentSummary } from "./AssessmentSummary";
 import { PENDING_NOTICE_ID, QuestionPanel } from "./QuestionPanel";
 import {
   LAST_CONFIRM_WAIT_MS,
   LOAD_NETWORK_NOTICE,
-  NETWORK_NOTICE,
+  networkNotice,
   SEND_NETWORK_NOTICE,
   STATE_LABEL,
   type ConfirmFailure,
@@ -63,6 +64,7 @@ export function AssessmentRunner({
   const [sendError, setSendError] = useState<string | null>(null);
   const [timeUp, setTimeUp] = useState(false);
   const sendingRef = useRef(false);
+  const leavingRef = useRef(false);
   const pendingRef = useRef<{ questionId: string; optionIds: string[] } | null>(null);
   const lowTimeAnnounced = useRef(false);
   const [lowTimeMessage, setLowTimeMessage] = useState("");
@@ -83,9 +85,14 @@ export function AssessmentRunner({
           const sorted = [...(res.questions ?? [])].sort((a, b) => a.position - b.position);
           setQuestions(sorted);
           setConfirmed(Object.fromEntries(sorted.map((q) => [q.questionId, q.answered])));
-          // Depois de recarregar, abre onde a pessoa parou: a primeira questão ainda não confirmada.
+          // Depois de recarregar, abre onde a pessoa parou: tudo confirmado vai direto à revisão; senão a
+          // questão guardada para esta tentativa; sem nada guardado, a primeira ainda não confirmada.
           const firstOpen = sorted.findIndex((q) => !q.answered);
-          setIndex(firstOpen === -1 ? 0 : firstOpen);
+          if (sorted.length > 0 && firstOpen === -1) {
+            setView("summary");
+          } else {
+            setIndex(readQuestionIndex(attemptId, sorted.length) ?? Math.max(firstOpen, 0));
+          }
         }
         setLoading(false);
       })
@@ -98,6 +105,12 @@ export function AssessmentRunner({
       cancelled = true;
     };
   }, [attemptId]);
+
+  /** Recarregar de propósito: desliga o aviso "Sair do site?" do navegador antes de recarregar. */
+  const reload = useCallback(() => {
+    leavingRef.current = true;
+    window.location.reload();
+  }, []);
 
   const send = useCallback(async () => {
     if (sendingRef.current) return;
@@ -120,7 +133,11 @@ export function AssessmentRunner({
     setSending(false);
   }, [attemptId, assessmentId, router]);
 
-  /** Tempo zerou: tenta salvar a marcação pendente (o servidor decide se ainda estava no prazo) e envia. */
+  /**
+   * Tempo zerou: tenta salvar a marcação pendente (o servidor decide se ainda estava no prazo) e envia.
+   * A espera de LAST_CONFIRM_WAIT_MS não é um teto: o Next enfileira as ações, então o envio pode esperar
+   * mais se a confirmação ficar pendurada (ver runnerState.ts).
+   */
   const closeByTime = useCallback(async () => {
     const pending = pendingRef.current;
     if (pending) {
@@ -171,11 +188,11 @@ export function AssessmentRunner({
       } else if (/esgotou|encerrada/i.test(res.error ?? "")) {
         void send();
       } else {
-        setFailure({ message: res.error ?? "Não foi possível confirmar a resposta.", canReload: true });
+        setFailure({ message: res.error ?? "Não foi possível confirmar a resposta." });
       }
     } catch {
       // Rede caiu, ou o site foi atualizado com a prova aberta e a ação do servidor mudou.
-      setFailure({ message: NETWORK_NOTICE, canReload: true });
+      setFailure({ message: networkNotice(question.position) });
     } finally {
       setConfirmingId(null);
     }
@@ -213,6 +230,7 @@ export function AssessmentRunner({
   useEffect(() => {
     if (!lockedNow) return;
     const warn = (event: BeforeUnloadEvent) => {
+      if (leavingRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -220,13 +238,18 @@ export function AssessmentRunner({
     return () => window.removeEventListener("beforeunload", warn);
   }, [lockedNow]);
 
+  // Guarda a questão atual para o Recarregar voltar para ela.
+  useEffect(() => {
+    if (!loading && questions.length > 0 && view === "questions") saveQuestionIndex(attemptId, index);
+  }, [loading, questions.length, view, index, attemptId]);
+
   if (loading) return <LoadingState label="Carregando avaliação..." />;
   if (error && questions.length === 0) {
     return (
       <Alert variant="danger">
         <div className="min-w-0">
           <p>{error}</p>
-          <Button type="button" className="mt-2" onClick={() => window.location.reload()}>
+          <Button type="button" className="mt-2" onClick={reload}>
             Recarregar
           </Button>
         </div>
@@ -346,6 +369,7 @@ export function AssessmentRunner({
             setSelections((prev) => ({ ...prev, [question.questionId]: [] }));
           }}
           onConfirm={() => void handleConfirm(question)}
+          onReload={reload}
         />
       ) : null}
 
