@@ -10,20 +10,22 @@ export const STATE_LABEL: Record<QuestionState, string> = {
 
 export const PENDING_NOTICE = "Confirme a sua resposta antes de mudar de questão.";
 
-export const NETWORK_NOTICE =
-  "Não conseguimos salvar esta resposta. O que você já confirmou está salvo e o tempo continua correndo. Toque em Recarregar e marque esta resposta de novo.";
+export const networkNotice = (questionNumber: number) =>
+  `Não conseguimos salvar esta resposta. O que você já confirmou está salvo e o tempo continua correndo. Toque em Recarregar e marque de novo a resposta da questão ${questionNumber}.`;
 
 export const SEND_NETWORK_NOTICE =
   "Não foi possível enviar agora. Suas respostas confirmadas continuam salvas. Verifique a internet e tente de novo.";
 
 export interface ConfirmFailure {
   message: string;
-  /** Todo erro que não é regra de prova (rede, ação do servidor que sumiu, sessão) oferece "Recarregar". */
-  canReload: boolean;
 }
 
 export const LOAD_NETWORK_NOTICE =
   "Não conseguimos carregar a prova. As respostas que você já confirmou estão salvas e o tempo continua correndo. Toque em Recarregar.";
 
-/** Quanto esperar, no máximo, pela última confirmação quando o tempo acaba. */
+/**
+ * Quanto esperar pela última confirmação quando o tempo acaba, antes de pedir o envio. Não é um teto
+ * para o envio: o Next manda as ações do servidor em fila, então se a confirmação ficar pendurada o
+ * envio espera atrás dela. A varredura do banco encerra a tentativa em até 1 minuto de qualquer jeito.
+ */
 export const LAST_CONFIRM_WAIT_MS = 4000;

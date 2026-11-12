@@ -9,10 +9,12 @@ export function ConfirmFailureNotice({
   failure,
   retrying,
   onRetry,
+  onReload,
 }: {
   failure: ConfirmFailure;
   retrying: boolean;
   onRetry: () => void;
+  onReload: () => void;
 }) {
   return (
     <Alert variant="danger">
@@ -22,11 +24,9 @@ export function ConfirmFailureNotice({
         <Button type="button" size="md" variant="secondary" isLoading={retrying} onClick={onRetry}>
           Tentar de novo
         </Button>
-        {failure.canReload ? (
-          <Button type="button" size="md" onClick={() => window.location.reload()}>
-            Recarregar
-          </Button>
-          ) : null}
+        <Button type="button" size="md" onClick={onReload}>
+          Recarregar
+        </Button>
         </div>
       </div>
     </Alert>
