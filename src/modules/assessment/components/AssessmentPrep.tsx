@@ -72,10 +72,10 @@ export function AssessmentPrep({
       <div>
         <h2 className="text-sm font-semibold text-neutral-900">Como funciona</h2>
         <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-5 text-sm text-neutral-700">
-          <li>Uma questão por vez. Você pode ir e voltar entre elas pela numeração.</li>
+          <li>Uma questão por vez. Você pode ir e voltar entre elas pela numeração, mas só depois de confirmar a resposta da questão em que está (ou tocar em Limpar marcação, para sair sem responder).</li>
           <li>
-            <strong>Confirme cada resposta.</strong> Ao confirmar, ela é salva e não pode ser alterada — só a primeira confirmação conta. Resposta marcada e não
-            confirmada não é salva.
+            <strong>Confirme cada resposta.</strong> Ao confirmar, ela é salva e não pode ser alterada, e só a primeira confirmação conta. Depois de confirmar, a prova vai
+            para a próxima questão. Resposta marcada e não confirmada não é salva, por isso a prova não deixa você sair dela sem confirmar.
           </li>
           <li>O tempo é controlado pelo servidor: recarregar ou sair e voltar não reinicia o relógio.</li>
           <li>Você pode enviar com questões sem resposta; elas não pontuam. O envio é definitivo.</li>
