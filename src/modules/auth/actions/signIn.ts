@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { loginSchema } from "../schemas";
-import { normalizeAccessCode } from "../accessCode";
+import { accessCodeLoginEmail, normalizeAccessCode } from "../accessCode";
+import { prepareAccessCodeLogin } from "../accessCodeLogin";
 
 export interface SignInState {
   error?: string;
@@ -23,19 +25,31 @@ export async function signIn(
   }
 
   const supabase = await createSupabaseServerClient();
-  // E-mail (professor/coordenação/admin/aluno antigo) tem "@"; código de
-  // acesso (aluno novo, formato 999-123-456) não tem — nunca os dois ao
-  // mesmo tempo, então o formato já diz qual credencial o Supabase espera.
-  // O código aceita "-" ou espaços na digitação; normalizeAccessCode tira
-  // tudo que não é dígito antes de comparar com auth.users.phone.
-  const credential = parsed.data.identifier.includes("@")
-    ? { email: parsed.data.identifier.trim().toLowerCase() }
-    : { phone: normalizeAccessCode(parsed.data.identifier) };
+  const password = parsed.data.password;
+  // E-mail (professor/coordenação/admin/maioria dos alunos) tem "@"; código de
+  // acesso (aluno que divide o e-mail com um familiar, formato 999-123-456) não tem.
+  // O código aceita "-" ou espaços na digitação.
+  const isEmail = parsed.data.identifier.includes("@");
+  // A conta por código entra pelo e-mail técnico dela: o login por telefone do
+  // Supabase depende do provedor Phone, que fica desligado no projeto.
+  const code = isEmail ? "" : normalizeAccessCode(parsed.data.identifier);
+  const email = isEmail ? parsed.data.identifier.trim().toLowerCase() : accessCodeLoginEmail(code);
 
-  const { error } = await supabase.auth.signInWithPassword({
-    ...credential,
-    password: parsed.data.password,
-  });
+  let { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  // Conta por código criada antes desta correção ainda não tem o e-mail técnico:
+  // prepara a conta (sem tocar na senha) e tenta de novo, uma vez só.
+  if (error && !isEmail) {
+    let prepared = false;
+    try {
+      prepared = await prepareAccessCodeLogin(createSupabaseAdminClient(), code);
+    } catch (prepareError) {
+      console.error("Falha ao preparar o login por código:", prepareError);
+    }
+    if (prepared) {
+      ({ error } = await supabase.auth.signInWithPassword({ email, password }));
+    }
+  }
 
   if (error) {
     // Mensagem genérica de propósito — nunca revela se a credencial existe

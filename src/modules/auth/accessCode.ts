@@ -51,3 +51,21 @@ export function formatAccessCode(code: string): string {
 export function normalizeAccessCode(input: string): string {
   return input.replace(/\D/g, "");
 }
+
+/** Formato válido de um código de acesso já sem traço nem espaço. */
+export function isAccessCode(value: string): boolean {
+  return /^999\d{6}$/.test(value);
+}
+
+// Domínio reservado para teste e uso interno (RFC 2606): nenhum e-mail enviado para ele é entregue.
+const LOGIN_EMAIL_DOMAIN = "makarios.invalid";
+
+/**
+ * E-mail técnico de login da conta por código. O Supabase só aceita login por
+ * telefone com o provedor Phone ligado no projeto, e ele fica desligado; por
+ * isso a conta por código também ganha este e-mail, usado só para entrar.
+ * Não é o e-mail de contato do aluno (esse fica em profiles.email).
+ */
+export function accessCodeLoginEmail(code: string): string {
+  return `${normalizeAccessCode(code)}@${LOGIN_EMAIL_DOMAIN}`;
+}
