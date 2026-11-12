@@ -7,7 +7,8 @@ import { acceptStudentInvitationSchema } from "../schemas";
 import { hashInviteToken } from "@/modules/auth/inviteTokens";
 import { checkRateLimit, getClientIp } from "@/modules/auth/rateLimit";
 import { escapeIlike, normalizeEmail } from "@/modules/auth/lookupTeacherCandidate";
-import { formatAccessCode, generateUniqueAccessCode } from "@/modules/auth/accessCode";
+import { accessCodeLoginEmail, formatAccessCode, generateUniqueAccessCode } from "@/modules/auth/accessCode";
+import { attachAccessCodeLoginEmail } from "@/modules/auth/accessCodeLogin";
 import { sendMail } from "@/modules/notifications/mailer";
 import { ALREADY_HAS_ACCOUNT_MESSAGE, findExistingAccountForPerson } from "../existingAccount";
 
@@ -241,12 +242,16 @@ export async function acceptStudentInvitation(
 
   await finalizeStudentEnrollment(admin, studentId, invitation, nowIso);
 
+  // Conta por código entra pelo e-mail técnico (o login por telefone do Supabase fica desligado no projeto).
+  if (useAccessCode) {
+    await attachAccessCodeLoginEmail(admin, studentId, accessCode!);
+  }
+
   const supabase = await createSupabaseServerClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword(
-    useAccessCode
-      ? { phone: accessCode!, password: parsed.data.password }
-      : { email: contactEmail, password: parsed.data.password },
-  );
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: useAccessCode ? accessCodeLoginEmail(accessCode!) : contactEmail,
+    password: parsed.data.password,
+  });
 
   if (signInError) {
     console.error("Falha ao autenticar logo após criar a conta do aluno:", signInError);
