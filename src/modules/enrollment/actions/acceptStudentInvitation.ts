@@ -249,7 +249,11 @@ export async function acceptStudentInvitation(
   );
 
   if (signInError) {
-    console.error("Falha ao autenticar logo após criar a conta do aluno:", signInError);
+    console.error("Falha ao autenticar logo após criar a conta do aluno:", {
+      code: signInError.code,
+      status: signInError.status,
+      message: signInError.message,
+    });
   }
 
   try {
