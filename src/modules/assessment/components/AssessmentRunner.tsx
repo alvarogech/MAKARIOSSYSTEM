@@ -10,10 +10,13 @@ import {
 } from "../actions/attemptActions";
 import { Alert } from "@/components/ui/Alert";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { Button } from "@/components/ui/Button";
 import { AssessmentNavBar } from "./AssessmentNavBar";
 import { AssessmentSummary } from "./AssessmentSummary";
 import { PENDING_NOTICE_ID, QuestionPanel } from "./QuestionPanel";
 import {
+  LAST_CONFIRM_WAIT_MS,
+  LOAD_NETWORK_NOTICE,
   NETWORK_NOTICE,
   SEND_NETWORK_NOTICE,
   STATE_LABEL,
@@ -60,6 +63,7 @@ export function AssessmentRunner({
   const [sendError, setSendError] = useState<string | null>(null);
   const [timeUp, setTimeUp] = useState(false);
   const sendingRef = useRef(false);
+  const pendingRef = useRef<{ questionId: string; optionIds: string[] } | null>(null);
   const lowTimeAnnounced = useRef(false);
   const [lowTimeMessage, setLowTimeMessage] = useState("");
 
@@ -70,17 +74,26 @@ export function AssessmentRunner({
 
   useEffect(() => {
     let cancelled = false;
-    getAssessmentAttemptQuestions(attemptId).then((res) => {
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(res.error ?? "Não foi possível carregar as questões.");
-      } else {
-        const sorted = [...(res.questions ?? [])].sort((a, b) => a.position - b.position);
-        setQuestions(sorted);
-        setConfirmed(Object.fromEntries(sorted.map((q) => [q.questionId, q.answered])));
-      }
-      setLoading(false);
-    });
+    getAssessmentAttemptQuestions(attemptId)
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(res.error ?? "Não foi possível carregar as questões.");
+        } else {
+          const sorted = [...(res.questions ?? [])].sort((a, b) => a.position - b.position);
+          setQuestions(sorted);
+          setConfirmed(Object.fromEntries(sorted.map((q) => [q.questionId, q.answered])));
+          // Depois de recarregar, abre onde a pessoa parou: a primeira questão ainda não confirmada.
+          const firstOpen = sorted.findIndex((q) => !q.answered);
+          setIndex(firstOpen === -1 ? 0 : firstOpen);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(LOAD_NETWORK_NOTICE);
+        setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -107,6 +120,27 @@ export function AssessmentRunner({
     setSending(false);
   }, [attemptId, assessmentId, router]);
 
+  /** Tempo zerou: tenta salvar a marcação pendente (o servidor decide se ainda estava no prazo) e envia. */
+  const closeByTime = useCallback(async () => {
+    const pending = pendingRef.current;
+    if (pending) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          submitAssessmentAnswer(attemptId, pending.questionId, pending.optionIds),
+          new Promise((resolve) => {
+            timer = setTimeout(resolve, LAST_CONFIRM_WAIT_MS);
+          }),
+        ]);
+      } catch {
+        // Sem rede ou fora do prazo: segue para o envio com o que já estava confirmado.
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    await send();
+  }, [attemptId, send]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       const left = Math.floor((deadlineMs - (Date.now() + clockOffsetMs)) / 1000);
@@ -118,11 +152,11 @@ export function AssessmentRunner({
       if (left <= 0) {
         clearInterval(interval);
         setTimeUp(true);
-        void send();
+        void closeByTime();
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [deadlineMs, clockOffsetMs, send]);
+  }, [deadlineMs, clockOffsetMs, closeByTime]);
 
   async function handleConfirm(question: AssessmentAttemptQuestion) {
     const selected = selections[question.questionId] ?? [];
@@ -137,11 +171,11 @@ export function AssessmentRunner({
       } else if (/esgotou|encerrada/i.test(res.error ?? "")) {
         void send();
       } else {
-        setFailure({ message: res.error ?? "Não foi possível confirmar a resposta.", network: false });
+        setFailure({ message: res.error ?? "Não foi possível confirmar a resposta.", canReload: true });
       }
     } catch {
       // Rede caiu, ou o site foi atualizado com a prova aberta e a ação do servidor mudou.
-      setFailure({ message: NETWORK_NOTICE, network: true });
+      setFailure({ message: NETWORK_NOTICE, canReload: true });
     } finally {
       setConfirmingId(null);
     }
@@ -164,8 +198,41 @@ export function AssessmentRunner({
     });
   }
 
+  const currentQuestion = questions[index];
+  const lockedNow =
+    view === "questions" &&
+    Boolean(currentQuestion) &&
+    !confirmed[currentQuestion!.questionId] &&
+    (selections[currentQuestion!.questionId]?.length ?? 0) > 0;
+
+  useEffect(() => {
+    pendingRef.current = lockedNow ? { questionId: currentQuestion!.questionId, optionIds: selections[currentQuestion!.questionId]! } : null;
+  }, [lockedNow, currentQuestion, selections]);
+
+  // Marcação pendente se perde ao recarregar ou fechar a página: pede confirmação do navegador.
+  useEffect(() => {
+    if (!lockedNow) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [lockedNow]);
+
   if (loading) return <LoadingState label="Carregando avaliação..." />;
-  if (error && questions.length === 0) return <Alert variant="danger">{error}</Alert>;
+  if (error && questions.length === 0) {
+    return (
+      <Alert variant="danger">
+        <div className="min-w-0">
+          <p>{error}</p>
+          <Button type="button" className="mt-2" onClick={() => window.location.reload()}>
+            Recarregar
+          </Button>
+        </div>
+      </Alert>
+    );
+  }
 
   const stateOf = (question: AssessmentAttemptQuestion, i: number): QuestionState =>
     i === index && view === "questions"
@@ -184,8 +251,7 @@ export function AssessmentRunner({
 
   const question = questions[index];
   // Resposta marcada e não confirmada na questão atual: nada de sair dela.
-  const locked =
-    view === "questions" && Boolean(question) && !confirmed[question!.questionId] && (selections[question!.questionId]?.length ?? 0) > 0;
+  const locked = lockedNow;
 
   return (
     <div className="flex flex-col gap-4">
@@ -197,7 +263,7 @@ export function AssessmentRunner({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span role="timer" className="font-medium">
             Tempo restante {formatRemaining(remainingSeconds)}
-            {isLowTime ? " — menos de 5 minutos" : ""}
+            {isLowTime ? " (menos de 5 minutos)" : ""}
           </span>
           <span className="text-neutral-700">
             {confirmedCount} de {questions.length} respondidas
@@ -219,7 +285,7 @@ export function AssessmentRunner({
       </div>
 
       {timeUp ? <Alert variant="info">O tempo acabou. Estamos enviando as respostas que você confirmou…</Alert> : null}
-      {sendError ? (
+      {sendError && view !== "summary" ? (
         <Alert variant="danger">
           {sendError}{" "}
           <button type="button" className="font-medium underline" onClick={() => void send()}>
@@ -243,7 +309,7 @@ export function AssessmentRunner({
                 aria-label={`Ir para a questão ${i + 1} (${STATE_LABEL[state]})`}
                 aria-current={state === "atual" ? "step" : undefined}
                 className={
-                  "relative size-9 rounded-full border text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue " +
+                  "relative size-11 rounded-full border text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue " +
                   (state === "atual"
                     ? "border-brand-blue bg-brand-blue text-white"
                     : state === "confirmada"
@@ -287,6 +353,7 @@ export function AssessmentRunner({
         <AssessmentSummary
           items={questions.map((q) => ({ id: q.questionId, prompt: q.prompt, state: plainState(q) }))}
           sending={sending}
+          sendError={sendError}
           onOpen={(i) => {
             setIndex(i);
             setView("questions");

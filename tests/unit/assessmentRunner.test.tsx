@@ -186,7 +186,7 @@ describe("AssessmentRunner", () => {
     await user.click(screen.getByLabelText("Alt A"));
     await user.click(screen.getByRole("button", { name: "Confirmar resposta" }));
 
-    expect(await screen.findByText(/Não conseguimos salvar esta resposta\. O que você já confirmou está salvo e o tempo continua correndo\. Toque em Recarregar para continuar de onde parou\./)).toBeTruthy();
+    expect(await screen.findByText(/Não conseguimos salvar esta resposta\. O que você já confirmou está salvo e o tempo continua correndo\. Toque em Recarregar e marque esta resposta de novo\./)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Recarregar" })).toBeTruthy();
     // A trava foi solta: o botão não está bloqueado, e a tela segue na mesma questão.
     expect((screen.getByRole("button", { name: "Confirmar resposta" }) as HTMLButtonElement).disabled).toBe(false);
@@ -196,15 +196,15 @@ describe("AssessmentRunner", () => {
     expect(submitAnswer).toHaveBeenCalledTimes(2);
   });
 
-  it("erro devolvido pelo servidor ao confirmar aparece abaixo do botão, sem pedir para recarregar", async () => {
+  it("erro devolvido pelo servidor ao confirmar aparece abaixo do botão, com Tentar de novo e Recarregar", async () => {
     const user = userEvent.setup();
-    submitAnswer.mockResolvedValueOnce({ ok: false, error: "Resposta inválida." });
+    submitAnswer.mockResolvedValueOnce({ ok: false, error: "Sessão expirada." });
     renderRunner();
     await screen.findByText("Primeira pergunta?");
     await user.click(screen.getByLabelText("Alt A"));
     await user.click(screen.getByRole("button", { name: "Confirmar resposta" }));
-    expect(await screen.findByText("Resposta inválida.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Recarregar" })).toBeNull();
+    expect(await screen.findByText("Sessão expirada.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Recarregar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeTruthy();
   });
 
@@ -222,5 +222,147 @@ describe("AssessmentRunner", () => {
 
     await user.click(screen.getByRole("button", { name: "Tentar enviar de novo" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/avaliacoes/as1/resultado"));
+  });
+
+  it("tempo zerando com marcação pendente: tenta confirmar a marcação e só depois envia", async () => {
+    const user = userEvent.setup();
+    renderRunner({ deadlineAt: new Date(Date.now() + 2500).toISOString() });
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByLabelText("Alt A"));
+    await waitFor(() => expect(finalize).toHaveBeenCalledWith("at1"), { timeout: 6000 });
+    expect(submitAnswer).toHaveBeenCalledWith("at1", "q1", ["a"]);
+    expect(submitAnswer.mock.invocationCallOrder[0]).toBeLessThan(finalize.mock.invocationCallOrder[0]!);
+  });
+
+  it("tempo zerando: se a última confirmação falhar na rede, envia mesmo assim", async () => {
+    const user = userEvent.setup();
+    submitAnswer.mockRejectedValue(new Error("Failed to fetch"));
+    renderRunner({ deadlineAt: new Date(Date.now() + 2500).toISOString() });
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByLabelText("Alt A"));
+    await waitFor(() => expect(finalize).toHaveBeenCalledWith("at1"), { timeout: 6000 });
+  });
+
+  it("confirmar com 'tempo esgotou' envia e vai ao resultado, sem aviso de Recarregar", async () => {
+    const user = userEvent.setup();
+    submitAnswer.mockResolvedValueOnce({ ok: false, error: "O tempo desta avaliação esgotou." });
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByLabelText("Alt A"));
+    await user.click(screen.getByRole("button", { name: "Confirmar resposta" }));
+    await waitFor(() => expect(finalize).toHaveBeenCalledWith("at1"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/avaliacoes/as1/resultado"));
+    expect(screen.queryByRole("button", { name: "Recarregar" })).toBeNull();
+  });
+
+  it("múltipla escolha desmarcando tudo solta a trava sozinha", async () => {
+    const user = userEvent.setup();
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    await screen.findByText("Segunda pergunta?");
+    await user.click(screen.getByLabelText("Alt C"));
+    expect((screen.getByRole("button", { name: "Anterior" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByRole("checkbox", { name: /Alt C/ }));
+    expect((screen.getByRole("button", { name: "Anterior" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("última questão confirmada com uma em branco para trás vai ao resumo, não volta", async () => {
+    const user = userEvent.setup();
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByRole("button", { name: "Próxima" }));
+    await screen.findByText("Segunda pergunta?");
+    await user.click(screen.getByLabelText("Alt C"));
+    await user.click(screen.getByRole("button", { name: "Confirmar resposta" }));
+    expect(await screen.findByRole("heading", { name: "Revisar e enviar" })).toBeTruthy();
+    expect(screen.getByText(/1 questão está sem resposta/)).toBeTruthy();
+  });
+
+  it("'já respondida' (alreadyAnswered) conta como confirmada e avança", async () => {
+    const user = userEvent.setup();
+    submitAnswer.mockResolvedValueOnce({ ok: true, alreadyAnswered: true });
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByLabelText("Alt A"));
+    await user.click(screen.getByRole("button", { name: "Confirmar resposta" }));
+    expect(await screen.findByText("Segunda pergunta?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ir para a questão 1 (resposta confirmada)" })).toBeTruthy();
+  });
+
+  it("duplo toque em Confirmar chama o servidor uma vez só", async () => {
+    const user = userEvent.setup();
+    let release: (v: unknown) => void = () => {};
+    submitAnswer.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByLabelText("Alt A"));
+    const button = screen.getByRole("button", { name: "Confirmar resposta" });
+    await user.dblClick(button);
+    expect(submitAnswer).toHaveBeenCalledTimes(1);
+    release({ ok: true });
+    expect(await screen.findByText("Segunda pergunta?")).toBeTruthy();
+  });
+
+  it("falha ao carregar as questões mostra aviso com Recarregar, em vez de girar para sempre", async () => {
+    getQuestions.mockRejectedValueOnce(new Error("Failed to fetch"));
+    renderRunner();
+    expect(await screen.findByText(/Não conseguimos carregar a prova/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Recarregar" })).toBeTruthy();
+  });
+
+  it("falha devolvida pelo servidor ao carregar também oferece Recarregar", async () => {
+    getQuestions.mockResolvedValueOnce({ ok: false, error: "Tentativa não encontrada." });
+    renderRunner();
+    expect(await screen.findByText("Tentativa não encontrada.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Recarregar" })).toBeTruthy();
+  });
+
+  it("depois de recarregar, abre na primeira questão ainda não confirmada", async () => {
+    getQuestions.mockResolvedValue({ ok: true, questions: [{ ...questions[0], answered: true }, { ...questions[1] }] });
+    renderRunner();
+    expect(await screen.findByText("Segunda pergunta?")).toBeTruthy();
+  });
+
+  it("marcação pendente avisa antes de fechar ou recarregar a página; sem marcação não avisa", async () => {
+    const user = userEvent.setup();
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    const fire = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(fire()).toBe(false);
+    await user.click(screen.getByLabelText("Alt A"));
+    expect(fire()).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Limpar marcação" }));
+    expect(fire()).toBe(false);
+  });
+
+  it("erro de envio aparece logo abaixo do botão Enviar, na tela de revisão", async () => {
+    const user = userEvent.setup();
+    finalize.mockRejectedValueOnce(new Error("Failed to fetch"));
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    await user.click(screen.getByRole("button", { name: "Revisar e enviar" }));
+    await user.click(screen.getByRole("button", { name: "Enviar avaliação" }));
+    const notice = await screen.findByText(/Não foi possível enviar agora/);
+    expect(notice.closest("[role=alert]")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Tentar enviar de novo" })).toHaveLength(1);
+  });
+
+  it("o relógio dos últimos 5 minutos não usa travessão", async () => {
+    renderRunner({ deadlineAt: new Date(Date.now() + 120 * 1000).toISOString() });
+    await screen.findByText("Primeira pergunta?");
+    const timer = screen.getByRole("timer").textContent ?? "";
+    expect(timer).toContain("menos de 5 minutos");
+    expect(timer).not.toMatch(/[—–]/);
+  });
+
+  it("as bolinhas têm toque de pelo menos 44 px", async () => {
+    renderRunner();
+    await screen.findByText("Primeira pergunta?");
+    expect(screen.getByRole("button", { name: /Ir para a questão 1/ }).className).toContain("size-11");
   });
 });

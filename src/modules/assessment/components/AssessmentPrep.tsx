@@ -75,7 +75,7 @@ export function AssessmentPrep({
           <li>Uma questão por vez. Você pode ir e voltar entre elas pela numeração, mas só depois de confirmar a resposta da questão em que está (ou tocar em Limpar marcação, para sair sem responder).</li>
           <li>
             <strong>Confirme cada resposta.</strong> Ao confirmar, ela é salva e não pode ser alterada, e só a primeira confirmação conta. Depois de confirmar, a prova vai
-            para a próxima questão. Resposta marcada e não confirmada não é salva, por isso a prova não deixa você sair dela sem confirmar.
+            para a próxima questão. Resposta marcada e não confirmada não é salva. Antes de sair da prova (para ler a apostila, por exemplo), confirme a resposta da questão em que está.
           </li>
           <li>O tempo é controlado pelo servidor: recarregar ou sair e voltar não reinicia o relógio.</li>
           <li>Você pode enviar com questões sem resposta; elas não pontuam. O envio é definitivo.</li>

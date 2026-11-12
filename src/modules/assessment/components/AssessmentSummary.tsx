@@ -14,12 +14,14 @@ export interface SummaryItem {
 export function AssessmentSummary({
   items,
   sending,
+  sendError,
   onOpen,
   onBack,
   onSend,
 }: {
   items: SummaryItem[];
   sending: boolean;
+  sendError: string | null;
   onOpen: (index: number) => void;
   onBack: () => void;
   onSend: () => void;
@@ -40,7 +42,7 @@ export function AssessmentSummary({
                 {STATE_LABEL[item.state][0]!.toUpperCase() + STATE_LABEL[item.state].slice(1)}
               </span>
               {item.state !== "confirmada" ? (
-                <Button size="sm" variant="ghost" disabled={sending} onClick={() => onOpen(i)} aria-label={`Voltar à questão ${i + 1}`}>
+                <Button size="md" variant="ghost" disabled={sending} onClick={() => onOpen(i)} aria-label={`Voltar à questão ${i + 1}`}>
                   Abrir
                 </Button>
               ) : null}
@@ -69,6 +71,16 @@ export function AssessmentSummary({
           Enviar avaliação
         </Button>
       </div>
+      {sendError ? (
+        <Alert variant="danger">
+          <div className="min-w-0">
+            <p>{sendError}</p>
+            <Button type="button" variant="secondary" className="mt-2" isLoading={sending} onClick={onSend}>
+              Tentar enviar de novo
+            </Button>
+          </div>
+        </Alert>
+      ) : null}
       {sending ? <p className="text-xs text-neutral-500" aria-live="polite">Enviando… aguarde a confirmação.</p> : null}
     </div>
   );

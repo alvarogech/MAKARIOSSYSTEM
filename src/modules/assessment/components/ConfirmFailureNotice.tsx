@@ -22,7 +22,7 @@ export function ConfirmFailureNotice({
         <Button type="button" size="md" variant="secondary" isLoading={retrying} onClick={onRetry}>
           Tentar de novo
         </Button>
-        {failure.network ? (
+        {failure.canReload ? (
           <Button type="button" size="md" onClick={() => window.location.reload()}>
             Recarregar
           </Button>
