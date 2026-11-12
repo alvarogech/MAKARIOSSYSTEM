@@ -8,9 +8,21 @@ import {
   submitAssessmentAnswer,
   type AssessmentAttemptQuestion,
 } from "../actions/attemptActions";
-import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { Button } from "@/components/ui/Button";
+import { AssessmentNavBar } from "./AssessmentNavBar";
+import { AssessmentSummary } from "./AssessmentSummary";
+import { PENDING_NOTICE_ID, QuestionPanel } from "./QuestionPanel";
+import {
+  LAST_CONFIRM_WAIT_MS,
+  LOAD_NETWORK_NOTICE,
+  NETWORK_NOTICE,
+  SEND_NETWORK_NOTICE,
+  STATE_LABEL,
+  type ConfirmFailure,
+  type QuestionState,
+} from "./runnerState";
 
 function formatRemaining(seconds: number): string {
   const clamped = Math.max(0, seconds);
@@ -18,8 +30,6 @@ function formatRemaining(seconds: number): string {
   const secs = clamped % 60;
   return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
-
-type QuestionState = "atual" | "confirmada" | "selecionada" | "sem_resposta";
 
 /**
  * Prova como etapa de síntese: uma questão por vez, navegação numerada, resumo antes do envio.
@@ -49,9 +59,11 @@ export function AssessmentRunner({
   const [view, setView] = useState<"questions" | "summary">("questions");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [failure, setFailure] = useState<ConfirmFailure | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [timeUp, setTimeUp] = useState(false);
   const sendingRef = useRef(false);
+  const pendingRef = useRef<{ questionId: string; optionIds: string[] } | null>(null);
   const lowTimeAnnounced = useRef(false);
   const [lowTimeMessage, setLowTimeMessage] = useState("");
 
@@ -62,17 +74,26 @@ export function AssessmentRunner({
 
   useEffect(() => {
     let cancelled = false;
-    getAssessmentAttemptQuestions(attemptId).then((res) => {
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(res.error ?? "Não foi possível carregar as questões.");
-      } else {
-        const sorted = [...(res.questions ?? [])].sort((a, b) => a.position - b.position);
-        setQuestions(sorted);
-        setConfirmed(Object.fromEntries(sorted.map((q) => [q.questionId, q.answered])));
-      }
-      setLoading(false);
-    });
+    getAssessmentAttemptQuestions(attemptId)
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(res.error ?? "Não foi possível carregar as questões.");
+        } else {
+          const sorted = [...(res.questions ?? [])].sort((a, b) => a.position - b.position);
+          setQuestions(sorted);
+          setConfirmed(Object.fromEntries(sorted.map((q) => [q.questionId, q.answered])));
+          // Depois de recarregar, abre onde a pessoa parou: a primeira questão ainda não confirmada.
+          const firstOpen = sorted.findIndex((q) => !q.answered);
+          setIndex(firstOpen === -1 ? 0 : firstOpen);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(LOAD_NETWORK_NOTICE);
+        setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -83,16 +104,42 @@ export function AssessmentRunner({
     sendingRef.current = true;
     setSending(true);
     setSendError(null);
-    const res = await finalizeAssessmentAttempt(attemptId);
-    // "Já encerrada" = o servidor já fechou a tentativa (ex.: tempo esgotado): o resultado está pronto.
-    if (res.ok || /encerrada/i.test(res.error ?? "")) {
-      router.push(`/avaliacoes/${assessmentId}/resultado`);
-      return;
+    try {
+      const res = await finalizeAssessmentAttempt(attemptId);
+      // "Já encerrada" = o servidor já fechou a tentativa (ex.: tempo esgotado): o resultado está pronto.
+      if (res.ok || /encerrada/i.test(res.error ?? "")) {
+        router.push(`/avaliacoes/${assessmentId}/resultado`);
+        return;
+      }
+      setSendError(res.error ?? "Não foi possível enviar agora. Suas respostas confirmadas continuam salvas. Tente de novo.");
+    } catch {
+      setSendError(SEND_NETWORK_NOTICE);
     }
+    // Só chega aqui se o envio falhou: solta a trava para o botão de tentar de novo funcionar.
     sendingRef.current = false;
     setSending(false);
-    setSendError(res.error ?? "Não foi possível enviar agora. Suas respostas confirmadas continuam salvas — tente de novo.");
   }, [attemptId, assessmentId, router]);
+
+  /** Tempo zerou: tenta salvar a marcação pendente (o servidor decide se ainda estava no prazo) e envia. */
+  const closeByTime = useCallback(async () => {
+    const pending = pendingRef.current;
+    if (pending) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          submitAssessmentAnswer(attemptId, pending.questionId, pending.optionIds),
+          new Promise((resolve) => {
+            timer = setTimeout(resolve, LAST_CONFIRM_WAIT_MS);
+          }),
+        ]);
+      } catch {
+        // Sem rede ou fora do prazo: segue para o envio com o que já estava confirmado.
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    await send();
+  }, [attemptId, send]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -105,29 +152,44 @@ export function AssessmentRunner({
       if (left <= 0) {
         clearInterval(interval);
         setTimeUp(true);
-        void send();
+        void closeByTime();
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [deadlineMs, clockOffsetMs, send]);
+  }, [deadlineMs, clockOffsetMs, closeByTime]);
 
   async function handleConfirm(question: AssessmentAttemptQuestion) {
     const selected = selections[question.questionId] ?? [];
     if (selected.length === 0 || confirmingId) return;
     setConfirmingId(question.questionId);
-    setError(null);
-    const res = await submitAssessmentAnswer(attemptId, question.questionId, selected);
-    setConfirmingId(null);
-    if (res.ok) {
-      setConfirmed((prev) => ({ ...prev, [question.questionId]: true }));
-    } else if (/esgotou|encerrada/i.test(res.error ?? "")) {
-      void send();
-    } else {
-      setError(res.error ?? "Não foi possível confirmar a resposta.");
+    setFailure(null);
+    try {
+      const res = await submitAssessmentAnswer(attemptId, question.questionId, selected);
+      if (res.ok) {
+        setConfirmed((prev) => ({ ...prev, [question.questionId]: true }));
+        goToNextUnconfirmed(question.questionId);
+      } else if (/esgotou|encerrada/i.test(res.error ?? "")) {
+        void send();
+      } else {
+        setFailure({ message: res.error ?? "Não foi possível confirmar a resposta.", canReload: true });
+      }
+    } catch {
+      // Rede caiu, ou o site foi atualizado com a prova aberta e a ação do servidor mudou.
+      setFailure({ message: NETWORK_NOTICE, canReload: true });
+    } finally {
+      setConfirmingId(null);
     }
   }
 
+  /** Depois de confirmar, segue para a próxima questão sem confirmação; se não há, vai para o resumo. */
+  function goToNextUnconfirmed(justConfirmedId: string) {
+    const next = questions.findIndex((q, i) => i > index && q.questionId !== justConfirmedId && !confirmed[q.questionId]);
+    if (next === -1) setView("summary");
+    else setIndex(next);
+  }
+
   function toggleOption(question: AssessmentAttemptQuestion, optionId: string) {
+    setFailure(null);
     setSelections((prev) => {
       const current = prev[question.questionId] ?? [];
       if (question.selectionMode === "single") return { ...prev, [question.questionId]: [optionId] };
@@ -136,8 +198,41 @@ export function AssessmentRunner({
     });
   }
 
+  const currentQuestion = questions[index];
+  const lockedNow =
+    view === "questions" &&
+    Boolean(currentQuestion) &&
+    !confirmed[currentQuestion!.questionId] &&
+    (selections[currentQuestion!.questionId]?.length ?? 0) > 0;
+
+  useEffect(() => {
+    pendingRef.current = lockedNow ? { questionId: currentQuestion!.questionId, optionIds: selections[currentQuestion!.questionId]! } : null;
+  }, [lockedNow, currentQuestion, selections]);
+
+  // Marcação pendente se perde ao recarregar ou fechar a página: pede confirmação do navegador.
+  useEffect(() => {
+    if (!lockedNow) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [lockedNow]);
+
   if (loading) return <LoadingState label="Carregando avaliação..." />;
-  if (error && questions.length === 0) return <Alert variant="danger">{error}</Alert>;
+  if (error && questions.length === 0) {
+    return (
+      <Alert variant="danger">
+        <div className="min-w-0">
+          <p>{error}</p>
+          <Button type="button" className="mt-2" onClick={() => window.location.reload()}>
+            Recarregar
+          </Button>
+        </div>
+      </Alert>
+    );
+  }
 
   const stateOf = (question: AssessmentAttemptQuestion, i: number): QuestionState =>
     i === index && view === "questions"
@@ -151,19 +246,12 @@ export function AssessmentRunner({
     confirmed[question.questionId] ? "confirmada" : (selections[question.questionId]?.length ?? 0) > 0 ? "selecionada" : "sem_resposta";
 
   const confirmedCount = questions.filter((q) => confirmed[q.questionId]).length;
-  const unconfirmedCount = questions.filter((q) => plainState(q) === "selecionada").length;
-  const emptyCount = questions.filter((q) => plainState(q) === "sem_resposta").length;
   const isLowTime = remainingSeconds <= 300;
   const progressPercent = questions.length === 0 ? 0 : Math.round((confirmedCount / questions.length) * 100);
 
-  const STATE_LABEL: Record<QuestionState, string> = {
-    atual: "questão atual",
-    confirmada: "resposta confirmada",
-    selecionada: "marcada, falta confirmar",
-    sem_resposta: "sem resposta",
-  };
-
   const question = questions[index];
+  // Resposta marcada e não confirmada na questão atual: nada de sair dela.
+  const locked = lockedNow;
 
   return (
     <div className="flex flex-col gap-4">
@@ -175,7 +263,7 @@ export function AssessmentRunner({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span role="timer" className="font-medium">
             Tempo restante {formatRemaining(remainingSeconds)}
-            {isLowTime ? " — menos de 5 minutos" : ""}
+            {isLowTime ? " (menos de 5 minutos)" : ""}
           </span>
           <span className="text-neutral-700">
             {confirmedCount} de {questions.length} respondidas
@@ -197,8 +285,7 @@ export function AssessmentRunner({
       </div>
 
       {timeUp ? <Alert variant="info">O tempo acabou. Estamos enviando as respostas que você confirmou…</Alert> : null}
-      {error ? <Alert variant="danger">{error}</Alert> : null}
-      {sendError ? (
+      {sendError && view !== "summary" ? (
         <Alert variant="danger">
           {sendError}{" "}
           <button type="button" className="font-medium underline" onClick={() => void send()}>
@@ -214,7 +301,7 @@ export function AssessmentRunner({
             <li key={q.questionId}>
               <button
                 type="button"
-                disabled={sending}
+                disabled={sending || (locked && i !== index)}
                 onClick={() => {
                   setIndex(i);
                   setView("questions");
@@ -222,7 +309,7 @@ export function AssessmentRunner({
                 aria-label={`Ir para a questão ${i + 1} (${STATE_LABEL[state]})`}
                 aria-current={state === "atual" ? "step" : undefined}
                 className={
-                  "relative size-9 rounded-full border text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue " +
+                  "relative size-11 rounded-full border text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue " +
                   (state === "atual"
                     ? "border-brand-blue bg-brand-blue text-white"
                     : state === "confirmada"
@@ -252,173 +339,41 @@ export function AssessmentRunner({
           isConfirmed={Boolean(confirmed[question.questionId])}
           confirming={confirmingId === question.questionId}
           disabled={sending}
+          failure={failure}
           onToggle={(optionId) => toggleOption(question, optionId)}
+          onClear={() => {
+            setFailure(null);
+            setSelections((prev) => ({ ...prev, [question.questionId]: [] }));
+          }}
           onConfirm={() => void handleConfirm(question)}
         />
       ) : null}
 
       {view === "summary" ? (
-        <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-4">
-          <h2 className="text-base font-semibold text-neutral-900">Revisar e enviar</h2>
-          <ul className="flex flex-col gap-1.5 text-sm">
-            {questions.map((q, i) => {
-              const state = plainState(q);
-              return (
-                <li key={q.questionId} className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-neutral-200 p-2.5">
-                  <span className="min-w-0 text-neutral-800">
-                    <strong>Questão {i + 1}.</strong> <span className="line-clamp-1">{q.prompt}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className={state === "confirmada" ? "text-success" : state === "selecionada" ? "text-amber-700" : "font-medium text-danger"}>
-                      {STATE_LABEL[state][0]!.toUpperCase() + STATE_LABEL[state].slice(1)}
-                    </span>
-                    {state !== "confirmada" ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={sending}
-                        onClick={() => {
-                          setIndex(i);
-                          setView("questions");
-                        }}
-                        aria-label={`Voltar à questão ${i + 1}`}
-                      >
-                        Abrir
-                      </Button>
-                    ) : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-
-          {unconfirmedCount > 0 ? (
-            <Alert variant="warning">
-              {unconfirmedCount} {unconfirmedCount === 1 ? "questão tem uma resposta marcada, mas não confirmada" : "questões têm respostas marcadas, mas não confirmadas"}. Resposta não confirmada não é salva e não conta.
-            </Alert>
-          ) : null}
-          {emptyCount > 0 ? (
-            <Alert variant="info">
-              {emptyCount} {emptyCount === 1 ? "questão está sem resposta" : "questões estão sem resposta"}. Você pode enviar assim, mas elas não pontuam.
-            </Alert>
-          ) : null}
-          <Alert variant="warning">O envio é definitivo: depois dele você não poderá alterar nenhuma resposta.</Alert>
-
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" disabled={sending} onClick={() => setView("questions")}>
-              Voltar às questões
-            </Button>
-            <Button isLoading={sending} onClick={() => void send()}>
-              Enviar avaliação
-            </Button>
-          </div>
-          {sending ? <p className="text-xs text-neutral-500" aria-live="polite">Enviando… aguarde a confirmação.</p> : null}
-        </div>
+        <AssessmentSummary
+          items={questions.map((q) => ({ id: q.questionId, prompt: q.prompt, state: plainState(q) }))}
+          sending={sending}
+          sendError={sendError}
+          onOpen={(i) => {
+            setIndex(i);
+            setView("questions");
+          }}
+          onBack={() => setView("questions")}
+          onSend={() => void send()}
+        />
       ) : null}
 
       {view === "questions" ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>
-            Anterior
-          </Button>
-          {index < questions.length - 1 ? (
-            <Button onClick={() => setIndex(index + 1)}>Próxima</Button>
-          ) : (
-            <Button onClick={() => setView("summary")}>Revisar e enviar</Button>
-          )}
-          {index < questions.length - 1 ? (
-            <Button variant="ghost" onClick={() => setView("summary")}>
-              Revisar e enviar
-            </Button>
-          ) : null}
-        </div>
+        <AssessmentNavBar
+          index={index}
+          total={questions.length}
+          locked={locked}
+          describedBy={PENDING_NOTICE_ID}
+          onPrevious={() => setIndex(index - 1)}
+          onNext={() => setIndex(index + 1)}
+          onReview={() => setView("summary")}
+        />
       ) : null}
-    </div>
-  );
-}
-
-function QuestionPanel({
-  question,
-  total,
-  selected,
-  isConfirmed,
-  confirming,
-  disabled,
-  onToggle,
-  onConfirm,
-}: {
-  question: AssessmentAttemptQuestion;
-  total: number;
-  selected: string[];
-  isConfirmed: boolean;
-  confirming: boolean;
-  disabled: boolean;
-  onToggle: (optionId: string) => void;
-  onConfirm: () => void;
-}) {
-  const multiple = question.selectionMode === "multiple";
-  const legendRef = useRef<HTMLLegendElement>(null);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    legendRef.current?.focus();
-  }, [question.questionId]);
-
-  return (
-    <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-neutral-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-brand-blue" aria-live="polite">
-        Questão {question.position} de {total}
-      </p>
-      <fieldset className="flex flex-col gap-2.5" disabled={isConfirmed || disabled}>
-        <legend ref={legendRef} tabIndex={-1} className="mb-1 text-base font-medium text-neutral-900 outline-none">
-          {question.prompt}
-        </legend>
-        <p className="text-xs text-neutral-500">{multiple ? "Marque todas as alternativas corretas." : "Escolha uma alternativa."}</p>
-        {question.options.map((option) => {
-          const checked = selected.includes(option.optionId);
-          return (
-            <label
-              key={option.optionId}
-              className={
-                "flex cursor-pointer items-start gap-3 rounded-[var(--radius-sm)] border p-3 text-sm transition-colors motion-reduce:transition-none focus-within:outline focus-within:outline-2 focus-within:outline-brand-blue " +
-                (checked ? "border-brand-blue bg-brand-blue-light" : "border-neutral-200 hover:border-brand-blue")
-              }
-            >
-              <input
-                type={multiple ? "checkbox" : "radio"}
-                name={`question-${question.questionId}`}
-                checked={checked}
-                onChange={() => onToggle(option.optionId)}
-                className="mt-0.5 size-5 shrink-0 accent-brand-blue"
-              />
-              <span className="min-w-0 break-words text-neutral-800">
-                {option.label}
-                {checked ? <span className="sr-only"> (selecionada)</span> : null}
-              </span>
-            </label>
-          );
-        })}
-      </fieldset>
-
-      {isConfirmed ? (
-        <p role="status" className="text-sm text-success">
-          ✓ Resposta confirmada e salva. Ela não pode mais ser alterada.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          <div>
-            <Button type="button" variant="secondary" size="sm" onClick={onConfirm} isLoading={confirming} disabled={selected.length === 0 || disabled}>
-              Confirmar resposta
-            </Button>
-          </div>
-          <p className="text-xs text-neutral-500">
-            Ao confirmar, a resposta é salva e não poderá ser alterada — só a primeira confirmação conta. Resposta marcada e não confirmada não é salva.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
