@@ -8,6 +8,7 @@ import { can, getAuthContext } from "@/authorization";
 import { ENROLLMENT_SCHEDULES, ENROLLMENT_VOLUMES } from "@/config/enrollment";
 import { escapeIlike } from "@/modules/auth/lookupTeacherCandidate";
 import { volumeLabel, scheduleLabel } from "../labels";
+import { DUPLICATE_EMAIL_MESSAGE, findEnrollmentConflict, isEmailChange } from "../duplicateCheck";
 import { resolveCourseForSlugs, type ResolvedCourse } from "../studentInvite";
 
 export interface UpdateEnrollmentRequestState {
@@ -97,13 +98,28 @@ export async function updateEnrollmentRequest(
     return { error: "Só dá para editar inscrições pendentes ou aprovadas." };
   }
 
-  const emailChanged = input.email !== request.email.trim().toLowerCase();
+  const emailChanged = isEmailChange(input.email, request.email);
   if (request.student_id && emailChanged) {
     return {
       error:
         "Esta pessoa já criou a conta, e o e-mail é o login dela — não dá para trocar por aqui. " +
         "Para ajudar com acesso, gere um link de nova senha.",
     };
+  }
+
+  // Só barra a TROCA de e-mail: inscrição antiga já repetida continua editável nos outros campos.
+  if (emailChanged) {
+    try {
+      const conflict = await findEnrollmentConflict(admin, {
+        seasonId: request.season_id,
+        email: input.email,
+        excludeId: request.id,
+      });
+      if (conflict === "email") return { error: DUPLICATE_EMAIL_MESSAGE };
+    } catch (error) {
+      console.error("Falha ao conferir e-mail repetido na edição da inscrição:", error);
+      return { error: "Não foi possível conferir o e-mail agora. Tente novamente." };
+    }
   }
 
   // Cursos desejados — primeiro valida que as turmas existem, antes de gravar qualquer coisa.

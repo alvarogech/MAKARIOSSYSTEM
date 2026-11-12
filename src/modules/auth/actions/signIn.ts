@@ -52,6 +52,13 @@ export async function signIn(
   }
 
   if (error) {
+    // Só código e mensagem do Supabase vão para o log do servidor (nunca e-mail, código de acesso nem senha).
+    console.error("Falha no login:", {
+      via: "email" in credential ? "email" : "codigo",
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
     // Mensagem genérica de propósito — nunca revela se a credencial existe
     // ou não, só se a combinação com a senha está correta.
     return { error: "E-mail/código de acesso ou senha inválidos." };

@@ -5,6 +5,11 @@ import { createSupabaseAdminClient } from "@/integrations/supabase/admin";
 import { ENROLLMENT_PRIVACY_TERMS_VERSION } from "@/config/enrollment";
 import { protectCpf } from "../dataProtection";
 import { enrollmentRequestSchema } from "../schemas";
+import {
+  DUPLICATE_CPF_MESSAGE,
+  DUPLICATE_EMAIL_MESSAGE,
+  findEnrollmentConflict,
+} from "../duplicateCheck";
 
 export interface EnrollmentRequestState {
   success?: boolean;
@@ -105,6 +110,19 @@ export async function submitEnrollmentRequest(
     }
 
     const protectedCpf = protectCpf(parsed.data.cpf);
+
+    const conflict = await findEnrollmentConflict(admin, {
+      seasonId: season.id,
+      email: parsed.data.email,
+      cpfHash: protectedCpf.hash,
+    });
+    if (conflict === "cpf") {
+      return { error: DUPLICATE_CPF_MESSAGE, fieldErrors: { cpf: [DUPLICATE_CPF_MESSAGE] } };
+    }
+    if (conflict === "email") {
+      return { error: DUPLICATE_EMAIL_MESSAGE, fieldErrors: { email: [DUPLICATE_EMAIL_MESSAGE] } };
+    }
+
     const protocol = createProtocol();
     const { error } = await admin.from("enrollment_requests").insert({
       protocol,
@@ -142,8 +160,8 @@ export async function submitEnrollmentRequest(
     if (error) {
       if (error.code === "23505") {
         return {
-          error:
-            "Já existe uma solicitação ativa para este CPF. Se precisar corrigir alguma informação, fale com a equipe da Escola Makários.",
+          error: DUPLICATE_CPF_MESSAGE,
+          fieldErrors: { cpf: [DUPLICATE_CPF_MESSAGE] },
         };
       }
       return { error: "Não foi possível enviar sua solicitação. Tente novamente em alguns instantes." };
