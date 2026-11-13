@@ -25,8 +25,10 @@ export function GrantLateReleaseForm({ assessments }: { assessments: { id: strin
             id="lr-assessmentId"
             name="assessmentId"
             required
+            defaultValue=""
             className="h-11 w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white px-3 text-sm focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
           >
+            <option value="" disabled>Escolha a avaliação</option>
             {assessments.map((a) => (
               <option key={a.id} value={a.id}>{a.label}</option>
             ))}

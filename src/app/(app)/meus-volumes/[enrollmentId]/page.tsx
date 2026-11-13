@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
-import { isBlockedByDeadline, isReleaseActive, lateReleaseMessage } from "@/modules/assessment/lateRelease";
+import { loadAttemptStats, loadExceptionalKeys, loadLateReleases } from "@/modules/assessment/lateReleaseQueries";
+import { RELEASE_EXPIRED_MESSAGE, lateReleaseMessage, lateReleaseView } from "@/modules/assessment/lateRelease";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FileText, Link2, Lock, CheckCircle2, MessageCircle, PlayCircle } from "lucide-react";
@@ -109,18 +109,30 @@ export default async function VolumeOutlinePage({
     .eq("season_volume_offering_id", enrollment.season_volume_offering_id)
     .eq("status", "open");
 
-  const lateReleases = await loadActiveLateReleases(
-    supabase,
-    [enrollment.id],
-    (assessments ?? []).map((a) => a.id),
-  );
+  const assessmentIds = (assessments ?? []).map((a) => a.id);
+  const [lateReleases, attemptStats, exceptionalKeys] = await Promise.all([
+    loadLateReleases(supabase, [enrollment.id], assessmentIds),
+    loadAttemptStats(supabase, [enrollment.id], assessmentIds),
+    loadExceptionalKeys(supabase, [enrollment.id], assessmentIds),
+  ]);
+  // Mesma decisão da tela da avaliação: quem já fez a prova não recebe convite para pedir liberação.
   const assessmentNote = (a: { id: string; closes_at: string | null; late_requests_until: string | null }) => {
-    const until = lateReleases.get(`${a.id}:${enrollment.id}`) ?? null;
-    if (until) return lateReleaseMessage(until);
-    if (!isBlockedByDeadline(a.closes_at, null)) return null;
-    return isReleaseActive(a.late_requests_until)
-      ? "Prazo encerrado. Toque para pedir a liberação da prova."
-      : "Prazo encerrado. Procure a coordenação se precisar de liberação.";
+    const key = `${a.id}:${enrollment.id}`;
+    const stats = attemptStats.get(key) ?? { used: 0, inProgress: false };
+    const releaseValidUntil = lateReleases.get(key) ?? null;
+    const view = lateReleaseView({
+      closesAt: a.closes_at,
+      requestsUntil: a.late_requests_until,
+      releaseValidUntil,
+      attemptsUsed: stats.used,
+      attemptsAllowed: exceptionalKeys.has(key) ? 2 : 1,
+      hasInProgress: stats.inProgress,
+    });
+    if (view === "released" && releaseValidUntil) return lateReleaseMessage(releaseValidUntil);
+    if (view === "request") return "Prazo encerrado. Toque para pedir a liberação da prova.";
+    if (view === "expired") return RELEASE_EXPIRED_MESSAGE;
+    if (view === "closed") return "Prazo encerrado. Procure a coordenação se precisar de liberação.";
+    return null;
   };
 
   return (

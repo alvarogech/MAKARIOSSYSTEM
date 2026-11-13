@@ -35,22 +35,46 @@ export async function loadActiveLateReleases(
   return new Map([...all].filter(([, validUntil]) => isReleaseActive(validUntil, now)));
 }
 
-/** Quantas tentativas (de qualquer status) o aluno logado já tem, por "avaliação:matrícula". */
-export async function loadAttemptCounts(
+export interface AttemptStats {
+  /** Tentativas de qualquer status (o banco conta todas). */
+  used: number;
+  inProgress: boolean;
+}
+
+/** Tentativas do aluno logado, por "avaliação:matrícula". */
+export async function loadAttemptStats(
   supabase: SupabaseClient<Database>,
   enrollmentIds: string[],
   assessmentIds: string[],
-): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
+): Promise<Map<string, AttemptStats>> {
+  const map = new Map<string, AttemptStats>();
   if (enrollmentIds.length === 0 || assessmentIds.length === 0) return map;
   const { data } = await supabase
     .from("assessment_attempts")
-    .select("assessment_id, enrollment_id")
+    .select("assessment_id, enrollment_id, status")
     .in("enrollment_id", enrollmentIds)
     .in("assessment_id", assessmentIds);
   for (const row of data ?? []) {
     const key = `${row.assessment_id}:${row.enrollment_id}`;
-    map.set(key, (map.get(key) ?? 0) + 1);
+    const current = map.get(key) ?? { used: 0, inProgress: false };
+    map.set(key, { used: current.used + 1, inProgress: current.inProgress || row.status === "in_progress" });
   }
   return map;
+}
+
+/** Quem tem a tentativa excepcional (2 tentativas em vez de 1), por "avaliação:matrícula". */
+export async function loadExceptionalKeys(
+  supabase: SupabaseClient<Database>,
+  enrollmentIds: string[],
+  assessmentIds: string[],
+): Promise<Set<string>> {
+  const keys = new Set<string>();
+  if (enrollmentIds.length === 0 || assessmentIds.length === 0) return keys;
+  const { data } = await supabase
+    .from("assessment_exceptional_grants")
+    .select("assessment_id, enrollment_id")
+    .in("enrollment_id", enrollmentIds)
+    .in("assessment_id", assessmentIds);
+  for (const row of data ?? []) keys.add(`${row.assessment_id}:${row.enrollment_id}`);
+  return keys;
 }

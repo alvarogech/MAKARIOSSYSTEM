@@ -52,17 +52,33 @@ export type LateReleaseView =
   | "had_attempt" // prazo vencido e já tem tentativa: só a coordenação ajuda
   | "closed"; //   prazo vencido e a janela de pedidos não está aberta
 
-/** O que o aluno vê, no mesmo critério de request_late_release (migração 088). */
+/** Ainda dá para iniciar (sobrou tentativa) ou continuar (há uma em andamento)? Mesma conta de start_assessment_attempt. */
+export function canStartOrContinue(input: { attemptsUsed: number; attemptsAllowed: number; hasInProgress: boolean }): boolean {
+  return input.hasInProgress || input.attemptsUsed < input.attemptsAllowed;
+}
+
+/**
+ * O que o aluno vê, no mesmo critério de request_late_release (migração 088).
+ * Liberação ativa só vale como "released" quando ele ainda pode iniciar ou continuar: quem já usou
+ * as tentativas continua em "had_attempt" (a liberação não dá tentativa extra).
+ */
 export function lateReleaseView(input: {
   closesAt: string | null;
   requestsUntil: string | null;
   releaseValidUntil: string | null;
   attemptsUsed: number;
+  /** Quantas tentativas ele tem (1, ou 2 com a tentativa excepcional). Padrão 1. */
+  attemptsAllowed?: number;
+  hasInProgress?: boolean;
   now?: Date;
 }): LateReleaseView {
   const now = input.now ?? new Date();
   if (!isPastDeadline(input.closesAt, now)) return "none";
-  if (isReleaseActive(input.releaseValidUntil, now)) return "released";
+  const hasInProgress = input.hasInProgress ?? false;
+  if (isReleaseActive(input.releaseValidUntil, now)) {
+    const canStart = canStartOrContinue({ attemptsUsed: input.attemptsUsed, attemptsAllowed: input.attemptsAllowed ?? 1, hasInProgress });
+    return canStart ? "released" : "had_attempt";
+  }
   if (input.releaseValidUntil) return "expired";
   if (input.attemptsUsed > 0) return "had_attempt";
   return isReleaseActive(input.requestsUntil, now) ? "request" : "closed";

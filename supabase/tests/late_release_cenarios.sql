@@ -104,7 +104,7 @@ begin
   set local role authenticated;
   assert (select count(*) from public.assessment_late_releases) = 2, '14 coordenacao deveria ver todas';
   insert into public.assessment_late_releases(assessment_id,enrollment_id,valid_until,granted_by,reason) values (a_future,e1,now()+interval '1 day',coord,'liberacao pela coordenacao');
-  update public.assessment_late_releases set valid_until = now()+interval '2 days', granted_by = coord where assessment_id = a_future;
+  update public.assessment_late_releases set valid_until = now()+interval '24 hours', granted_by = coord where assessment_id = a_future;
   begin insert into public.assessment_late_releases(assessment_id,enrollment_id,valid_until,granted_by,reason) values (a_past,e2,now(),s1,'em nome de outra pessoa'); assert false, '17 granted_by de outra pessoa passou';
   exception when insufficient_privilege then null; end;
   reset role;

@@ -6,7 +6,7 @@ import { formatSaoPauloLongDate, formatSaoPauloTimeRange, getSaoPauloDateKey } f
 import { buildMapsSearchUrl } from "@/lib/maps";
 import { selectNextMeeting } from "./nextMeeting";
 import { isReleaseActive, lateReleaseMessage, lateReleaseView } from "@/modules/assessment/lateRelease";
-import { loadAttemptCounts, loadLateReleases } from "@/modules/assessment/lateReleaseQueries";
+import { loadAttemptStats, loadExceptionalKeys, loadLateReleases } from "@/modules/assessment/lateReleaseQueries";
 
 const ACTIVE_ENROLLMENT_STATUSES = ["active", "regularization", "approved"] as const;
 
@@ -149,23 +149,34 @@ export async function loadStudentHomeSummary(
   const enrollmentByOfferingId = new Map(rows.map((e) => [e.season_volume_offering_id, e]));
   const enrollmentIds = rows.map((e) => e.id);
   const assessmentIds = (openAssessments ?? []).map((a) => a.id);
-  const [lateReleases, attemptCounts] = await Promise.all([
+  const [lateReleases, attemptStats, exceptionalKeys] = await Promise.all([
     loadLateReleases(supabase, enrollmentIds, assessmentIds),
-    loadAttemptCounts(supabase, enrollmentIds, assessmentIds),
+    loadAttemptStats(supabase, enrollmentIds, assessmentIds),
+    loadExceptionalKeys(supabase, enrollmentIds, assessmentIds),
   ]);
   const withView = (openAssessments ?? []).map((a) => {
     const enrollment = enrollmentByOfferingId.get(a.season_volume_offering_id);
     const key = enrollment ? `${a.id}:${enrollment.id}` : "";
     const releaseValidUntil = lateReleases.get(key) ?? null;
+    const stats = attemptStats.get(key) ?? { used: 0, inProgress: false };
     const view = lateReleaseView({
       closesAt: a.closes_at,
       requestsUntil: a.late_requests_until,
       releaseValidUntil,
-      attemptsUsed: attemptCounts.get(key) ?? 0,
+      attemptsUsed: stats.used,
+      attemptsAllowed: exceptionalKeys.has(key) ? 2 : 1,
+      hasInProgress: stats.inProgress,
     });
-    return { assessment: a, view, releaseUntil: isReleaseActive(releaseValidUntil) ? releaseValidUntil : null };
+    // Prova em andamento mantém o atalho mesmo depois que a liberação venceu (ela continua valendo até o fim do tempo).
+    const keepNotice = stats.inProgress;
+    return {
+      assessment: a,
+      view,
+      keepNotice,
+      releaseUntil: view === "released" && isReleaseActive(releaseValidUntil) ? releaseValidUntil : null,
+    };
   });
-  const firstOpen = withView.find((x) => x.view === "none" || x.view === "released") ?? null;
+  const firstOpen = withView.find((x) => x.view === "none" || x.view === "released" || x.keepNotice) ?? null;
   const firstRequest = withView.find((x) => x.view === "request" && x.assessment.type === "final") ?? null;
 
   const nextStep: StudentNextStep | null = firstOpen

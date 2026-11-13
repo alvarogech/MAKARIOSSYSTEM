@@ -14,6 +14,7 @@ import {
   DEADLINE_CLOSED_MESSAGE,
   HAD_ATTEMPT_MESSAGE,
   RELEASE_EXPIRED_MESSAGE,
+  canStartOrContinue,
   isReleaseActive,
   lateReleaseView,
 } from "@/modules/assessment/lateRelease";
@@ -84,8 +85,14 @@ export default async function AssessmentIntroPage({
     requestsUntil: assessment.late_requests_until,
     releaseValidUntil,
     attemptsUsed,
+    attemptsAllowed,
+    hasInProgress: Boolean(inProgress),
   });
-  const lateReleaseUntil = isReleaseActive(releaseValidUntil) ? releaseValidUntil : null;
+  // A faixa verde só aparece quando ele ainda pode iniciar ou continuar (a liberação não dá tentativa extra).
+  const lateReleaseUntil =
+    isReleaseActive(releaseValidUntil) && canStartOrContinue({ attemptsUsed, attemptsAllowed, hasInProgress: Boolean(inProgress) })
+      ? releaseValidUntil
+      : null;
 
   let recoveryBlocked = false;
   let pendingItems: string[] = [];

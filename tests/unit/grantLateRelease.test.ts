@@ -29,7 +29,8 @@ function table(name: string) {
         updated.push(payload);
         return resolve({ data: [{ id: "x" }], error: null });
       }
-      return resolve({ data: match(), error: null });
+      const rows = match();
+      return resolve({ data: rows, count: rows.length, error: null });
     },
   };
   return chain;
@@ -69,11 +70,15 @@ beforeEach(() => {
   silentFail = false;
   authState.allowed = true;
   db = {
-    assessments: [{ id: "11111111-1111-4111-8111-111111111111", status: "open", closes_at: PAST, season_volume_offering_id: "off-1" }],
+    assessments: [{ id: "11111111-1111-4111-8111-111111111111", title: "Avaliação final", status: "open", closes_at: PAST, season_volume_offering_id: "off-1" }],
     enrollments: [{ id: "enr-1", student_id: "stu-1", season_volume_offering_id: "off-1", status: "active" }],
     assessment_late_releases: [],
+    assessment_attempts: [],
+    assessment_exceptional_grants: [],
   };
 });
+
+const KEY = { assessment_id: "11111111-1111-4111-8111-111111111111", enrollment_id: "enr-1" };
 
 describe("grantLateRelease", () => {
   it("sem permissão não grava nada", async () => {
@@ -92,7 +97,7 @@ describe("grantLateRelease", () => {
   it("cria a liberação por 24 horas, em nome de quem liberou, também para quem nunca abriu a prova", async () => {
     const before = Date.now();
     const r = await grantLateRelease({}, form());
-    expect(r.success).toMatch(/Prova liberada para Aluna de Teste até \d{2}\/\d{2} às \d{2}:\d{2}\./);
+    expect(r.success).toMatch(/Prova liberada para Aluna de Teste em "Avaliação final" até \d{2}\/\d{2} às \d{2}:\d{2}\./);
     expect(inserted).toHaveLength(1);
     const row = inserted[0]!;
     expect(row).toMatchObject({ assessment_id: "11111111-1111-4111-8111-111111111111", enrollment_id: "enr-1", granted_by: "coord-1", source: "staff" });
@@ -137,5 +142,47 @@ describe("grantLateRelease", () => {
     const r = await grantLateRelease({}, form());
     expect(r.success).toBeUndefined();
     expect(r.error).toMatch(/Não foi possível liberar/);
+  });
+
+  it("S1: a mensagem de sucesso diz qual avaliação foi liberada", async () => {
+    const r = await grantLateRelease({}, form());
+    expect(r.success).toContain('"Avaliação final"');
+  });
+
+  it("C1: quem já usou a única tentativa é recusado, com a frase que explica o caminho", async () => {
+    db.assessment_attempts = [{ ...KEY, status: "submitted" }];
+    const r = await grantLateRelease({}, form());
+    expect(r.error).toBe(
+      "Este aluno já usou a tentativa desta avaliação. Para ele fazer de novo, dê primeiro a tentativa excepcional e depois libere por 24 horas.",
+    );
+    expect(inserted).toHaveLength(0);
+    expect(updated).toHaveLength(0);
+  });
+
+  it("C1: tentativa que venceu (expired) também conta como usada", async () => {
+    db.assessment_attempts = [{ ...KEY, status: "expired" }];
+    expect((await grantLateRelease({}, form())).error).toMatch(/já usou a tentativa/);
+  });
+
+  it("C1: com a tentativa excepcional e uma usada, libera (é o caminho que a frase manda seguir)", async () => {
+    db.assessment_attempts = [{ ...KEY, status: "submitted" }];
+    db.assessment_exceptional_grants = [{ ...KEY }];
+    const r = await grantLateRelease({}, form());
+    expect(r.success).toMatch(/Prova liberada/);
+    expect(inserted).toHaveLength(1);
+  });
+
+  it("C1: com a excepcional e as duas já usadas, recusa", async () => {
+    db.assessment_attempts = [{ ...KEY, status: "submitted" }, { ...KEY, status: "expired" }];
+    db.assessment_exceptional_grants = [{ ...KEY }];
+    const r = await grantLateRelease({}, form());
+    expect(r.error).toMatch(/duas tentativas/);
+    expect(inserted).toHaveLength(0);
+  });
+
+  it("C1: prova em andamento não impede (ele ainda pode continuar)", async () => {
+    db.assessment_attempts = [{ ...KEY, status: "in_progress" }];
+    const r = await grantLateRelease({}, form());
+    expect(r.success).toMatch(/Prova liberada/);
   });
 });

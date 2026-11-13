@@ -3,6 +3,7 @@ import {
   DEADLINE_CLOSED_MESSAGE,
   HAD_ATTEMPT_MESSAGE,
   RELEASE_EXPIRED_MESSAGE,
+  canStartOrContinue,
   lateReleaseView,
   toBrasiliaInputValue,
   formatReleaseDeadline,
@@ -81,5 +82,30 @@ describe("o que o aluno vê (espelha request_late_release)", () => {
   });
   it("campo da coordenação mostra o horário de Brasília", () => {
     expect(toBrasiliaInputValue("2026-11-14T02:59:00Z")).toBe("2026-11-13T23:59");
+  });
+});
+
+describe("liberação não dá tentativa extra (revisão do Léo, C1)", () => {
+  const base = { closesAt: past, requestsUntil: null, releaseValidUntil: releaseOk, attemptsUsed: 0, now };
+  it("canStartOrContinue: sobrou tentativa ou há uma em andamento", () => {
+    expect(canStartOrContinue({ attemptsUsed: 0, attemptsAllowed: 1, hasInProgress: false })).toBe(true);
+    expect(canStartOrContinue({ attemptsUsed: 1, attemptsAllowed: 1, hasInProgress: false })).toBe(false);
+    expect(canStartOrContinue({ attemptsUsed: 1, attemptsAllowed: 1, hasInProgress: true })).toBe(true);
+    expect(canStartOrContinue({ attemptsUsed: 1, attemptsAllowed: 2, hasInProgress: false })).toBe(true);
+    expect(canStartOrContinue({ attemptsUsed: 2, attemptsAllowed: 2, hasInProgress: false })).toBe(false);
+  });
+  it("liberação ativa e ainda pode iniciar: liberada (faixa verde)", () => {
+    expect(lateReleaseView(base)).toBe("released");
+    expect(lateReleaseView({ ...base, attemptsUsed: 1, attemptsAllowed: 2 })).toBe("released");
+    expect(lateReleaseView({ ...base, attemptsUsed: 1, hasInProgress: true })).toBe("released");
+  });
+  it("liberação ativa mas já usou as tentativas: sem faixa verde", () => {
+    expect(lateReleaseView({ ...base, attemptsUsed: 1 })).toBe("had_attempt");
+    expect(lateReleaseView({ ...base, attemptsUsed: 2, attemptsAllowed: 2 })).toBe("had_attempt");
+  });
+  it("o pedido do próprio aluno só existe sem nenhuma tentativa (coerente com a regra acima)", () => {
+    const open = { closesAt: past, requestsUntil: "2026-11-13T23:59:00Z", releaseValidUntil: null, now };
+    expect(lateReleaseView({ ...open, attemptsUsed: 0 })).toBe("request");
+    expect(lateReleaseView({ ...open, attemptsUsed: 1 })).toBe("had_attempt");
   });
 });

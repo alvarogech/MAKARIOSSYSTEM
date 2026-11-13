@@ -131,3 +131,40 @@ describe("migração 088: pedido do próprio aluno", () => {
     expect(m88).toMatch(/set_late_requests_window[\s\S]*has_role\('coordinator'\) or public\.has_role\('admin'\)/);
   });
 });
+
+describe("migração 090: trava por coluna e limite das 24 horas", () => {
+  const m90 = readFileSync(path.join(dir, "00000000000090_answer_key_column_and_release_limits.sql"), "utf-8");
+
+  it("é só ASCII, idempotente e sem travessão", () => {
+    expect(/[^\x00-\x7f]/.test(m90)).toBe(false);
+    expect(m90).not.toMatch(/[—–]/);
+    expect(m90).toContain("drop policy if exists assessment_late_releases_insert_staff");
+    expect(m90).toContain("drop policy if exists assessment_late_releases_update_staff");
+  });
+
+  it("tira o select da tabela e devolve só as colunas que não são a resposta certa", () => {
+    expect(m90).toContain("revoke select on table public.assessment_attempt_questions from anon, authenticated;");
+    expect(m90).toContain("column_name <> 'correct_option_ids_snapshot'");
+    expect(m90).toContain("grant select (%s) on table public.assessment_attempt_questions to authenticated");
+    expect(m90).not.toMatch(/grant select \([^)]*correct_option_ids_snapshot/);
+  });
+
+  it("as duas políticas da equipe limitam valid_until a 25 horas e continuam em nome próprio", () => {
+    expect(m90.match(/valid_until <= now\(\) \+ interval '25 hours'/g)).toHaveLength(2);
+    expect(m90.match(/granted_by = auth\.uid\(\)/g)).toHaveLength(2);
+  });
+
+  it("ninguém apaga liberação pela API", () => {
+    expect(m90).toContain("revoke delete, truncate on public.assessment_late_releases from anon, authenticated;");
+  });
+
+  it("a lista de colunas da trava bate com a tabela da migração 031 (nenhuma coluna esquecida)", () => {
+    const m31 = readFileSync(path.join(dir, "00000000000031_assessment_snapshot_and_eligibility.sql"), "utf-8");
+    const table = m31.slice(m31.indexOf("create table public.assessment_attempt_questions"), m31.indexOf("comment on table public.assessment_attempt_questions"));
+    const cols = [...table.matchAll(/^\s{2}([a-z_]+) [a-z]/gm)].map((m) => m[1]).filter((c) => c !== "constraint");
+    expect(cols).toEqual([
+      "id", "attempt_id", "question_id", "position", "prompt", "question_type", "selection_mode",
+      "options_snapshot", "points", "correct_option_ids_snapshot", "created_at",
+    ]);
+  });
+});
