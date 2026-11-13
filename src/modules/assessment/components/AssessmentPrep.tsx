@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { CalendarClock, CheckCircle2, ClipboardList, Hourglass, Repeat } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { lateReleaseMessage } from "../lateRelease";
 
 const dateTime = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
@@ -13,6 +14,7 @@ export function AssessmentPrep({
   durationMinutes,
   passingGrade,
   closesAt,
+  lateReleaseUntil = null,
   attemptsAllowed,
   attemptsUsed,
   children,
@@ -23,6 +25,8 @@ export function AssessmentPrep({
   durationMinutes: number;
   passingGrade: number | string;
   closesAt: string | null;
+  /** Liberação da coordenação depois do prazo: até quando vale (null quando não há). */
+  lateReleaseUntil?: string | null;
   attemptsAllowed: number;
   attemptsUsed: number;
   children: ReactNode;
@@ -61,6 +65,12 @@ export function AssessmentPrep({
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-blue" aria-hidden="true" />
           <span>Nota mínima: {passingGrade}</span>
         </li>
+        {lateReleaseUntil ? (
+          <li className="flex items-start gap-2 rounded-[var(--radius-sm)] border border-success/30 bg-success/10 p-3 font-medium text-success sm:col-span-2">
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <span>{lateReleaseMessage(lateReleaseUntil)}</span>
+          </li>
+        ) : null}
         {closesAt ? (
           <li className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-neutral-50 p-3 sm:col-span-2">
             <CalendarClock className="mt-0.5 size-4 shrink-0 text-brand-blue" aria-hidden="true" />

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
+import { isBlockedByDeadline, lateReleaseMessage } from "@/modules/assessment/lateRelease";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FileText, Link2, Lock, CheckCircle2, MessageCircle, PlayCircle } from "lucide-react";
@@ -103,9 +105,20 @@ export default async function VolumeOutlinePage({
 
   const { data: assessments } = await supabase
     .from("assessments")
-    .select("id, title, type, status")
+    .select("id, title, type, status, closes_at")
     .eq("season_volume_offering_id", enrollment.season_volume_offering_id)
     .eq("status", "open");
+
+  const lateReleases = await loadActiveLateReleases(
+    supabase,
+    [enrollment.id],
+    (assessments ?? []).map((a) => a.id),
+  );
+  const assessmentNote = (a: { id: string; closes_at: string | null }) => {
+    const until = lateReleases.get(`${a.id}:${enrollment.id}`) ?? null;
+    if (until) return lateReleaseMessage(until);
+    return isBlockedByDeadline(a.closes_at, null) ? "Prazo encerrado. Procure a coordenação se precisar de liberação." : null;
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -137,6 +150,9 @@ export default async function VolumeOutlinePage({
                 >
                   {assessment.title} ({assessment.type === "recovery" ? "recuperação" : "avaliação final"})
                 </Link>
+                {assessmentNote(assessment) ? (
+                  <p className="mt-0.5 text-xs text-neutral-600">{assessmentNote(assessment)}</p>
+                ) : null}
               </li>
             ))}
           </ul>

@@ -11,6 +11,9 @@ import {
   ReleaseAnswerKeyButton,
 } from "@/modules/assessment/components/AssessmentActionButtons";
 import { GrantExceptionalAttemptForm } from "@/modules/assessment/components/GrantExceptionalAttemptForm";
+import { GrantLateReleaseForm } from "@/modules/assessment/components/GrantLateReleaseForm";
+import { LateReleasesList } from "@/modules/assessment/components/LateReleasesList";
+import { loadLateReleaseRows } from "@/modules/assessment/lateReleaseRows";
 import { statusLabel } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Avaliações" };
@@ -33,6 +36,7 @@ export default async function AvaliacoesPage() {
   });
 
   const supabase = await createSupabaseServerClient();
+  const lateReleaseRows = canGrantExceptional ? await loadLateReleaseRows(supabase) : [];
 
   const [
     { data: offerings },
@@ -162,6 +166,33 @@ export default async function AvaliacoesPage() {
                 id: a.id,
                 label: `${a.title} — ${offeringLabel(a.season_volume_offering_id)}`,
               }))}
+            />
+          </div>
+        </Card>
+      ) : null}
+
+      {canGrantExceptional ? (
+        <Card>
+          <h2 className="font-semibold text-neutral-900">Liberar prova por 24 horas</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Para o aluno que não fez a prova no prazo e procurou a coordenação. Vale por 24 horas, serve também para quem
+            nunca abriu a prova e não dá tentativa extra. Fica registrada na auditoria.
+          </p>
+          <div className="mt-3">
+            <GrantLateReleaseForm
+              assessments={finalAssessments.concat(recoveryAssessments).map((a) => ({
+                id: a.id,
+                label: `${a.title} · ${offeringLabel(a.season_volume_offering_id)}`,
+              }))}
+            />
+          </div>
+          <h3 className="mt-5 text-sm font-semibold text-neutral-900">Liberações dadas</h3>
+          <div className="mt-2">
+            <LateReleasesList
+              rows={lateReleaseRows}
+              assessmentLabelById={Object.fromEntries(
+                (assessments ?? []).map((a) => [a.id, `${a.title} · ${offeringLabel(a.season_volume_offering_id)}`]),
+              )}
             />
           </div>
         </Card>

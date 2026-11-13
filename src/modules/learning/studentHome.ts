@@ -5,6 +5,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { formatSaoPauloLongDate, formatSaoPauloTimeRange, getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { buildMapsSearchUrl } from "@/lib/maps";
 import { selectNextMeeting } from "./nextMeeting";
+import { isBlockedByDeadline, lateReleaseMessage } from "@/modules/assessment/lateRelease";
+import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
 
 const ACTIVE_ENROLLMENT_STATUSES = ["active", "regularization", "approved"] as const;
 
@@ -83,7 +85,7 @@ export async function loadStudentHomeSummary(
     supabase.from("seasons").select("id, name").in("id", seasonIds),
     supabase
       .from("assessments")
-      .select("id, title, season_volume_offering_id")
+      .select("id, title, season_volume_offering_id, closes_at")
       .in("season_volume_offering_id", offeringIds)
       .eq("status", "open"),
     supabase.from("volume_whatsapp_groups").select("volume_id, invite_url").in("volume_id", volumeIds),
@@ -141,10 +143,29 @@ export async function loadStudentHomeSummary(
 
   const otherUpcomingCount = nextMeeting ? Math.max(0, upcoming.length - 1) : 0;
 
-  const firstOpenAssessment = (openAssessments ?? [])[0] ?? null;
+  // Prazo vencido só esconde o aviso quando o aluno não tem liberação da coordenação (vale 24 horas).
+  const enrollmentByOfferingId = new Map(rows.map((e) => [e.season_volume_offering_id, e]));
+  const lateReleases = await loadActiveLateReleases(
+    supabase,
+    rows.map((e) => e.id),
+    (openAssessments ?? []).map((a) => a.id),
+  );
+  const releaseUntilFor = (a: { id: string; season_volume_offering_id: string }) => {
+    const enrollment = enrollmentByOfferingId.get(a.season_volume_offering_id);
+    return enrollment ? (lateReleases.get(`${a.id}:${enrollment.id}`) ?? null) : null;
+  };
+  const reachableAssessments = (openAssessments ?? []).filter(
+    (a) => !isBlockedByDeadline(a.closes_at, releaseUntilFor(a)),
+  );
+  const firstOpenAssessment = reachableAssessments[0] ?? null;
+  const firstOpenRelease = firstOpenAssessment ? releaseUntilFor(firstOpenAssessment) : null;
 
   const nextStep: StudentNextStep | null = firstOpenAssessment
-    ? { kind: "assessment", label: `Você tem uma avaliação em aberto: ${firstOpenAssessment.title}`, href: `/avaliacoes/${firstOpenAssessment.id}` }
+    ? {
+        kind: "assessment",
+        label: `Você tem uma avaliação em aberto: ${firstOpenAssessment.title}${firstOpenRelease ? `. ${lateReleaseMessage(firstOpenRelease)}` : ""}`,
+        href: `/avaliacoes/${firstOpenAssessment.id}`,
+      }
     : nextMeeting
       ? {
           kind: "meeting",

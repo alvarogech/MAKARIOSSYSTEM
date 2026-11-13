@@ -8,6 +8,8 @@ import { Alert } from "@/components/ui/Alert";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { StartAssessmentButton } from "@/modules/assessment/components/StartAssessmentButton";
 import { AssessmentPrep } from "@/modules/assessment/components/AssessmentPrep";
+import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
+import { DEADLINE_CLOSED_MESSAGE, isBlockedByDeadline } from "@/modules/assessment/lateRelease";
 
 export const metadata: Metadata = { title: "Avaliação" };
 
@@ -67,6 +69,11 @@ export default async function AssessmentIntroPage({
   const attemptsUsed = (attempts ?? []).length;
   const outOfAttempts = hasSubmitted && attemptsUsed >= attemptsAllowed;
 
+  // Liberação da coordenação depois do prazo (vale por 24 horas, só desta matrícula).
+  const lateReleases = await loadActiveLateReleases(supabase, [enrollment.id], [assessmentId]);
+  const lateReleaseUntil = lateReleases.get(`${assessmentId}:${enrollment.id}`) ?? null;
+  const deadlineBlocked = isBlockedByDeadline(assessment.closes_at, lateReleaseUntil);
+
   let recoveryBlocked = false;
   let pendingItems: string[] = [];
 
@@ -122,6 +129,7 @@ export default async function AssessmentIntroPage({
         durationMinutes={assessment.duration_minutes}
         passingGrade={assessment.passing_grade}
         closesAt={assessment.closes_at}
+        lateReleaseUntil={lateReleaseUntil}
         attemptsAllowed={attemptsAllowed}
         attemptsUsed={attemptsUsed}
       >
@@ -140,6 +148,8 @@ export default async function AssessmentIntroPage({
           <Alert variant="danger">
             Conclua a trilha de revisão obrigatória ({pendingItems.length} item(ns) pendente(s)) antes de tentar a recuperação.
           </Alert>
+        ) : deadlineBlocked ? (
+          <Alert variant="warning">{DEADLINE_CLOSED_MESSAGE}</Alert>
         ) : (
           <>
             {hasSubmitted ? (

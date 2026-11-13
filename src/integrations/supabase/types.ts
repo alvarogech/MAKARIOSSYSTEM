@@ -502,6 +502,51 @@ export type Database = {
           },
         ]
       }
+      assessment_late_releases: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          enrollment_id: string
+          granted_by: string
+          id: string
+          reason: string
+          valid_until: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          enrollment_id: string
+          granted_by: string
+          id?: string
+          reason: string
+          valid_until: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          enrollment_id?: string
+          granted_by?: string
+          id?: string
+          reason?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_late_releases_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_late_releases_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_questions: {
         Row: {
           assessment_id: string

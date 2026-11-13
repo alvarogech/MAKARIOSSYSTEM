@@ -50,6 +50,13 @@ export type GrantExceptionalAttemptInput = z.infer<
   typeof grantExceptionalAttemptSchema
 >;
 
+export const grantLateReleaseSchema = z.object({
+  assessmentId: z.string().uuid(),
+  studentEmail: z.string().trim().email("E-mail inválido."),
+  reason: z.string().trim().min(10, "Descreva o motivo (mínimo 10 caracteres)."),
+});
+export type GrantLateReleaseInput = z.infer<typeof grantLateReleaseSchema>;
+
 export const submitAssessmentAnswerSchema = z.object({
   attemptId: z.string().uuid(),
   questionId: z.string().uuid(),
