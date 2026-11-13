@@ -92,3 +92,42 @@ describe("migração 087: tabela e segurança", () => {
     expect(migration).not.toMatch(/[—–]/);
   });
 });
+
+describe("migração 088: pedido do próprio aluno", () => {
+  const m88 = readFileSync(path.join(dir, "00000000000088_late_release_student_request.sql"), "utf-8");
+
+  it("é só ASCII, idempotente e sem travessão", () => {
+    expect(/[^\x00-\x7f]/.test(m88)).toBe(false);
+    expect(m88).not.toMatch(/[—–]/);
+    expect(m88).toContain("add column if not exists late_requests_until");
+    expect(m88).toContain("add column if not exists source");
+    expect(m88).toContain("create or replace function public.request_late_release");
+    expect(m88).toContain("create or replace function public.set_late_requests_window");
+  });
+
+  it("NÃO preenche a janela em produção (só cria a coluna)", () => {
+    expect(m88).not.toMatch(/late_requests_until\s*=\s*(timestamptz|'|now\()/);
+    expect(m88).not.toMatch(/insert into public\.assessments/);
+  });
+
+  it("o aluno só grava pela função security definer, com permissão só para quem está logado", () => {
+    expect(m88).toMatch(/request_late_release[\s\S]*security definer/);
+    expect(m88).toContain("revoke execute on function public.request_late_release(uuid, text) from public, anon;");
+    expect(m88).toContain("grant execute on function public.request_late_release(uuid, text) to authenticated;");
+    expect(m88).not.toMatch(/create policy[^;]*assessment_late_releases[^;]*student/i);
+  });
+
+  it("confere tudo no servidor: identidade, motivo, janela, tentativa e matrícula", () => {
+    expect(m88).toContain("auth.uid()");
+    expect(m88).toContain("char_length(v_reason) < 10 or char_length(v_reason) > 500");
+    expect(m88).toContain("late_requests_until is null or now() > v_assessment.late_requests_until");
+    expect(m88).toContain("from public.assessment_attempts");
+    expect(m88).toContain("interval '24 hours'");
+    expect(m88).toContain("'student'");
+    expect(m88).toContain("on conflict (assessment_id, enrollment_id) do nothing");
+  });
+
+  it("só coordenação e admin mexem na janela", () => {
+    expect(m88).toMatch(/set_late_requests_window[\s\S]*has_role\('coordinator'\) or public\.has_role\('admin'\)/);
+  });
+});

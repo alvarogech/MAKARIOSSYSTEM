@@ -115,7 +115,10 @@ export default async function DashboardPage() {
             const journeyNext = journeys.find((j) => j.next)?.next ?? null;
             // Avaliação em aberto sempre vem primeiro; depois o passo da jornada; por fim o passo geral.
             if (studentSummary.nextStep?.kind === "assessment") {
-              return <NextStepCard title={studentSummary.nextStep.label} href={studentSummary.nextStep.href} cta="Abrir avaliação" />;
+              return <NextStepCard title={studentSummary.nextStep.label} detail={studentSummary.nextStep.detail} href={studentSummary.nextStep.href} cta="Abrir avaliação" />;
+            }
+            if (studentSummary.nextStep?.kind === "late_request") {
+              return <NextStepCard title={studentSummary.nextStep.label} detail={studentSummary.nextStep.detail} href={studentSummary.nextStep.href} cta="Pedir liberação da prova" />;
             }
             if (journeyNext) {
               return <NextStepCard title={journeyNext.title} detail={journeyNext.detail} href={journeyNext.href} cta={journeyNext.cta} />;

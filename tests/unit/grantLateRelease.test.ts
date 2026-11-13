@@ -95,7 +95,7 @@ describe("grantLateRelease", () => {
     expect(r.success).toMatch(/Prova liberada para Aluna de Teste até \d{2}\/\d{2} às \d{2}:\d{2}\./);
     expect(inserted).toHaveLength(1);
     const row = inserted[0]!;
-    expect(row).toMatchObject({ assessment_id: "11111111-1111-4111-8111-111111111111", enrollment_id: "enr-1", granted_by: "coord-1" });
+    expect(row).toMatchObject({ assessment_id: "11111111-1111-4111-8111-111111111111", enrollment_id: "enr-1", granted_by: "coord-1", source: "staff" });
     const hours = (new Date(row.valid_until as string).getTime() - before) / 3600000;
     expect(hours).toBeGreaterThan(23.99);
     expect(hours).toBeLessThan(24.01);
@@ -107,7 +107,7 @@ describe("grantLateRelease", () => {
     expect(r.success).toMatch(/Liberação renovada/);
     expect(inserted).toHaveLength(0);
     expect(updated).toHaveLength(1);
-    expect(updated[0]).toMatchObject({ granted_by: "coord-1" });
+    expect(updated[0]).toMatchObject({ granted_by: "coord-1", source: "staff" });
   });
 
   it("recusa quando o prazo ainda não encerrou (o aluno já pode fazer)", async () => {

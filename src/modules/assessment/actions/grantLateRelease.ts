@@ -75,7 +75,7 @@ export async function grantLateRelease(
   const { data: saved, error } = existing
     ? await supabase
         .from("assessment_late_releases")
-        .update({ valid_until: validUntil, granted_by: authContext.userId, reason: parsed.data.reason })
+        .update({ valid_until: validUntil, granted_by: authContext.userId, reason: parsed.data.reason, source: "staff" })
         .eq("id", existing.id)
         .select("id")
     : await supabase
@@ -86,6 +86,7 @@ export async function grantLateRelease(
           valid_until: validUntil,
           granted_by: authContext.userId,
           reason: parsed.data.reason,
+          source: "staff",
         })
         .select("id");
 

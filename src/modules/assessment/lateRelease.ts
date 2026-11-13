@@ -40,3 +40,44 @@ export function lateReleaseMessage(validUntil: string): string {
 
 export const DEADLINE_CLOSED_MESSAGE =
   "O prazo para fazer esta avaliação encerrou. Se você não conseguiu fazer, procure a coordenação para pedir a liberação.";
+
+export const HAD_ATTEMPT_MESSAGE = "Você já fez esta avaliação. Se precisar de ajuda, fale com a coordenação da Escola Makários.";
+export const RELEASE_EXPIRED_MESSAGE = "O seu prazo de 24 horas terminou. Fale com a coordenação da Escola Makários.";
+
+export type LateReleaseView =
+  | "none" //      o prazo não bloqueia (dentro do prazo, sem prazo, ou liberação ativa)
+  | "released" //  prazo vencido e liberação ativa
+  | "request" //   prazo vencido, pode pedir a liberação agora
+  | "expired" //   já teve liberação e as 24 horas terminaram
+  | "had_attempt" // prazo vencido e já tem tentativa: só a coordenação ajuda
+  | "closed"; //   prazo vencido e a janela de pedidos não está aberta
+
+/** O que o aluno vê, no mesmo critério de request_late_release (migração 088). */
+export function lateReleaseView(input: {
+  closesAt: string | null;
+  requestsUntil: string | null;
+  releaseValidUntil: string | null;
+  attemptsUsed: number;
+  now?: Date;
+}): LateReleaseView {
+  const now = input.now ?? new Date();
+  if (!isPastDeadline(input.closesAt, now)) return "none";
+  if (isReleaseActive(input.releaseValidUntil, now)) return "released";
+  if (input.releaseValidUntil) return "expired";
+  if (input.attemptsUsed > 0) return "had_attempt";
+  return isReleaseActive(input.requestsUntil, now) ? "request" : "closed";
+}
+
+/** "2026-11-13T23:59", no horário de Brasília, para preencher o campo datetime-local. */
+export function toBrasiliaInputValue(iso: string): string {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(iso));
+  return parts.replace(" ", "T");
+}

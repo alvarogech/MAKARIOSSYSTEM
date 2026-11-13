@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
-import { isBlockedByDeadline, lateReleaseMessage } from "@/modules/assessment/lateRelease";
+import { isBlockedByDeadline, isReleaseActive, lateReleaseMessage } from "@/modules/assessment/lateRelease";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FileText, Link2, Lock, CheckCircle2, MessageCircle, PlayCircle } from "lucide-react";
@@ -105,7 +105,7 @@ export default async function VolumeOutlinePage({
 
   const { data: assessments } = await supabase
     .from("assessments")
-    .select("id, title, type, status, closes_at")
+    .select("id, title, type, status, closes_at, late_requests_until")
     .eq("season_volume_offering_id", enrollment.season_volume_offering_id)
     .eq("status", "open");
 
@@ -114,10 +114,13 @@ export default async function VolumeOutlinePage({
     [enrollment.id],
     (assessments ?? []).map((a) => a.id),
   );
-  const assessmentNote = (a: { id: string; closes_at: string | null }) => {
+  const assessmentNote = (a: { id: string; closes_at: string | null; late_requests_until: string | null }) => {
     const until = lateReleases.get(`${a.id}:${enrollment.id}`) ?? null;
     if (until) return lateReleaseMessage(until);
-    return isBlockedByDeadline(a.closes_at, null) ? "Prazo encerrado. Procure a coordenação se precisar de liberação." : null;
+    if (!isBlockedByDeadline(a.closes_at, null)) return null;
+    return isReleaseActive(a.late_requests_until)
+      ? "Prazo encerrado. Toque para pedir a liberação da prova."
+      : "Prazo encerrado. Procure a coordenação se precisar de liberação.";
   };
 
   return (

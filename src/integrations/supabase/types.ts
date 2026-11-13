@@ -510,6 +510,7 @@ export type Database = {
           granted_by: string
           id: string
           reason: string
+          source: string
           valid_until: string
         }
         Insert: {
@@ -519,6 +520,7 @@ export type Database = {
           granted_by: string
           id?: string
           reason: string
+          source?: string
           valid_until: string
         }
         Update: {
@@ -528,6 +530,7 @@ export type Database = {
           granted_by?: string
           id?: string
           reason?: string
+          source?: string
           valid_until?: string
         }
         Relationships: [
@@ -593,6 +596,7 @@ export type Database = {
           created_at: string
           duration_minutes: number
           id: string
+          late_requests_until: string | null
           linked_assessment_id: string | null
           opens_at: string | null
           passing_grade: number
@@ -615,6 +619,7 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           id?: string
+          late_requests_until?: string | null
           linked_assessment_id?: string | null
           opens_at?: string | null
           passing_grade?: number
@@ -637,6 +642,7 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           id?: string
+          late_requests_until?: string | null
           linked_assessment_id?: string | null
           opens_at?: string | null
           passing_grade?: number
@@ -3640,6 +3646,57 @@ export type Database = {
         Args: { p_action: string; p_entity_id: string; p_new_value: Json }
         Returns: undefined
       }
+      request_late_release: {
+        Args: { p_assessment_id: string; p_reason: string }
+        Returns: {
+          assessment_id: string
+          created_at: string
+          enrollment_id: string
+          granted_by: string
+          id: string
+          reason: string
+          source: string
+          valid_until: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assessment_late_releases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_late_requests_window: {
+        Args: { p_assessment_id: string; p_until: string }
+        Returns: {
+          answer_key_release_reason:
+            | Database["public"]["Enums"]["answer_key_release_reason"]
+            | null
+          answer_key_released_at: string | null
+          closes_at: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          late_requests_until: string | null
+          linked_assessment_id: string | null
+          opens_at: string | null
+          passing_grade: number
+          questions_count: number
+          season_volume_offering_id: string
+          shuffle_options: boolean
+          shuffle_questions: boolean
+          status: Database["public"]["Enums"]["assessment_status"]
+          title: string
+          total_points: number
+          type: Database["public"]["Enums"]["assessment_type"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assessments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       publish_assessment: {
         Args: { p_assessment_id: string }
         Returns: {
@@ -3651,6 +3708,7 @@ export type Database = {
           created_at: string
           duration_minutes: number
           id: string
+          late_requests_until: string | null
           linked_assessment_id: string | null
           opens_at: string | null
           passing_grade: number
@@ -3682,6 +3740,7 @@ export type Database = {
           created_at: string
           duration_minutes: number
           id: string
+          late_requests_until: string | null
           linked_assessment_id: string | null
           opens_at: string | null
           passing_grade: number

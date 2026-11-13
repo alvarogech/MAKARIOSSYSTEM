@@ -22,9 +22,11 @@ export function LateReleasesList({
             </span>
           </div>
           <p className="mt-1 break-words text-neutral-600">{assessmentLabelById[row.assessmentId] ?? "Avaliação"}</p>
-          <p className="mt-1 break-words text-xs text-neutral-500">
-            Liberada por {row.grantedByName}. Motivo: {row.reason}
+          <p className="mt-1 text-xs text-neutral-500">
+            {row.source === "student" ? "Pedida pelo aluno" : `Liberada pela coordenação (${row.grantedByName})`} em {row.requestedAtLabel}
           </p>
+          <p className="mt-1 break-words text-xs text-neutral-600">Motivo: {row.reason}</p>
+          <p className="mt-1 text-xs font-medium text-neutral-700">{row.attemptLabel}</p>
         </li>
       ))}
     </ul>

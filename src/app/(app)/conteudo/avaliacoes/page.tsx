@@ -12,8 +12,10 @@ import {
 } from "@/modules/assessment/components/AssessmentActionButtons";
 import { GrantExceptionalAttemptForm } from "@/modules/assessment/components/GrantExceptionalAttemptForm";
 import { GrantLateReleaseForm } from "@/modules/assessment/components/GrantLateReleaseForm";
+import { LateRequestsWindowForm } from "@/modules/assessment/components/LateRequestsWindowForm";
 import { LateReleasesList } from "@/modules/assessment/components/LateReleasesList";
 import { loadLateReleaseRows } from "@/modules/assessment/lateReleaseRows";
+import { formatReleaseDeadline, isPastDeadline, toBrasiliaInputValue } from "@/modules/assessment/lateRelease";
 import { statusLabel } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Avaliações" };
@@ -52,7 +54,7 @@ export default async function AvaliacoesPage() {
     supabase.from("seasons").select("id, name"),
     supabase
       .from("assessments")
-      .select("id, title, type, season_volume_offering_id, status, questions_count, duration_minutes, answer_key_released_at")
+      .select("id, title, type, season_volume_offering_id, status, questions_count, duration_minutes, answer_key_released_at, closes_at, late_requests_until")
       .order("created_at", { ascending: false }),
     supabase.from("question_bank").select("id, prompt").order("created_at", { ascending: false }),
     supabase.from("contents").select("id, title"),
@@ -116,6 +118,17 @@ export default async function AvaliacoesPage() {
                   ) : null}
                 </div>
               </div>
+              {canGrantExceptional && a.status === "open" && isPastDeadline(a.closes_at) ? (
+                <LateRequestsWindowForm
+                  assessmentId={a.id}
+                  currentLabel={
+                    a.late_requests_until
+                      ? `Pedidos de liberação ${new Date(a.late_requests_until) > new Date() ? "abertos" : "encerrados"} até ${formatReleaseDeadline(a.late_requests_until)}`
+                      : "Pedidos de liberação desligados"
+                  }
+                  currentValue={a.late_requests_until ? toBrasiliaInputValue(a.late_requests_until) : ""}
+                />
+              ) : null}
             </li>
           ))}
           {(assessments ?? []).length === 0 ? (
@@ -173,10 +186,11 @@ export default async function AvaliacoesPage() {
 
       {canGrantExceptional ? (
         <Card>
-          <h2 className="font-semibold text-neutral-900">Liberar prova por 24 horas</h2>
+          <h2 className="font-semibold text-neutral-900">Liberações fora do prazo</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Para o aluno que não fez a prova no prazo e procurou a coordenação. Vale por 24 horas, serve também para quem
-            nunca abriu a prova e não dá tentativa extra. Fica registrada na auditoria.
+            O aluno mesmo pode pedir pela plataforma, escrevendo o motivo, enquanto a data de pedidos (em cada avaliação, acima) estiver
+            aberta. Aqui a coordenação libera ou renova por 24 horas para um aluno que procurou a escola. Vale também para quem nunca abriu
+            a prova e não dá tentativa extra. Tudo fica registrado na auditoria.
           </p>
           <div className="mt-3">
             <GrantLateReleaseForm
@@ -186,7 +200,7 @@ export default async function AvaliacoesPage() {
               }))}
             />
           </div>
-          <h3 className="mt-5 text-sm font-semibold text-neutral-900">Liberações dadas</h3>
+          <h3 className="mt-5 text-sm font-semibold text-neutral-900">Quem foi liberado</h3>
           <div className="mt-2">
             <LateReleasesList
               rows={lateReleaseRows}

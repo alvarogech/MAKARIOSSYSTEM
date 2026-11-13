@@ -8,8 +8,15 @@ import { Alert } from "@/components/ui/Alert";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { StartAssessmentButton } from "@/modules/assessment/components/StartAssessmentButton";
 import { AssessmentPrep } from "@/modules/assessment/components/AssessmentPrep";
-import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
-import { DEADLINE_CLOSED_MESSAGE, isBlockedByDeadline } from "@/modules/assessment/lateRelease";
+import { RequestLateReleaseForm } from "@/modules/assessment/components/RequestLateReleaseForm";
+import { loadLateReleases } from "@/modules/assessment/lateReleaseQueries";
+import {
+  DEADLINE_CLOSED_MESSAGE,
+  HAD_ATTEMPT_MESSAGE,
+  RELEASE_EXPIRED_MESSAGE,
+  isReleaseActive,
+  lateReleaseView,
+} from "@/modules/assessment/lateRelease";
 
 export const metadata: Metadata = { title: "Avaliação" };
 
@@ -30,7 +37,7 @@ export default async function AssessmentIntroPage({
 
   const { data: assessment } = await supabase
     .from("assessments")
-    .select("id, title, type, questions_count, duration_minutes, closes_at, passing_grade, season_volume_offering_id")
+    .select("id, title, type, questions_count, duration_minutes, closes_at, late_requests_until, passing_grade, season_volume_offering_id")
     .eq("id", assessmentId)
     .maybeSingle();
 
@@ -70,9 +77,15 @@ export default async function AssessmentIntroPage({
   const outOfAttempts = hasSubmitted && attemptsUsed >= attemptsAllowed;
 
   // Liberação da coordenação depois do prazo (vale por 24 horas, só desta matrícula).
-  const lateReleases = await loadActiveLateReleases(supabase, [enrollment.id], [assessmentId]);
-  const lateReleaseUntil = lateReleases.get(`${assessmentId}:${enrollment.id}`) ?? null;
-  const deadlineBlocked = isBlockedByDeadline(assessment.closes_at, lateReleaseUntil);
+  const lateReleases = await loadLateReleases(supabase, [enrollment.id], [assessmentId]);
+  const releaseValidUntil = lateReleases.get(`${assessmentId}:${enrollment.id}`) ?? null;
+  const lateView = lateReleaseView({
+    closesAt: assessment.closes_at,
+    requestsUntil: assessment.late_requests_until,
+    releaseValidUntil,
+    attemptsUsed,
+  });
+  const lateReleaseUntil = isReleaseActive(releaseValidUntil) ? releaseValidUntil : null;
 
   let recoveryBlocked = false;
   let pendingItems: string[] = [];
@@ -148,7 +161,24 @@ export default async function AssessmentIntroPage({
           <Alert variant="danger">
             Conclua a trilha de revisão obrigatória ({pendingItems.length} item(ns) pendente(s)) antes de tentar a recuperação.
           </Alert>
-        ) : deadlineBlocked ? (
+        ) : lateView === "request" ? (
+          <RequestLateReleaseForm
+            assessmentId={assessmentId}
+            questionsCount={assessment.questions_count}
+            durationMinutes={assessment.duration_minutes}
+          />
+        ) : lateView === "expired" ? (
+          <Alert variant="warning">{RELEASE_EXPIRED_MESSAGE}</Alert>
+        ) : lateView === "had_attempt" ? (
+          <Alert variant="info">
+            {HAD_ATTEMPT_MESSAGE}{" "}
+            {hasSubmitted ? (
+              <Link href={`/avaliacoes/${assessmentId}/resultado`} className="font-medium underline">
+                Ver resultado
+              </Link>
+            ) : null}
+          </Alert>
+        ) : lateView === "closed" ? (
           <Alert variant="warning">{DEADLINE_CLOSED_MESSAGE}</Alert>
         ) : (
           <>

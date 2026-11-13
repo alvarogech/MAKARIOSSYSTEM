@@ -5,8 +5,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { formatSaoPauloLongDate, formatSaoPauloTimeRange, getSaoPauloDateKey } from "@/lib/saoPauloDate";
 import { buildMapsSearchUrl } from "@/lib/maps";
 import { selectNextMeeting } from "./nextMeeting";
-import { isBlockedByDeadline, lateReleaseMessage } from "@/modules/assessment/lateRelease";
-import { loadActiveLateReleases } from "@/modules/assessment/lateReleaseQueries";
+import { isReleaseActive, lateReleaseMessage, lateReleaseView } from "@/modules/assessment/lateRelease";
+import { loadAttemptCounts, loadLateReleases } from "@/modules/assessment/lateReleaseQueries";
 
 const ACTIVE_ENROLLMENT_STATUSES = ["active", "regularization", "approved"] as const;
 
@@ -22,8 +22,10 @@ export interface StudentNextMeeting {
 }
 
 export interface StudentNextStep {
-  kind: "assessment" | "meeting" | "study";
+  kind: "assessment" | "late_request" | "meeting" | "study";
   label: string;
+  /** Segunda linha do cartão (por exemplo, o nome da avaliação). */
+  detail?: string | null;
   href: string | null;
 }
 
@@ -85,7 +87,7 @@ export async function loadStudentHomeSummary(
     supabase.from("seasons").select("id, name").in("id", seasonIds),
     supabase
       .from("assessments")
-      .select("id, title, season_volume_offering_id, closes_at")
+      .select("id, title, type, season_volume_offering_id, closes_at, late_requests_until")
       .in("season_volume_offering_id", offeringIds)
       .eq("status", "open"),
     supabase.from("volume_whatsapp_groups").select("volume_id, invite_url").in("volume_id", volumeIds),
@@ -143,38 +145,58 @@ export async function loadStudentHomeSummary(
 
   const otherUpcomingCount = nextMeeting ? Math.max(0, upcoming.length - 1) : 0;
 
-  // Prazo vencido só esconde o aviso quando o aluno não tem liberação da coordenação (vale 24 horas).
+  // Prazo vencido esconde o aviso, a não ser que o aluno tenha liberação (24 horas) ou possa pedir uma.
   const enrollmentByOfferingId = new Map(rows.map((e) => [e.season_volume_offering_id, e]));
-  const lateReleases = await loadActiveLateReleases(
-    supabase,
-    rows.map((e) => e.id),
-    (openAssessments ?? []).map((a) => a.id),
-  );
-  const releaseUntilFor = (a: { id: string; season_volume_offering_id: string }) => {
+  const enrollmentIds = rows.map((e) => e.id);
+  const assessmentIds = (openAssessments ?? []).map((a) => a.id);
+  const [lateReleases, attemptCounts] = await Promise.all([
+    loadLateReleases(supabase, enrollmentIds, assessmentIds),
+    loadAttemptCounts(supabase, enrollmentIds, assessmentIds),
+  ]);
+  const withView = (openAssessments ?? []).map((a) => {
     const enrollment = enrollmentByOfferingId.get(a.season_volume_offering_id);
-    return enrollment ? (lateReleases.get(`${a.id}:${enrollment.id}`) ?? null) : null;
-  };
-  const reachableAssessments = (openAssessments ?? []).filter(
-    (a) => !isBlockedByDeadline(a.closes_at, releaseUntilFor(a)),
-  );
-  const firstOpenAssessment = reachableAssessments[0] ?? null;
-  const firstOpenRelease = firstOpenAssessment ? releaseUntilFor(firstOpenAssessment) : null;
+    const key = enrollment ? `${a.id}:${enrollment.id}` : "";
+    const releaseValidUntil = lateReleases.get(key) ?? null;
+    const view = lateReleaseView({
+      closesAt: a.closes_at,
+      requestsUntil: a.late_requests_until,
+      releaseValidUntil,
+      attemptsUsed: attemptCounts.get(key) ?? 0,
+    });
+    return { assessment: a, view, releaseUntil: isReleaseActive(releaseValidUntil) ? releaseValidUntil : null };
+  });
+  const firstOpen = withView.find((x) => x.view === "none" || x.view === "released") ?? null;
+  const firstRequest = withView.find((x) => x.view === "request" && x.assessment.type === "final") ?? null;
 
-  const nextStep: StudentNextStep | null = firstOpenAssessment
-    ? {
-        kind: "assessment",
-        label: `Você tem uma avaliação em aberto: ${firstOpenAssessment.title}${firstOpenRelease ? `. ${lateReleaseMessage(firstOpenRelease)}` : ""}`,
-        href: `/avaliacoes/${firstOpenAssessment.id}`,
-      }
-    : nextMeeting
+  const nextStep: StudentNextStep | null = firstOpen
+    ? firstOpen.releaseUntil
       ? {
-          kind: "meeting",
-          label: `Seu próximo passo é participar do encontro de ${nextMeeting.className} em ${nextMeeting.dateLabel}.`,
-          href: nextMeeting.volumeHref,
+          kind: "assessment",
+          label: lateReleaseMessage(firstOpen.releaseUntil),
+          detail: firstOpen.assessment.title,
+          href: `/avaliacoes/${firstOpen.assessment.id}`,
         }
-      : rows[0]
-        ? { kind: "study", label: "Continue seus estudos nos volumes em andamento.", href: `/meus-volumes/${rows[0].id}` }
-        : null;
+      : {
+          kind: "assessment",
+          label: `Você tem uma avaliação em aberto: ${firstOpen.assessment.title}`,
+          href: `/avaliacoes/${firstOpen.assessment.id}`,
+        }
+    : firstRequest
+      ? {
+          kind: "late_request",
+          label: "Não conseguiu fazer a avaliação final?",
+          detail: `${firstRequest.assessment.title}. Conte o motivo e a prova é liberada para você na hora.`,
+          href: `/avaliacoes/${firstRequest.assessment.id}`,
+        }
+      : nextMeeting
+        ? {
+            kind: "meeting",
+            label: `Seu próximo passo é participar do encontro de ${nextMeeting.className} em ${nextMeeting.dateLabel}.`,
+            href: nextMeeting.volumeHref,
+          }
+        : rows[0]
+          ? { kind: "study", label: "Continue seus estudos nos volumes em andamento.", href: `/meus-volumes/${rows[0].id}` }
+          : null;
 
   const volumesCards: StudentVolumeCard[] = rows.map((enrollment) => {
     const offering = offeringById.get(enrollment.season_volume_offering_id);

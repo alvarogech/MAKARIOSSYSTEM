@@ -55,6 +55,22 @@ export const grantLateReleaseSchema = z.object({
   studentEmail: z.string().trim().email("E-mail inválido."),
   reason: z.string().trim().min(10, "Descreva o motivo (mínimo 10 caracteres)."),
 });
+export const requestLateReleaseSchema = z.object({
+  assessmentId: z.string().uuid(),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "Conte o motivo com pelo menos 10 letras.")
+    .max(500, "O motivo pode ter no máximo 500 letras."),
+});
+
+export const setLateRequestsWindowSchema = z.object({
+  assessmentId: z.string().uuid(),
+  intent: z.enum(["save", "off"]),
+  /** "AAAA-MM-DDTHH:mm" no horário de Brasília (campo datetime-local). */
+  until: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Escolha a data e a hora.").optional().or(z.literal("")),
+});
+
 export type GrantLateReleaseInput = z.infer<typeof grantLateReleaseSchema>;
 
 export const submitAssessmentAnswerSchema = z.object({

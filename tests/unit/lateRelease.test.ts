@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEADLINE_CLOSED_MESSAGE,
+  HAD_ATTEMPT_MESSAGE,
+  RELEASE_EXPIRED_MESSAGE,
+  lateReleaseView,
+  toBrasiliaInputValue,
   formatReleaseDeadline,
   isBlockedByDeadline,
   isPastDeadline,
@@ -47,5 +51,35 @@ describe("texto para o aluno", () => {
   it("as frases não têm travessão", () => {
     expect(DEADLINE_CLOSED_MESSAGE).not.toMatch(/[—–]/);
     expect(lateReleaseMessage(releaseOk)).not.toMatch(/[—–]/);
+  });
+});
+
+describe("o que o aluno vê (espelha request_late_release)", () => {
+  const base = { closesAt: past, requestsUntil: "2026-11-13T23:59:00Z", releaseValidUntil: null, attemptsUsed: 0, now };
+  it("dentro do prazo ou sem prazo: nada a mostrar", () => {
+    expect(lateReleaseView({ ...base, closesAt: future })).toBe("none");
+    expect(lateReleaseView({ ...base, closesAt: null })).toBe("none");
+  });
+  it("sem tentativa, prazo vencido e janela aberta: pode pedir", () => {
+    expect(lateReleaseView(base)).toBe("request");
+  });
+  it("janela desligada ou encerrada: só a coordenação ajuda", () => {
+    expect(lateReleaseView({ ...base, requestsUntil: null })).toBe("closed");
+    expect(lateReleaseView({ ...base, requestsUntil: "2026-11-13T14:00:00Z" })).toBe("closed");
+  });
+  it("quem já tem tentativa não pede", () => {
+    expect(lateReleaseView({ ...base, attemptsUsed: 1 })).toBe("had_attempt");
+  });
+  it("liberação ativa: liberada; vencida: o prazo de 24 horas terminou (e não pede de novo)", () => {
+    expect(lateReleaseView({ ...base, releaseValidUntil: releaseOk })).toBe("released");
+    expect(lateReleaseView({ ...base, releaseValidUntil: releaseOld })).toBe("expired");
+    expect(lateReleaseView({ ...base, releaseValidUntil: releaseOld, requestsUntil: "2026-11-20T00:00:00Z" })).toBe("expired");
+  });
+  it("as frases não têm travessão", () => {
+    expect(HAD_ATTEMPT_MESSAGE).toBe("Você já fez esta avaliação. Se precisar de ajuda, fale com a coordenação da Escola Makários.");
+    for (const m of [HAD_ATTEMPT_MESSAGE, RELEASE_EXPIRED_MESSAGE]) expect(m).not.toMatch(/[—–]/);
+  });
+  it("campo da coordenação mostra o horário de Brasília", () => {
+    expect(toBrasiliaInputValue("2026-11-14T02:59:00Z")).toBe("2026-11-13T23:59");
   });
 });
