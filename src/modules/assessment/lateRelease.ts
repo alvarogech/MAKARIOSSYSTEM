@@ -79,7 +79,12 @@ export function lateReleaseView(input: {
     const canStart = canStartOrContinue({ attemptsUsed: input.attemptsUsed, attemptsAllowed: input.attemptsAllowed ?? 1, hasInProgress });
     return canStart ? "released" : "had_attempt";
   }
-  if (input.releaseValidUntil) return "expired";
+  if (input.releaseValidUntil) {
+    // Liberação vencida: só "expired" se ele ainda poderia iniciar ou continuar; quem já usou a tentativa não leva a frase errada.
+    return canStartOrContinue({ attemptsUsed: input.attemptsUsed, attemptsAllowed: input.attemptsAllowed ?? 1, hasInProgress })
+      ? "expired"
+      : "had_attempt";
+  }
   if (input.attemptsUsed > 0) return "had_attempt";
   return isReleaseActive(input.requestsUntil, now) ? "request" : "closed";
 }

@@ -185,4 +185,10 @@ describe("grantLateRelease", () => {
     const r = await grantLateRelease({}, form());
     expect(r.success).toMatch(/Prova liberada/);
   });
+
+  it("S3: sem escolher a avaliação, a mensagem é em português", async () => {
+    const r = await grantLateRelease({}, form({ assessmentId: "" }));
+    expect(r.error).toBe("Escolha a avaliação.");
+    expect(inserted).toHaveLength(0);
+  });
 });

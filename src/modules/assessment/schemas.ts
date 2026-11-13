@@ -51,7 +51,7 @@ export type GrantExceptionalAttemptInput = z.infer<
 >;
 
 export const grantLateReleaseSchema = z.object({
-  assessmentId: z.string().uuid(),
+  assessmentId: z.string().uuid("Escolha a avaliação."),
   studentEmail: z.string().trim().email("E-mail inválido."),
   reason: z.string().trim().min(10, "Descreva o motivo (mínimo 10 caracteres)."),
 });

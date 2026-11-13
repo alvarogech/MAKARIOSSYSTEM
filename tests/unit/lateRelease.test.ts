@@ -143,3 +143,21 @@ describe("lista do volume usa a mesma decisão (revisão 2, C2 e C3)", () => {
     expect(note({ closesAt: future })).toBeNull();
   });
 });
+
+describe("liberação vencida (revisão 3, C1)", () => {
+  const expired = { closesAt: past, requestsUntil: null, releaseValidUntil: releaseOld, now };
+  it("vencida e já enviou a prova: had_attempt (sem a frase 'seu prazo de 24 horas terminou')", () => {
+    expect(lateReleaseView({ ...expired, attemptsUsed: 1 })).toBe("had_attempt");
+    expect(volumeAssessmentNote(lateReleaseView({ ...expired, attemptsUsed: 1 }), releaseOld)).toBeNull();
+  });
+  it("vencida sem tentativa continua expired", () => {
+    expect(lateReleaseView({ ...expired, attemptsUsed: 0 })).toBe("expired");
+  });
+  it("vencida com a excepcional e uma tentativa usada continua expired (ainda sobra uma)", () => {
+    expect(lateReleaseView({ ...expired, attemptsUsed: 1, attemptsAllowed: 2 })).toBe("expired");
+    expect(lateReleaseView({ ...expired, attemptsUsed: 2, attemptsAllowed: 2 })).toBe("had_attempt");
+  });
+  it("vencida com prova em andamento continua expired (ele ainda pode continuar)", () => {
+    expect(lateReleaseView({ ...expired, attemptsUsed: 1, hasInProgress: true })).toBe("expired");
+  });
+});
