@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { loadAttemptStats, loadExceptionalKeys, loadLateReleases } from "@/modules/assessment/lateReleaseQueries";
-import { RELEASE_EXPIRED_MESSAGE, lateReleaseMessage, lateReleaseView } from "@/modules/assessment/lateRelease";
+import { lateReleaseView, volumeAssessmentNote } from "@/modules/assessment/lateRelease";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FileText, Link2, Lock, CheckCircle2, MessageCircle, PlayCircle } from "lucide-react";
@@ -128,11 +128,7 @@ export default async function VolumeOutlinePage({
       attemptsAllowed: exceptionalKeys.has(key) ? 2 : 1,
       hasInProgress: stats.inProgress,
     });
-    if (view === "released" && releaseValidUntil) return lateReleaseMessage(releaseValidUntil);
-    if (view === "request") return "Prazo encerrado. Toque para pedir a liberação da prova.";
-    if (view === "expired") return RELEASE_EXPIRED_MESSAGE;
-    if (view === "closed") return "Prazo encerrado. Procure a coordenação se precisar de liberação.";
-    return null;
+    return volumeAssessmentNote(view, releaseValidUntil);
   };
 
   return (

@@ -15,6 +15,11 @@ describe("RequestLateReleaseForm", () => {
       screen.getByText("Depois de enviar, você tem 24 horas para fazer. São 20 questões e 60 minutos a partir do início. Envie só quando puder fazer."),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Enviar e liberar minha prova" })).toBeTruthy();
+    // A dica usa a mesma palavra do erro do servidor ("caracteres") e está ligada ao campo.
+    expect(screen.getByText("De 10 a 500 caracteres.")).toBeTruthy();
+    const field = screen.getByLabelText("Por que você não conseguiu fazer?");
+    expect(field.getAttribute("aria-describedby")).toBe("late-reason-hint");
+    expect(document.getElementById("late-reason-hint")?.textContent).toBe("De 10 a 500 caracteres.");
     expect(screen.queryByLabelText(/e-mail|cpf|nome/i)).toBeNull();
     expect(document.body.textContent).not.toMatch(/[—–]/);
   });

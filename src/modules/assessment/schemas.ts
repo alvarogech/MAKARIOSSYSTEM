@@ -60,8 +60,8 @@ export const requestLateReleaseSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(10, "Conte o motivo com pelo menos 10 letras.")
-    .max(500, "O motivo pode ter no máximo 500 letras."),
+    .min(10, "Conte o motivo com pelo menos 10 caracteres.")
+    .max(500, "O motivo pode ter no máximo 500 caracteres."),
 });
 
 export const setLateRequestsWindowSchema = z.object({

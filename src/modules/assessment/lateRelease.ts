@@ -84,6 +84,25 @@ export function lateReleaseView(input: {
   return isReleaseActive(input.requestsUntil, now) ? "request" : "closed";
 }
 
+/**
+ * Linha pequena sob a avaliação na lista do volume, pela MESMA decisão da página da avaliação e da tela
+ * inicial. Quem já fez a prova ("had_attempt") e quem está dentro do prazo ("none") não vê nada.
+ */
+export function volumeAssessmentNote(view: LateReleaseView, releaseValidUntil: string | null): string | null {
+  switch (view) {
+    case "released":
+      return releaseValidUntil ? lateReleaseMessage(releaseValidUntil) : null;
+    case "request":
+      return "Prazo encerrado. Toque para pedir a liberação da prova.";
+    case "expired":
+      return RELEASE_EXPIRED_MESSAGE;
+    case "closed":
+      return "Prazo encerrado. Procure a coordenação se precisar de liberação.";
+    default:
+      return null;
+  }
+}
+
 /** "2026-11-13T23:59", no horário de Brasília, para preencher o campo datetime-local. */
 export function toBrasiliaInputValue(iso: string): string {
   const parts = new Intl.DateTimeFormat("sv-SE", {

@@ -39,10 +39,11 @@ export function RequestLateReleaseForm({
           required
           minLength={10}
           maxLength={500}
+          aria-describedby="late-reason-hint"
           rows={4}
           className="w-full rounded-[var(--radius-sm)] border border-neutral-200 bg-white p-3 text-base focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue"
         />
-        <p className="mt-1 text-xs text-neutral-500">De 10 a 500 letras.</p>
+        <p id="late-reason-hint" className="mt-1 text-xs text-neutral-500">De 10 a 500 caracteres.</p>
       </div>
 
       <Alert variant="warning">

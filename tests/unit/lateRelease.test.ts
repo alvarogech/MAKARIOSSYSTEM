@@ -4,6 +4,7 @@ import {
   HAD_ATTEMPT_MESSAGE,
   RELEASE_EXPIRED_MESSAGE,
   canStartOrContinue,
+  volumeAssessmentNote,
   lateReleaseView,
   toBrasiliaInputValue,
   formatReleaseDeadline,
@@ -107,5 +108,38 @@ describe("liberação não dá tentativa extra (revisão do Léo, C1)", () => {
     const open = { closesAt: past, requestsUntil: "2026-11-13T23:59:00Z", releaseValidUntil: null, now };
     expect(lateReleaseView({ ...open, attemptsUsed: 0 })).toBe("request");
     expect(lateReleaseView({ ...open, attemptsUsed: 1 })).toBe("had_attempt");
+  });
+});
+
+describe("lista do volume usa a mesma decisão (revisão 2, C2 e C3)", () => {
+  const open = { closesAt: past, requestsUntil: "2026-11-13T23:59:00Z", now };
+  const note = (over: Partial<Parameters<typeof lateReleaseView>[0]>) => {
+    const input = { ...open, releaseValidUntil: null, attemptsUsed: 0, ...over };
+    return volumeAssessmentNote(lateReleaseView(input), input.releaseValidUntil);
+  };
+
+  it("quem já fez a prova não vê convite nenhum, nem 'toque para pedir'", () => {
+    expect(note({ attemptsUsed: 1 })).toBeNull();
+    expect(note({ attemptsUsed: 2, attemptsAllowed: 2 })).toBeNull();
+  });
+  it("quem pode pedir vê o convite para pedir", () => {
+    expect(note({})).toBe("Prazo encerrado. Toque para pedir a liberação da prova.");
+  });
+  it("janela fechada manda procurar a coordenação", () => {
+    expect(note({ requestsUntil: null })).toBe("Prazo encerrado. Procure a coordenação se precisar de liberação.");
+  });
+  it("liberação ativa com tentativa para usar mostra até quando vale", () => {
+    expect(note({ releaseValidUntil: releaseOk })).toBe("Prova liberada para você até 14/11 às 12:00.");
+  });
+  it("C3: liberação ativa mas tentativa já enviada não mostra 'liberada'", () => {
+    expect(note({ releaseValidUntil: releaseOk, attemptsUsed: 1 })).toBeNull();
+    expect(note({ releaseValidUntil: releaseOk, attemptsUsed: 1, attemptsAllowed: 2 })).toBe("Prova liberada para você até 14/11 às 12:00.");
+    expect(note({ releaseValidUntil: releaseOk, attemptsUsed: 1, hasInProgress: true })).toBe("Prova liberada para você até 14/11 às 12:00.");
+  });
+  it("liberação vencida diz que o prazo de 24 horas terminou", () => {
+    expect(note({ releaseValidUntil: releaseOld })).toBe("O seu prazo de 24 horas terminou. Fale com a coordenação da Escola Makários.");
+  });
+  it("dentro do prazo não mostra nada", () => {
+    expect(note({ closesAt: future })).toBeNull();
   });
 });
